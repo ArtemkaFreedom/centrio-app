@@ -71,12 +71,10 @@ jobs:
       - run: npm ci
 
       - name: Build macOS (unsigned)
-        run: node build-renderer.js && npx electron-builder --mac dmg --x64 --publish never
+        run: node build-renderer.js && npx electron-builder --mac dmg --x64 --publish never --config.mac.hardenedRuntime=false --config.mac.identity=null
         env:
           NODE_ENV: production
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          CSC_KEY_PASSWORD: ''
-          CSC_LINK: ''
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
 
       - uses: actions/upload-artifact@v4

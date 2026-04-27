@@ -3,6 +3,10 @@
   "productName": "Centrio",
   "version": "1.5.18",
   "description": "All messengers in one app",
+  "author": {
+    "name": "Centrio",
+    "email": "support@centrio.me"
+  },
   "main": "main.js",
   "scripts": {
     "build:renderer": "node build-renderer.js",
