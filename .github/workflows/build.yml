@@ -5,10 +5,6 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to build (e.g. 1.5.19)'
-        required: false
 
 jobs:
   # ─── Windows ───────────────────────────────────────────────────────────────
@@ -31,29 +27,24 @@ jobs:
           YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
           YANDEX_CLIENT_SECRET=${{ secrets.YANDEX_CLIENT_SECRET }}
           TELEGRAM_BOT_ID=${{ secrets.TELEGRAM_BOT_ID }}
-          UPLOAD_HOST=${{ secrets.SSH_HOST }}
-          UPLOAD_PORT=22
-          UPLOAD_USER=${{ secrets.SSH_USER }}
-          UPLOAD_PASSWORD=${{ secrets.SSH_PASSWORD }}
-          UPLOAD_PATH=/var/www/centrio-downloads
           "@ | Out-File -FilePath .env -Encoding utf8NoBOM
 
       - run: npm ci
 
       - name: Build Windows
-        run: npm run build:renderer && npx electron-builder --win --publish never
+        run: node build-renderer.js && npx electron-builder --win --publish never
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          NODE_ENV: production
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: win-artifacts
           path: |
-            dist-*/*.exe
-            dist-*/*.exe.blockmap
-            dist-*/latest.yml
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/latest.yml
           if-no-files-found: error
 
   # ─── macOS ─────────────────────────────────────────────────────────────────
@@ -80,18 +71,20 @@ jobs:
       - run: npm ci
 
       - name: Build macOS (unsigned)
-        run: npm run build:renderer && npx electron-builder --mac --publish never
+        run: node build-renderer.js && npx electron-builder --mac dmg --x64 --publish never
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_ENV: production
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          CSC_KEY_PASSWORD: ''
+          CSC_LINK: ''
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
 
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: mac-artifacts
           path: |
-            dist-*/*.dmg
-            dist-*/*.dmg.blockmap
+            dist/*.dmg
+            dist/*.dmg.blockmap
           if-no-files-found: error
 
   # ─── Linux ─────────────────────────────────────────────────────────────────
@@ -110,7 +103,8 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends \
             libgtk-3-dev libnotify-dev libnss3 libxss1 \
-            libasound2-dev libxtst-dev xvfb
+            libasound2-dev libxtst-dev xvfb \
+            dpkg-dev fakeroot rpm
 
       - name: Write .env
         run: |
@@ -125,18 +119,18 @@ jobs:
       - run: npm ci
 
       - name: Build Linux
-        run: npm run build:renderer && npx electron-builder --linux --publish never
+        run: node build-renderer.js && npx electron-builder --linux AppImage deb --x64 --publish never
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_ENV: production
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
 
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: linux-artifacts
           path: |
-            dist-*/*.AppImage
-            dist-*/*.deb
+            dist/*.AppImage
+            dist/*.deb
           if-no-files-found: error
 
   # ─── Deploy ────────────────────────────────────────────────────────────────
@@ -155,27 +149,28 @@ jobs:
       - name: Install sshpass
         run: sudo apt-get install -y sshpass
 
-      - name: Upload Windows → /var/www/centrio-downloads/
+      - name: Upload Windows
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no \
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
+            -o StrictHostKeyChecking=no \
             artifacts/win-artifacts/*.exe \
             artifacts/win-artifacts/*.exe.blockmap \
             artifacts/win-artifacts/latest.yml \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/centrio-downloads/
 
-      - name: Upload macOS → /var/www/centrio-downloads/mac/
+      - name: Upload macOS
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no \
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
+            -o StrictHostKeyChecking=no \
             artifacts/mac-artifacts/*.dmg \
-            artifacts/mac-artifacts/*.dmg.blockmap \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/centrio-downloads/mac/
 
-      - name: Upload Linux → /var/www/centrio-downloads/linux/
+      - name: Upload Linux
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no \
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
+            -o StrictHostKeyChecking=no \
             artifacts/linux-artifacts/*.AppImage \
             artifacts/linux-artifacts/*.deb \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/centrio-downloads/linux/
 
-      - name: Done
-        run: echo "✅ All builds deployed to centrio-downloads"
+      - run: echo "✅ All builds deployed"
