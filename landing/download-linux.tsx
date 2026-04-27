@@ -1,7 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 
-export default function DownloadWindowsPage() {
+export default function DownloadLinuxPage() {
   useEffect(() => { window.location.replace('/download') }, [])
   return (
     <div style={{ minHeight: '100vh', background: '#070711', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)', fontFamily: 'sans-serif', fontSize: 15 }}>
