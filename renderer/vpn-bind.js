@@ -1,0 +1,589 @@
+// VPN Panel — полный рефактор UI
+// UX: список конфигов с выбором → одна кнопка Connect/Disconnect сверху
+// Пинг: TCP-замер запускается фоном при открытии панели
+// Флаги: Twemoji-картинки через jsDelivr CDN
+// Таймер: отображает сколько подключены
+
+function bindVpnUi ({ invokeIpc, tGet }) {
+  const btn   = document.getElementById('vpnBtn')
+  const panel = document.getElementById('vpnPanel')
+  if (!btn || !panel) return
+
+  // ── Состояние ─────────────────────────────────────────────────────
+  let status       = { active: false, port: 7890, name: null, configs: [] }
+  let selectedId   = null   // выбранный конфиг в списке
+  let pings        = {}     // { [id]: ms | null | 'pending' }
+  let connectedAt  = null   // Date.now() при подключении
+  let timerIv      = null   // setInterval для таймера
+
+  // ── Экранирование ─────────────────────────────────────────────────
+  function esc (s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  }
+
+  // ── Парсинг флага из имени ────────────────────────────────────────
+  // Emoji-флаги = два Regional Indicator Symbol (0x1F1E6–0x1F1FF).
+  // Возвращает { emoji, label } — emoji может быть '', если флага нет.
+  function splitFlag (raw) {
+    const chars = [...(raw || '')]
+    if (chars.length >= 2) {
+      const c1 = chars[0].codePointAt(0)
+      const c2 = chars[1].codePointAt(0)
+      if (c1 >= 0x1F1E6 && c1 <= 0x1F1FF && c2 >= 0x1F1E6 && c2 <= 0x1F1FF) {
+        return {
+          emoji: chars[0] + chars[1],
+          label: raw.slice(chars[0].length + chars[1].length).trim() || raw
+        }
+      }
+    }
+    return { emoji: '', label: raw }
+  }
+
+  // ── Twemoji URL для emoji-флага ───────────────────────────────────
+  // jsDelivr: https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f1e9-1f1ea.png
+  function flagImgUrl (emoji) {
+    const chars = [...emoji]
+    const h1 = chars[0].codePointAt(0).toString(16)
+    const h2 = chars[1].codePointAt(0).toString(16)
+    return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${h1}-${h2}.png`
+  }
+
+  // ── HTML имени конфига (флаг-картинка + текст) ───────────────────
+  function nameHtml (name) {
+    const { emoji, label } = splitFlag(name)
+    if (emoji) {
+      const url = flagImgUrl(emoji)
+      return `<img class="vpn-flag-img" src="${url}" alt="${esc(emoji)}" onerror="this.style.display='none'"><span class="vpn-config-name">${esc(label)}</span>`
+    }
+    return `<span class="vpn-config-name">${esc(label)}</span>`
+  }
+
+  // ── Таймер подключения ────────────────────────────────────────────
+  function formatDuration (ms) {
+    const s = Math.floor(ms / 1000)
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = s % 60
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  }
+
+  function startTimer () {
+    if (!connectedAt) connectedAt = Date.now()
+    if (timerIv) clearInterval(timerIv)
+    timerIv = setInterval(() => {
+      const el = document.getElementById('vpnTimer')
+      if (el && connectedAt) el.textContent = formatDuration(Date.now() - connectedAt)
+    }, 1000)
+  }
+
+  function stopTimer () {
+    if (timerIv) { clearInterval(timerIv); timerIv = null }
+    connectedAt = null
+  }
+
+  // ── Пинг-бейдж ───────────────────────────────────────────────────
+  function pingBadge (id) {
+    const p = pings[id]
+    if (p === 'pending') return `<span class="vpn-ping vpn-ping-pending">${esc(tGet('network.vpnPinging'))}</span>`
+    if (p === null)      return `<span class="vpn-ping vpn-ping-fail">${esc(tGet('network.vpnPingFail'))}</span>`
+    if (typeof p === 'number') {
+      const cls = p < 100 ? 'good' : p < 250 ? 'ok' : 'bad'
+      return `<span class="vpn-ping vpn-ping-${cls}">${esc(tGet('network.vpnPingMs', { ms: p }))}</span>`
+    }
+    return ''
+  }
+
+  // ── Обновить CSS-класс кнопки VPN в сайдбаре ─────────────────────
+  function updateBtn () {
+    btn.classList.toggle('vpn-active', !!status.active)
+    btn.title = status.active ? `VPN: ${status.name || 'ON'}` : 'VPN'
+  }
+
+  // ── Найти конфиг по id ────────────────────────────────────────────
+  function findConfig (id) {
+    return (status.configs || []).find(c => c.id === id) || null
+  }
+
+  // ── Рендер панели ─────────────────────────────────────────────────
+  function render () {
+    const body = panel.querySelector('.vpn-panel-body')
+    if (!body) return
+
+    const configs = status.configs || []
+
+    // Выбранный по умолчанию — активный конфиг (если подключены) или первый
+    if (!selectedId || !findConfig(selectedId)) {
+      const activeConf = configs.find(c => status.active && c.name === status.name)
+      selectedId = activeConf?.id || configs[0]?.id || null
+    }
+
+    const selConf  = findConfig(selectedId)
+    const isActive = status.active
+
+    // ─── Статусная строка + главная кнопка ───────────────────────
+    let topHtml
+    if (isActive) {
+      const timerStr = connectedAt ? formatDuration(Date.now() - connectedAt) : '00:00'
+      topHtml = `
+        <div class="vpn-status-block connected">
+          <span class="vpn-dot-green"></span>
+          <div class="vpn-status-info">
+            <span class="vpn-status-label">${nameHtml(status.name || 'VPN')}</span>
+            <span class="vpn-status-port">SOCKS5 :${status.port} · <span id="vpnTimer" class="vpn-timer">${timerStr}</span></span>
+          </div>
+        </div>
+        <button class="vpn-main-btn vpn-main-disconnect" id="vpnMainBtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+          </svg>
+          ${esc(tGet('network.vpnDisconnect'))}
+        </button>`
+    } else if (selConf) {
+      topHtml = `
+        <div class="vpn-status-block disconnected">
+          <span class="vpn-dot-grey"></span>
+          <div class="vpn-status-info">
+            <span class="vpn-status-label">${nameHtml(selConf.name)}</span>
+            <span class="vpn-status-port">${esc(tGet('network.vpnSelectHint'))}</span>
+          </div>
+        </div>
+        <button class="vpn-main-btn vpn-main-connect" id="vpnMainBtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="5,3 19,12 5,21"/>
+          </svg>
+          ${esc(tGet('network.vpnConnect'))}
+        </button>`
+    } else {
+      topHtml = `
+        <div class="vpn-status-block disconnected">
+          <span class="vpn-dot-grey"></span>
+          <div class="vpn-status-info">
+            <span class="vpn-status-label" style="color:var(--text-muted)">${esc(tGet('network.vpnNoConfigs'))}</span>
+          </div>
+        </div>`
+    }
+
+    // ─── Список конфигов ─────────────────────────────────────────
+    let listHtml = ''
+    if (configs.length > 0) {
+      listHtml = `
+        <div class="vpn-section-label">${esc(tGet('network.vpnSaved'))}</div>
+        <div class="vpn-configs-list">
+          ${configs.map(c => {
+            const isSel    = c.id === selectedId
+            const isConn   = isActive && c.name === status.name
+            return `
+              <div class="vpn-config-item ${isSel ? 'selected' : ''} ${isConn ? 'active' : ''}"
+                   data-id="${esc(c.id)}" data-link="${esc(c.link)}">
+                <div class="vpn-config-label">
+                  ${nameHtml(c.name)}
+                </div>
+                <div class="vpn-config-right">
+                  ${pingBadge(c.id)}
+                  <button class="vpn-cfg-delete" data-id="${esc(c.id)}" title="${esc(tGet('network.vpnDeleteBtn'))}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>`
+          }).join('')}
+        </div>`
+    }
+
+    // ─── Кнопка «Добавить» → открывает настройки на вкладке Сеть ──
+    const addBtnHtml = `
+      <div class="vpn-add-hint">
+        <button class="vpn-add-settings-btn" id="vpnAddSettingsBtn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          ${esc(tGet('network.vpnAddLink'))}
+        </button>
+      </div>`
+
+    body.innerHTML = `
+      <div class="vpn-top-section">
+        ${topHtml}
+      </div>
+      ${listHtml}
+      ${addBtnHtml}
+      <div class="vpn-status-bar" id="vpnStatusBar" style="display:none"></div>
+      <div class="vpn-download-area" id="vpnDownloadArea" style="display:none">
+        <div class="vpn-download-label">${esc(tGet('network.vpnDownloading'))}</div>
+        <div class="vpn-progress-track"><div class="vpn-progress-fill" id="vpnProgressFill"></div></div>
+        <div class="vpn-progress-msg" id="vpnProgressMsg"></div>
+      </div>`
+
+    // Вешаем обработчики
+    document.getElementById('vpnMainBtn')?.addEventListener('click', () => {
+      if (isActive) disconnect()
+      else if (selConf) connectSaved(selConf.link)
+    })
+
+    body.querySelectorAll('.vpn-config-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('.vpn-cfg-delete')) return
+        e.stopPropagation()   // панель не должна закрываться при выборе конфига
+        selectedId = el.dataset.id
+        render()
+      })
+    })
+
+    body.querySelectorAll('.vpn-cfg-delete').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation()
+        deleteCfg(b.dataset.id)
+      })
+    })
+
+    // Кнопка «Добавить» → открывает настройки > Сеть > VPN
+    document.getElementById('vpnAddSettingsBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      closePanel()
+      // Открываем настройки на вкладке Сеть
+      const settingsBtn = document.getElementById('settingsBtn')
+      settingsBtn?.click()
+      setTimeout(() => {
+        const networkTab = document.querySelector('.settings-nav-item[data-section="network"]')
+        networkTab?.click()
+        document.getElementById('settingsVpnInput')?.focus()
+      }, 80)
+    })
+  }
+
+  // ── Статусная строка ──────────────────────────────────────────────
+  function setStatus (msg, isError) {
+    const bar = document.getElementById('vpnStatusBar')
+    if (!bar) return
+    bar.textContent   = msg
+    bar.style.color   = isError ? '#ef4444' : '#22c55e'
+    bar.style.display = msg ? 'block' : 'none'
+  }
+
+  function showProgress (percent, msg) {
+    const area = document.getElementById('vpnDownloadArea')
+    const fill = document.getElementById('vpnProgressFill')
+    const pmsg = document.getElementById('vpnProgressMsg')
+    if (area) area.style.display = percent >= 0 ? 'block' : 'none'
+    if (fill) fill.style.width   = percent + '%'
+    if (pmsg) pmsg.textContent   = msg || ''
+  }
+
+  // ── Пинг всех конфигов фоном ──────────────────────────────────────
+  function startPings (configs) {
+    if (!configs || !configs.length) return
+    for (const c of configs) {
+      if (pings[c.id] !== undefined) continue   // уже пингуем/пинговали
+      pings[c.id] = 'pending'
+      invokeIpc('vpn-ping', c.link).then(res => {
+        pings[c.id] = (res && res.ms !== undefined) ? res.ms : null
+        // Обновляем только строку конфига (не весь рендер)
+        const row = panel.querySelector(`.vpn-config-item[data-id="${c.id}"]`)
+        if (row) {
+          const badge = row.querySelector('.vpn-ping, [class*="vpn-ping"]')
+          if (badge) badge.outerHTML = pingBadge(c.id)
+          else {
+            const right = row.querySelector('.vpn-config-right')
+            if (right) right.insertAdjacentHTML('afterbegin', pingBadge(c.id))
+          }
+        }
+      }).catch(() => { pings[c.id] = null })
+    }
+  }
+
+  // ── Импорт ────────────────────────────────────────────────────────
+  async function importAndConnect () {
+    const input = document.getElementById('vpnLinkInput')
+    const link  = input?.value?.trim()
+    if (!link) return
+
+    const btn = document.getElementById('vpnImportBtn')
+    if (btn) btn.disabled = true
+    setStatus(tGet('network.vpnConnecting'), false)
+
+    try {
+      const result = await invokeIpc('vpn-connect', link)
+      if (result.success) {
+        status = result.status
+        startTimer()
+        if (input) input.value = ''
+        // Сбросить пинги для новых конфигов
+        const newIds = new Set((result.status.configs || []).map(c => c.id))
+        for (const id in pings) { if (!newIds.has(id)) delete pings[id] }
+
+        const msg = result.imported > 1
+          ? tGet('network.vpnImported', { n: result.imported, name: status.name || '' })
+          : tGet('network.vpnConnected', { name: status.name || '' })
+        setStatus(msg, false)
+        updateBtn()
+        render()
+        startPings(status.configs)
+      } else if (result.needsDownload) {
+        setStatus('', false)
+        showProgress(0, tGet('network.vpnPreparing'))
+        await downloadAndConnect(link)
+      } else {
+        setStatus(result.error || tGet('network.vpnError'), true)
+        if (btn) btn.disabled = false
+      }
+    } catch (e) {
+      setStatus(e.message || tGet('network.vpnError'), true)
+      if (btn) btn.disabled = false
+    }
+  }
+
+  async function downloadAndConnect (link) {
+    const onProgress = (p) => showProgress(p.percent, p.msg)
+    window.electronAPI?.onVpnProgress?.(onProgress)
+    try {
+      const result = await invokeIpc('vpn-download-and-connect', link)
+      showProgress(-1, '')
+      window.electronAPI?.offVpnProgress?.()
+      if (result.success) {
+        status = result.status
+        startTimer()
+        setStatus(tGet('network.vpnConnected', { name: status.name || '' }), false)
+        updateBtn()
+        render()
+        startPings(status.configs)
+      } else {
+        setStatus(result.error || tGet('network.vpnDownloadError'), true)
+        const btn = document.getElementById('vpnImportBtn')
+        if (btn) btn.disabled = false
+      }
+    } catch (e) {
+      showProgress(-1, '')
+      window.electronAPI?.offVpnProgress?.()
+      setStatus(e.message || tGet('network.vpnError'), true)
+    }
+  }
+
+  // ── Подключить конфиг ─────────────────────────────────────────────
+  async function connectSaved (link) {
+    if (!link) return
+    setStatus(tGet('network.vpnConnecting'), false)
+    try {
+      const result = await invokeIpc('vpn-connect-saved', link)
+      if (result.success) {
+        status = result.status
+        startTimer()
+        setStatus(tGet('network.vpnConnected', { name: status.name || '' }), false)
+        updateBtn()
+        render()
+      } else if (result.needsDownload) {
+        showProgress(0, tGet('network.vpnPreparing'))
+        await downloadAndConnect(link)
+      } else {
+        setStatus(result.error || tGet('network.vpnError'), true)
+      }
+    } catch (e) {
+      setStatus(e.message || tGet('network.vpnError'), true)
+    }
+  }
+
+  // ── Отключить ─────────────────────────────────────────────────────
+  async function disconnect () {
+    setStatus(tGet('network.vpnDisconnecting'), false)
+    try {
+      const result = await invokeIpc('vpn-disconnect')
+      if (result.success) {
+        status = result.status
+        stopTimer()
+        setStatus('', false)
+        updateBtn()
+        render()
+      }
+    } catch (e) {
+      setStatus(e.message || tGet('network.vpnError'), true)
+    }
+  }
+
+  // ── Удалить конфиг ────────────────────────────────────────────────
+  async function deleteCfg (id) {
+    try {
+      const result = await invokeIpc('vpn-delete-config', id)
+      if (result.success) {
+        status.configs = result.configs
+        delete pings[id]
+        if (selectedId === id) selectedId = result.configs[0]?.id || null
+        render()
+      }
+    } catch {}
+  }
+
+  // ── Открыть/закрыть панель ────────────────────────────────────────
+  async function openPanel () {
+    try {
+      // vpn-status тихо восстанавливает соединение если было активно
+      const s = await invokeIpc('vpn-status')
+      status = s
+      updateBtn()
+      // Если VPN уже активен — запустить таймер (если ещё не тикает)
+      if (status.active && !timerIv) startTimer()
+    } catch {}
+
+    render()
+
+    const rect = btn.getBoundingClientRect()
+    panel.style.display = 'flex'
+    panel.style.left    = `${rect.right + 8}px`
+    panel.style.top     = '0px'
+
+    requestAnimationFrame(() => {
+      const pRect = panel.getBoundingClientRect()
+      let top = rect.bottom - pRect.height
+      if (top < 8) top = 8
+      if (top + pRect.height > window.innerHeight - 8) top = window.innerHeight - pRect.height - 8
+      panel.style.top = `${Math.max(8, top)}px`
+    })
+
+    // Запускаем пинг фоном (только новые конфиги)
+    startPings(status.configs)
+  }
+
+  function closePanel () {
+    panel.style.display = 'none'
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    if (panel.style.display === 'none' || !panel.style.display) openPanel()
+    else closePanel()
+  })
+
+  document.addEventListener('click', (e) => {
+    if (panel.style.display === 'none') return
+    // composedPath() захватывает путь в момент диспатча — безопасен даже если render()
+    // удалил e.target из DOM (panel.contains() вернул бы false для удалённых элементов).
+    const path = e.composedPath ? e.composedPath() : [e.target]
+    if (!path.includes(panel) && !path.includes(btn)) closePanel()
+  })
+
+  // Инициализация статуса при запуске (тихое восстановление)
+  invokeIpc('vpn-status').then(s => { status = s; updateBtn() }).catch(() => {})
+}
+
+// ── Инициализация VPN-секции в настройках ────────────────────────────────
+// Рендерит список конфигов, обрабатывает textarea импорта
+function bindVpnSettings ({ invokeIpc, tGet }) {
+  const listEl   = document.getElementById('settingsVpnList')
+  const input    = document.getElementById('settingsVpnInput')
+  const importBtn= document.getElementById('settingsVpnImportBtn')
+  const statusEl = document.getElementById('settingsVpnStatus')
+  if (!listEl || !importBtn) return
+
+  function esc (s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  }
+
+  function setStatus (msg, isError) {
+    if (!statusEl) return
+    statusEl.textContent   = msg
+    statusEl.style.color   = isError ? '#ef4444' : '#22c55e'
+    statusEl.style.display = msg ? 'block' : 'none'
+  }
+
+  // Разбор флага из имени (дублируем логику для этого контекста)
+  function splitFlag (raw) {
+    const chars = [...(raw || '')]
+    if (chars.length >= 2) {
+      const c1 = chars[0].codePointAt(0), c2 = chars[1].codePointAt(0)
+      if (c1 >= 0x1F1E6 && c1 <= 0x1F1FF && c2 >= 0x1F1E6 && c2 <= 0x1F1FF) {
+        return { emoji: chars[0]+chars[1], label: raw.slice(chars[0].length+chars[1].length).trim() || raw }
+      }
+    }
+    return { emoji: '', label: raw }
+  }
+
+  function flagImgUrl (emoji) {
+    const c = [...emoji]
+    return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${c[0].codePointAt(0).toString(16)}-${c[1].codePointAt(0).toString(16)}.png`
+  }
+
+  function renderList (configs) {
+    if (!configs || !configs.length) {
+      listEl.innerHTML = `<div class="settings-vpn-empty">${esc(tGet('network.vpnNoConfigs'))}</div>`
+      return
+    }
+    listEl.innerHTML = configs.map(c => {
+      const { emoji, label } = splitFlag(c.name)
+      const flagHtml = emoji
+        ? `<img class="vpn-flag-img" src="${flagImgUrl(emoji)}" alt="${esc(emoji)}" onerror="this.style.display='none'">`
+        : ''
+      return `
+        <div class="settings-vpn-item">
+          <span class="settings-vpn-name">${flagHtml}${esc(label)}</span>
+          <button class="settings-vpn-delete" data-id="${esc(c.id)}" title="${esc(tGet('network.vpnDeleteBtn'))}">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>`
+    }).join('')
+
+    listEl.querySelectorAll('.settings-vpn-delete').forEach(b => {
+      b.addEventListener('click', async () => {
+        const result = await invokeIpc('vpn-delete-config', b.dataset.id).catch(() => null)
+        if (result?.success) renderList(result.configs)
+      })
+    })
+  }
+
+  // Загрузить статус при открытии настроек
+  async function refresh () {
+    const st = await invokeIpc('vpn-status').catch(() => ({ configs: [] }))
+    renderList(st.configs || [])
+    applyI18n(listEl.parentElement)
+  }
+
+  async function doImport () {
+    const link = input?.value?.trim()
+    if (!link) return
+    importBtn.disabled = true
+    setStatus(tGet('network.vpnConnecting'), false)
+
+    try {
+      let result = await invokeIpc('vpn-connect', link)
+
+      if (result.needsDownload) {
+        setStatus(tGet('network.vpnDownloading'), false)
+        result = await invokeIpc('vpn-download-and-connect', link)
+      }
+
+      if (result.success) {
+        if (input) input.value = ''
+        const msg = result.imported > 1
+          ? tGet('network.vpnImported', { n: result.imported, name: result.status?.name || '' })
+          : tGet('network.vpnConnected', { name: result.status?.name || '' })
+        setStatus(msg, false)
+        renderList(result.status?.configs || [])
+        // Обновить кнопку VPN в сайдбаре
+        const vpnBtn = document.getElementById('vpnBtn')
+        if (vpnBtn && result.status?.active) vpnBtn.classList.add('vpn-active')
+      } else {
+        setStatus(result.error || tGet('network.vpnError'), true)
+      }
+    } catch (e) {
+      setStatus(e.message || tGet('network.vpnError'), true)
+    } finally {
+      importBtn.disabled = false
+    }
+  }
+
+  importBtn.addEventListener('click', doImport)
+  input?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) doImport()
+  })
+
+  // Обновляем список при открытии настроек
+  document.getElementById('settingsBtn')?.addEventListener('click', refresh)
+  // Также при клике на вкладку Сеть
+  document.querySelector('.settings-nav-item[data-section="network"]')?.addEventListener('click', refresh)
+
+  // Инициальная загрузка
+  refresh()
+}
+
+module.exports = { bindVpnUi, bindVpnSettings }

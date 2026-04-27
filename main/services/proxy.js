@@ -1,0 +1,105 @@
+// Прокси-сервис главного процесса
+// applyAllSessionsProxy — применяет прокси к defaultSession + всем partition мессенджеров
+
+const { session } = require('electron')
+const store = require('./store')
+
+function buildProxyRules (proxySettings) {
+    const { type, host, port } = proxySettings || {}
+
+    switch (type) {
+        case 'none':   return { mode: 'direct' }
+        case 'system': return { mode: 'system' }
+        case 'auto':   return { mode: 'auto_detect' }
+        case 'http':   return { proxyRules: `http=${host}:${port}` }
+        case 'https':  return { proxyRules: `https=${host}:${port}` }
+        // URI-формат: socks5://host:port — маршрутизирует ВЕСЬ трафик (HTTP+HTTPS+WS) через SOCKS5.
+        // Старый формат socks5=host:port был неверным — он не захватывал HTTP/HTTPS трафик в Chromium.
+        case 'socks4': return { proxyRules: `socks4://${host}:${port}` }
+        case 'socks5': return { proxyRules: `socks5://${host}:${port}` }
+        default:       return { mode: 'system' }
+    }
+}
+
+async function applyProxyToSession (targetSession, proxySettings) {
+    if (!proxySettings || !proxySettings.enabled) {
+        await targetSession.setProxy({ mode: 'system' })
+        // Принудительно закрываем существующие соединения, чтобы они переустановились без прокси
+        try { targetSession.closeAllConnections() } catch {}
+        return
+    }
+
+    const rules = buildProxyRules(proxySettings)
+    await targetSession.setProxy(rules)
+    // Принудительно закрываем существующие соединения — они переустановятся через новый прокси.
+    // Без этого уже открытые TCP-соединения продолжают идти напрямую до своего закрытия.
+    try { targetSession.closeAllConnections() } catch {}
+
+    targetSession.removeAllListeners('login')
+
+    if (proxySettings.login && proxySettings.password) {
+        targetSession.on('login', (event, request, authInfo, callback) => {
+            if (authInfo.isProxy) {
+                event.preventDefault()
+                callback(proxySettings.login, proxySettings.password)
+            }
+        })
+    }
+}
+
+// Применяет прокси к defaultSession и ко всем persist: сессиям мессенджеров.
+// Это критично для VPN — webview-ы используют отдельные partition и не наследуют defaultSession.
+async function applyGlobalProxy (proxySettings) {
+    await applyProxyToSession(session.defaultSession, proxySettings)
+}
+
+async function applyAllSessionsProxy (proxySettings) {
+    // 1. defaultSession
+    await applyProxyToSession(session.defaultSession, proxySettings)
+
+    // 2. Все partition мессенджеров из store
+    try {
+        const messengers = store.get('messengers', [])
+        const tasks = (messengers || [])
+            .filter(m => m && m.id)
+            .map(m => {
+                try {
+                    const ses = session.fromPartition(`persist:${m.id}`)
+                    return applyProxyToSession(ses, proxySettings)
+                } catch (e) {
+                    return Promise.resolve()
+                }
+            })
+        await Promise.all(tasks)
+    } catch (e) {
+        console.error('[proxy] applyAllSessionsProxy messenger loop error:', e.message)
+    }
+}
+
+async function applyMessengerProxy (messengerId, proxySettings) {
+    const ses = session.fromPartition(`persist:${messengerId}`)
+    await applyProxyToSession(ses, proxySettings)
+}
+
+async function testProxy (proxySettings) {
+    const testPartition = `proxy-test-${Date.now()}-${Math.random()}`
+    const ses = session.fromPartition(testPartition)
+
+    try {
+        const rules = buildProxyRules(proxySettings)
+        await ses.setProxy(rules)
+        const result = await ses.resolveProxy('https://www.google.com')
+        return { success: true, result }
+    } catch (e) {
+        return { success: false, error: e.message }
+    }
+}
+
+module.exports = {
+    buildProxyRules,
+    applyGlobalProxy,
+    applyAllSessionsProxy,
+    applyProxyToSession,
+    applyMessengerProxy,
+    testProxy,
+}

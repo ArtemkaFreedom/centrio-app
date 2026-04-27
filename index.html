@@ -1,0 +1,2285 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Content Security Policy: разрешаем только локальные ресурсы + Google Fonts -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self';
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: https: blob:;
+                   connect-src 'self' https://api.centrio.me https://centrio.me;
+                   media-src 'self';
+                   object-src 'none';
+                   frame-src 'none';">
+    <title>Centrio</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<div id="startupSplash" class="startup-splash">
+    <div class="startup-splash-bg"></div>
+    <div class="startup-splash-noise"></div>
+    <div class="startup-orb startup-orb-1"></div>
+    <div class="startup-orb startup-orb-2"></div>
+    <div class="startup-orb startup-orb-3"></div>
+
+    <div class="startup-splash-content">
+        <div class="startup-logo-glow"></div>
+        <div class="startup-logo-ring"></div>
+
+        <div class="startup-logo-wrap">
+            <img src="assets/logo.png" alt="Centrio" class="startup-logo">
+        </div>
+
+        <div class="startup-brand">
+            <div class="startup-title">Centrio</div>
+            <div class="startup-subtitle">Единое пространство для ваших мессенджеров</div>
+        </div>
+
+        <div class="startup-progress-wrap">
+            <div class="startup-stage-row">
+                <div id="startupStageText" class="startup-stage-text">Инициализация</div>
+                <div id="startupProgressText" class="startup-progress-text">0%</div>
+            </div>
+
+            <div class="startup-progress-bar">
+                <div id="startupProgressFill" class="startup-progress-fill"></div>
+                <div class="startup-progress-shimmer"></div>
+            </div>
+
+            <div id="startupHintText" class="startup-hint-text">Подготавливаем интерфейс...</div>
+        </div>
+    </div>
+</div>
+
+<div id="appRoot" class="app-root app-root-hidden"></div>
+
+<!-- TITLEBAR -->
+<div class="titlebar">
+    <div class="titlebar-left">
+        <img class="app-logo" alt="Centrio" style="height:20px;width:auto;">
+        <span class="app-name">Centrio</span>
+    </div>
+
+    <div class="titlebar-menu" id="titlebarMenu">
+
+        <!-- Файл -->
+        <div class="menu-item" id="menuFile">
+            <span class="menu-label">Файл</span>
+            <div class="menu-dropdown">
+                <div class="menu-drop-item" id="menuSettings">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                    <span>Настройки</span>
+                    <span class="menu-drop-shortcut">Ctrl+,</span>
+                </div>
+                <div class="menu-drop-divider"></div>
+                <div class="menu-drop-item menu-drop-danger" id="menuQuit">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Выход</span>
+                    <span class="menu-drop-shortcut">Alt+F4</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правка -->
+        <div class="menu-item" id="menuEdit">
+            <span class="menu-label">Правка</span>
+            <div class="menu-dropdown">
+                <div class="menu-drop-item" id="menuUndo">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 7v6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M3 13a9 9 0 1 0 2.64-6.36L3 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Отменить</span>
+                    <span class="menu-drop-shortcut">Ctrl+Z</span>
+                </div>
+                <div class="menu-drop-item" id="menuRedo">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 7v6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M21 13a9 9 0 1 1-2.64-6.36L21 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Повторить</span>
+                    <span class="menu-drop-shortcut">Ctrl+Y</span>
+                </div>
+                <div class="menu-drop-divider"></div>
+                <div class="menu-drop-item" id="menuCut">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <circle cx="6" cy="20" r="2" stroke="currentColor" stroke-width="1.8"/>
+                        <circle cx="6" cy="4" r="2" stroke="currentColor" stroke-width="1.8"/>
+                        <line x1="8.12" y1="5.17" x2="19" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="8.12" y1="18.83" x2="19" y2="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="19" y1="15" x2="19" y2="9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Вырезать</span>
+                    <span class="menu-drop-shortcut">Ctrl+X</span>
+                </div>
+                <div class="menu-drop-item" id="menuCopy">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Копировать</span>
+                    <span class="menu-drop-shortcut">Ctrl+C</span>
+                </div>
+                <div class="menu-drop-item" id="menuPaste">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                    <span>Вставить</span>
+                    <span class="menu-drop-shortcut">Ctrl+V</span>
+                </div>
+                <div class="menu-drop-item" id="menuDelete">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Удалить</span>
+                    <span class="menu-drop-shortcut">Del</span>
+                </div>
+                <div class="menu-drop-divider"></div>
+                <div class="menu-drop-item" id="menuSelectAll">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M9 9h6v6H9z" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                    <span>Выделить всё</span>
+                    <span class="menu-drop-shortcut">Ctrl+A</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вид -->
+        <div class="menu-item" id="menuView">
+            <span class="menu-label">Вид</span>
+            <div class="menu-dropdown">
+                <div class="menu-drop-item menu-has-sub" id="menuAppZoom">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M8 11h6M11 8v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Масштаб приложения</span>
+                    <svg class="menu-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <div class="menu-submenu">
+                        <div class="menu-drop-item" id="menuAppZoomReset">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M8 12h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                            <span>Реальный размер</span>
+                            <span class="menu-drop-shortcut">Ctrl+0</span>
+                        </div>
+                        <div class="menu-drop-item" id="menuAppZoomIn">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                <path d="M8 11h6M11 8v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                            <span>Увеличить</span>
+                            <span class="menu-drop-shortcut">Ctrl+Shift+=</span>
+                        </div>
+                        <div class="menu-drop-item" id="menuAppZoomOut">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                <path d="M8 11h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                            <span>Уменьшить</span>
+                            <span class="menu-drop-shortcut">Ctrl+Shift+-</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="menu-drop-divider"></div>
+                <div class="menu-drop-item" id="menuZoomIn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M8 11h6M11 8v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Увеличить вкладку</span>
+                    <span class="menu-drop-shortcut">Ctrl+=</span>
+                </div>
+                <div class="menu-drop-item" id="menuZoomOut">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M8 11h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Уменьшить вкладку</span>
+                    <span class="menu-drop-shortcut">Ctrl+-</span>
+                </div>
+                <div class="menu-drop-divider"></div>
+                <div class="menu-drop-item" id="menuFullscreen">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Во весь экран</span>
+                    <span class="menu-drop-shortcut">F11</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Окно -->
+        <div class="menu-item" id="menuWindow">
+            <span class="menu-label">Окно</span>
+            <div class="menu-dropdown">
+                <div class="menu-drop-item" id="menuHide">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Скрыть</span>
+                    <span class="menu-drop-shortcut">Ctrl+M</span>
+                </div>
+                <div class="menu-drop-item menu-drop-danger" id="menuClose">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span>Закрыть</span>
+                    <span class="menu-drop-shortcut">Alt+F4</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Справка -->
+        <div class="menu-item" id="menuHelp">
+            <span class="menu-label">Справка</span>
+            <div class="menu-dropdown">
+                <div class="menu-drop-item" id="menuSupport">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <span>Поддержка</span>
+                </div>
+                <div class="menu-drop-item" id="menuAbout">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+                        <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <span>О приложении</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <button class="menu-toggle-btn" id="menuToggleBtn" title="Свернуть меню">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" id="menuToggleIcon">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+    </button>
+
+    <div class="titlebar-tabs" id="tabsBar"></div>
+    <div class="titlebar-drag"></div>
+    <div class="titlebar-right">
+        <button id="minimizeBtn" class="window-btn" data-i18n-title="window.minimize">
+            <svg width="12" height="12" viewBox="0 0 12 12">
+                <rect x="0" y="5.5" width="12" height="1" fill="currentColor"/>
+            </svg>
+        </button>
+        <button id="maximizeBtn" class="window-btn" data-i18n-title="window.maximize">
+            <svg width="12" height="12" viewBox="0 0 12 12">
+                <rect x="0.5" y="0.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+        </button>
+        <button id="closeBtn" class="window-btn close-btn" data-i18n-title="window.close">
+            <svg width="12" height="12" viewBox="0 0 12 12">
+                <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- MAIN -->
+<div class="main-container">
+    <div class="activity-bar">
+        <div class="activity-top">
+            <button id="addMessengerBtn" class="activity-btn add-btn" data-i18n-title="addMessenger">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <div class="activity-divider"></div>
+            <div id="messengerList" class="messenger-list"></div>
+        </div>
+        <div class="activity-bottom">
+            <button id="lockBtn" class="activity-btn" style="display:none;" data-i18n-title="lock.lockBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <!-- VPN кнопка (активна = SVG зеленеет через .vpn-active) -->
+            <button id="vpnBtn" class="activity-btn vpn-btn" title="VPN">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+            </button>
+            <!-- Иконка уведомлений приложения (от админа / changelog) -->
+            <button id="appNotifBtn" class="activity-btn" data-i18n-title="notifications.appNotif" style="position:relative;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <span id="appNotifBadge" class="sidebar-notif-badge" style="display:none;"></span>
+            </button>
+            <button id="settingsBtn" class="activity-btn" data-i18n-title="settings.title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.8"/>
+                </svg>
+            </button>
+            <button id="cloudBtn" class="activity-btn" data-i18n-title="cloud.accountBtn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <div class="content-area">
+        <div id="tabsContent" class="tabs-content"></div>
+    </div>
+    <div id="welcomeScreen" style="display:none;">
+        <div class="welcome-box">
+            <div class="welcome-logo-wrap">
+                <img src="assets/logo.png" class="welcome-logo" alt="Centrio">
+            </div>
+            <h1 class="welcome-title">Добро пожаловать в <span class="welcome-accent">Centrio</span></h1>
+            <p class="welcome-sub">Все ваши мессенджеры в одном месте. Быстро, удобно, красиво.</p>
+
+            <div class="welcome-features">
+                <div class="welcome-feature">
+                    <div class="welcome-feature-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="welcome-feature-text">
+                        <span>Все мессенджеры</span>
+                        <p>Telegram, WhatsApp, VK и другие — в одном окне</p>
+                    </div>
+                </div>
+                <div class="welcome-feature">
+                    <div class="welcome-feature-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="welcome-feature-text">
+                        <span>Папки и порядок</span>
+                        <p>Группируй мессенджеры по категориям</p>
+                    </div>
+                </div>
+                <div class="welcome-feature">
+                    <div class="welcome-feature-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="welcome-feature-text">
+                        <span>Темы оформления</span>
+                        <p>Dark, Glass, Midnight — выбери свой стиль</p>
+                    </div>
+                </div>
+                <div class="welcome-feature">
+                    <div class="welcome-feature-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="welcome-feature-text">
+                        <span>Защита PIN-кодом</span>
+                        <p>Личные данные под надёжной защитой</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="welcome-btns">
+                <button class="welcome-add-btn" id="welcomeAddBtn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Добавить мессенджер
+                </button>
+                <button class="welcome-login-btn" id="welcomeLoginBtn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                    Войти в аккаунт
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- STATUSBAR -->
+<div class="statusbar">
+    <div class="status-left">
+        <span class="status-item" id="statusMessengers">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span id="statusMessengersText"></span>
+        </span>
+        <div class="status-divider"></div>
+        <span class="status-item" id="statusUnread">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span id="statusUnreadText"></span>
+        </span>
+    </div>
+    <div class="status-right">
+        <span class="status-item status-accent" id="statusActive">
+            <div class="status-dot status-online"></div>
+            <span id="statusActiveText"></span>
+        </span>
+        <div class="status-divider"></div>
+        <span class="status-item status-date-btn" id="statusDate" title="Показать календарь"></span>
+        <div class="status-divider"></div>
+        <span class="status-item" id="statusTime"></span>
+        <div class="status-divider"></div>
+        <span class="status-item status-version-btn" id="statusVersion" title="История изменений"></span>
+    </div>
+</div>
+
+<!-- Попап с календарём -->
+<div id="calendarPopup" class="calendar-popup" style="display:none;">
+    <div class="cal-header">
+        <button class="cal-nav-btn" id="calPrevBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="cal-month-label" id="calMonthLabel"></span>
+        <button class="cal-nav-btn" id="calNextBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+    </div>
+    <div class="cal-weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+</div>
+
+<!-- Попап с историей изменений версий -->
+<div id="changelogPopup" class="changelog-popup" style="display:none;">
+    <div class="changelog-popup-header">
+        <span class="changelog-popup-title">История изменений</span>
+        <button class="changelog-popup-close" id="changelogPopupClose">✕</button>
+    </div>
+    <div class="changelog-popup-body">
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.12</div>
+            <ul class="changelog-list">
+                <li>VPN: исправлена критическая ошибка «Store is not a constructor»</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.11</div>
+            <ul class="changelog-list">
+                <li>Окно обновления: переработан стиль, больше не схлопывается</li>
+                <li>История версий: крестик закрытия теперь работает</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.10</div>
+            <ul class="changelog-list">
+                <li>VPN: поддержка VLESS+Reality+TCP и VLESS+Reality+XHTTP конфигов (fp, short_id, xhttp транспорт)</li>
+                <li>VPN: импорт по URL подписки — одна ссылка загружает весь список серверов</li>
+                <li>Мессенджеры: расширено до 40 сервисов (WeChat, Zoom, BiP, Signal, LINE, Gmail, Outlook и др.)</li>
+                <li>Админка: вкладка «Посетители» — статистика анонимных пользователей</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.9</div>
+            <ul class="changelog-list">
+                <li>VPN: поддержка vmess, vless, trojan, shadowsocks, hysteria2 прямо в приложении</li>
+                <li>Автопродление подписки через ЮКассу (включается после оплаты)</li>
+                <li>Админка: отдельная вкладка «Уведомления» — полный список, предпросмотр, удаление</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.8</div>
+            <ul class="changelog-list">
+                <li>Убрана синяя тема (вместо неё — только светлая)</li>
+                <li>Светлая тема: исправлен вид настроек</li>
+                <li>Уведомления: кнопка-действие теперь открывает ссылку в браузере</li>
+                <li>Уведомления: кнопка «Удалить все» (иконка корзины)</li>
+                <li>Синхронизация блокировки PIN: исправлена при входе в аккаунт</li>
+                <li>Личный кабинет: уменьшена ширина окна</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.7</div>
+            <ul class="changelog-list">
+                <li>Две новые темы: Синяя (как сайт) и Светлая</li>
+                <li>Уведомления: каждое отдельно, крестик для скрытия навсегда, кнопка-действие</li>
+                <li>Исправлены цены: Pro — 199 ₽/мес, Год — 1 590 ₽</li>
+                <li>Кнопка "Выйти на всех устройствах" — исправлена</li>
+                <li>Добавлена кнопка в уведомления из админки</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.6</div>
+            <ul class="changelog-list">
+                <li>Уведомления с сервера: исправлен разбор вложенного ответа API — теперь показываются в панели</li>
+                <li>Контекстное меню: "Копировать картинку" — через native clipboard (надёжно)</li>
+                <li>Контекстное меню: "Сохранить картинку" — добавлен IPC-обработчик в главном процессе</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.5</div>
+            <ul class="changelog-list">
+                <li>Окно профиля: ширина 760px — комфортный средний размер</li>
+                <li>Уведомления мессенджеров: патч применяется до загрузки страницы (перехватывает ранние вызовы)</li>
+                <li>Уведомления мессенджеров: добавлен перехват ServiceWorker showNotification (Telegram, WhatsApp)</li>
+                <li>Уведомления с сервера: опрос каждые 45 сек + при возврате фокуса на приложение</li>
+                <li>Тост обновления: крестик закрывает у всех типов тостов</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.4</div>
+            <ul class="changelog-list">
+                <li>Окно профиля: исправлено расширение до 1300px (конфликт CSS-правил устранён)</li>
+                <li>Уведомления об обновлении: полный редизайн в glassmorphism-стиле</li>
+                <li>Тосты: анимация slide-in справа, shimmer-линия, градиентные кнопки</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.3</div>
+            <ul class="changelog-list">
+                <li>Безопасность: защита от XSS в именах мессенджеров (escapeHtml)</li>
+                <li>Безопасность: Content-Security-Policy добавлен в приложение</li>
+                <li>Безопасность: .env исключён из git</li>
+                <li>CSS: оглавление с навигацией по 11 группам (7174 строки)</li>
+                <li>Документация: Obsidian — API, IPC, CSS, Безопасность</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.2</div>
+            <ul class="changelog-list">
+                <li>Уведомления из админки: фикс при истёкшем токене (авто-обновление)</li>
+                <li>Hero-экран сайта — новый glassmorphism-дизайн с floating-карточками</li>
+                <li>Переключатель языков — полные названия вместо флагов</li>
+                <li>Логотип в личном кабинете — реальный /logo.png</li>
+                <li>Страницы /faq, /download, /privacy, /terms — новый синий стиль</li>
+                <li>Окно профиля расширено до 1300px</li>
+                <li>Юридические данные ООО «Центрио» возвращены в футер сайта</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.1</div>
+            <ul class="changelog-list">
+                <li>Исправлен PIN — теперь переносится при синхронизации</li>
+                <li>Уведомления от администратора снова появляются в панели</li>
+                <li>Уведомления от мессенджеров перехватываются надёжнее</li>
+                <li>Звук уведомлений работает в packaged-сборке</li>
+                <li>Окно подписки расширено до 900px</li>
+                <li>История изменений — показывает все версии со скроллом</li>
+                <li>Сайт centrio.me — новый синий стиль</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.5.0</div>
+            <ul class="changelog-list">
+                <li>Дата в статусной строке + всплывающий календарь</li>
+                <li>Модал подписки расширен: тарифы стоят в ряд</li>
+                <li>Исправлен показ даты и времени сразу при запуске</li>
+                <li>Фикс: перезагрузка страницы после входа в аккаунт</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.4.9</div>
+            <ul class="changelog-list">
+                <li>Уведомления из мессенджеров в единой панели (как Rambox)</li>
+                <li>Кнопка вкл/выкл уведомлений в панели уведомлений</li>
+                <li>Поддержка картинки в уведомлениях из админки</li>
+                <li>Версия приложения в статусной строке + история изменений</li>
+                <li>Горячая клавиша Ctrl+, для открытия настроек</li>
+                <li>Убрана кнопка статуса «В сети / Занят» из сайдбара</li>
+                <li>Исправлено: «О приложении» открывает настройки</li>
+                <li>Исправлена зелёная точка онлайн в статусбаре</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.4.8</div>
+            <ul class="changelog-list">
+                <li>Исправлена синхронизация: pull перед push</li>
+                <li>PRO-план применяется сразу после входа</li>
+                <li>Кастомный мессенджер теперь только в PRO</li>
+                <li>Синхронизация PIN, звука уведомлений, масштаба вкладки</li>
+                <li>ПКМ: сначала браузерное меню, потом наше</li>
+                <li>«Копировать» текст и изображение в контекстном меню</li>
+                <li>Горячие клавиши работают внутри webview</li>
+                <li>Сброс настроек очищает PIN</li>
+                <li>Иконка уведомлений от администратора в сайдбаре</li>
+                <li>Статус «В сети / Занят» вместо кнопки mute</li>
+                <li>Кнопка удаления пользователя в админке</li>
+                <li>Рассылка уведомлений всем пользователям из админки</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.4.6</div>
+            <ul class="changelog-list">
+                <li>Планы FREE/PRO в личном кабинете</li>
+                <li>Синхронизация показывает «&lt; 1 мин назад»</li>
+                <li>TOTP-защита для входа в админку</li>
+                <li>Исправлен вес установщика</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.4.5</div>
+            <ul class="changelog-list">
+                <li>Облачная синхронизация настроек и мессенджеров</li>
+                <li>Вход через Google и Яндекс (OAuth)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- БЫСТРЫЙ ПОИСК -->
+<div id="quickSearch" class="quick-search">
+    <div class="quick-search-box">
+        <div class="quick-search-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <input type="text" id="quickSearchInput" class="quick-search-input" data-i18n-placeholder="search.placeholder">
+            <span class="quick-search-hint" data-i18n="search.hint"></span>
+        </div>
+        <div id="quickSearchResults" class="quick-search-results"></div>
+    </div>
+</div>
+
+<!-- ПОИСК ПО СТРАНИЦЕ -->
+<div id="findBar" class="find-bar">
+    <div class="find-bar-inner">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="findInput" class="find-input" data-i18n-placeholder="search.findPlaceholder">
+        <span id="findCount" class="find-count"></span>
+        <button id="findPrev" class="find-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </button>
+        <button id="findNext" class="find-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </button>
+        <button id="findClose" class="find-btn find-close">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- Контекстное меню мессенджера -->
+<div id="contextMenu" class="context-menu">
+    <div class="context-item" id="ctxReload">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="ctx.reload"></span>
+    </div>
+    <div class="context-item" id="ctxMute">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <span data-i18n="notifications.mute"></span>
+    </div>
+    <div class="context-item" id="ctxProxy">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        <span data-i18n="network.proxyCtx"></span>
+    </div>
+    <div class="context-item" id="ctxEdit">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="ctx.rename"></span>
+    </div>
+    <div class="context-item" id="ctxMoveToFolder">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="ctx.moveToFolder"></span>
+    </div>
+    <div class="context-item" id="ctxRemoveFromFolder" style="display:none;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span data-i18n="ctx.removeFromFolder"></span>
+    </div>
+    <div class="context-divider"></div>
+    <div class="context-item" id="ctxChangeIcon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+            <polyline points="21 15 16 10 5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="ctx.changeIcon"></span>
+    </div>
+    <div class="context-item" id="ctxSound">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <span>Звук уведомления</span>
+</div>
+    <div class="context-divider"></div>
+    <div class="context-item context-danger" id="ctxRemove">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="ctx.delete"></span>
+    </div>
+</div>
+
+<!-- Контекстное меню папки -->
+<div id="folderContextMenu" class="context-menu">
+    <div class="context-item" id="ctxFolderEdit">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="folders.rename"></span>
+    </div>
+    <div class="context-divider"></div>
+    <div class="context-item context-danger" id="ctxFolderRemove">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="folders.delete"></span>
+    </div>
+</div>
+
+<!-- Выбор папки -->
+<div id="folderPickMenu" class="context-menu">
+    <div class="context-item" id="ctxNewFolder">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 11v6M9 14h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span data-i18n="folders.create"></span>
+    </div>
+    <div id="folderPickList"></div>
+</div>
+
+<!-- Контекстное меню сайдбара -->
+<div id="sidebarContextMenu" class="context-menu">
+    <div class="context-item" id="ctxSidebarNewFolder">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 11v6M9 14h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span data-i18n="folders.create"></span>
+    </div>
+    <div class="context-item" id="ctxSidebarReloadAll">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="folders.reloadAll"></span>
+    </div>
+</div>
+
+<!-- Модал смены иконки -->
+<div id="changeIconModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <span class="modal-title" data-i18n="modal.changeIconTitle"></span>
+            <button class="modal-close" id="closeChangeIconBtn">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="change-icon-preview-wrap">
+                <div class="change-icon-preview" id="changeIconPreview">
+                    <img id="changeIconPreviewImg" src="" alt="preview">
+                    <div class="change-icon-preview-letter" id="changeIconPreviewLetter"></div>
+                </div>
+                <span class="change-icon-preview-label" data-i18n="modal.changeIconPreview"></span>
+            </div>
+            <div class="change-icon-section">
+                <label class="change-icon-label" data-i18n="modal.changeIconUrl"></label>
+                <div class="change-icon-url-row">
+                    <input type="text" id="changeIconUrl" class="settings-input" data-i18n-placeholder="modal.changeIconUrlPh">
+                    <button class="change-icon-url-btn" id="changeIconUrlApplyBtn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="change-icon-or">
+                <span class="change-icon-or-line"></span>
+                <span class="change-icon-or-text" data-i18n="modal.changeIconOrFile"></span>
+                <span class="change-icon-or-line"></span>
+            </div>
+            <div class="change-icon-section">
+                <div class="change-icon-file-wrap" id="changeIconDropZone">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span class="change-icon-drop-text">Перетащите файл или <u>выберите</u></span>
+                    <input type="file" id="changeIconFile" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+                </div>
+            </div>
+            <div class="change-icon-actions">
+                <button class="change-icon-reset-btn" id="changeIconResetBtn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <span data-i18n="modal.changeIconReset"></span>
+                </button>
+                <button class="btn-primary" id="changeIconSaveBtn">
+                    <span data-i18n="modal.changeIconSave"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка переименования/папки -->
+<div id="editModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3 id="editModalTitle" data-i18n="modal.renameTitle"></h3>
+            <button id="closeEditModalBtn" class="modal-close">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="editName" class="vsc-input" data-i18n-placeholder="modal.namePlaceholder">
+            <div id="iconPickerWrap" style="display:none;">
+                <div class="modal-section-label" data-i18n="modal.iconLabel"></div>
+                <div id="iconPicker" class="icon-picker"></div>
+            </div>
+            <button id="saveEditBtn" class="vsc-btn" data-i18n="modal.saveBtn"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка добавления мессенджера -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 data-i18n="modal.addTitle"></h3>
+            <button id="closeModalBtn" class="modal-close">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-search-wrap">
+            <input type="text" id="modalSearchInput" class="modal-search-input" data-i18n-placeholder="search.placeholder">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div class="modal-main">
+            <div class="modal-pages-nav" id="modalPager"></div>
+            <div class="modal-grid-wrap">
+                <div id="messengerGrid" class="messenger-grid"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div id="customSection" class="custom-section">
+                <button id="customToggleBtn" class="custom-toggle-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                    <span data-i18n="modal.custom"></span>
+                    <svg class="custom-toggle-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <div class="custom-section-body">
+                    <div class="modal-body">
+                        <input type="text" id="customName" class="vsc-input" data-i18n-placeholder="modal.namePlaceholder">
+                        <input type="text" id="customUrl" class="vsc-input" placeholder="https://...">
+                        <button id="addCustomBtn" class="vsc-btn" data-i18n="modal.addBtn"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модалка настроек -->
+<div id="settingsModal" class="modal">
+    <div class="modal-content modal-settings">
+        <div class="modal-header">
+            <h3 data-i18n="settings.title"></h3>
+            <button id="closeSettingsBtn" class="modal-close">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="settings-layout">
+            <div class="settings-sidebar">
+                <div class="settings-nav-item active" data-section="general">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                    <span data-i18n="settings.sections.general"></span>
+                </div>
+                <div class="settings-nav-item" data-section="appearance">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M12 2a10 10 0 0 1 0 20" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M2 12h20" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                    <span data-i18n="settings.sections.appearance"></span>
+                </div>
+                <div class="settings-nav-item" data-section="notifications">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span data-i18n="settings.sections.notifications"></span>
+                </div>
+                <div class="settings-nav-item" data-section="shortcuts">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span data-i18n="settings.sections.shortcuts"></span>
+                </div>
+                <div class="settings-nav-item" data-section="security">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span data-i18n="settings.sections.security"></span>
+                </div>
+                <div class="settings-nav-item" data-section="network">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+                        <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                    <span data-i18n="settings.sections.network"></span>
+                </div>
+                <div class="settings-nav-item" data-section="system">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <span data-i18n="settings.sections.system"></span>
+                </div>
+            </div>
+
+            <div class="settings-content">
+
+                <!-- Основные -->
+                <div class="settings-section active" id="section-general">
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.language"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.language"></span>
+                                <span class="settings-hint" data-i18n="settings.langHint"></span>
+                            </div>
+                            <select class="vsc-select" id="settingLanguage">
+                                <option value="ru">Русский</option>
+                                <option value="en">English</option>
+                                <option value="de">Deutsch</option>
+                                <option value="zh">中文</option>
+                                <option value="es">Español</option>
+                                <option value="it">Italiano</option>
+                                <option value="fr">Français</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.closeLabel"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.closeLabel"></span>
+                            </div>
+                            <select class="vsc-select" id="settingCloseBehavior">
+                                <option value="tray"     data-i18n="settings.closeTray"></option>
+                                <option value="minimize" data-i18n="settings.closeMinimize"></option>
+                                <option value="quit"     data-i18n="settings.closeQuit"></option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.autoLaunch"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.autoLaunch"></span>
+                                <span class="settings-hint" data-i18n="settings.autoLaunchHint"></span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="settingAutoLaunch">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.startMinimized"></span>
+                                <span class="settings-hint" data-i18n="settings.startMinHint"></span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="settingStartMinimized">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.downloads"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.downloadDir"></span>
+                                <span class="settings-hint" data-i18n="settings.downloadDirHint"></span>
+                            </div>
+                            <button class="vsc-btn-secondary" id="chooseDownloadDirBtn" data-i18n="settings.downloadDirChoose"></button>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span id="downloadDirText" style="font-size:11px;color:var(--text-secondary);word-break:break-all;" data-i18n="settings.downloadDirEmpty"></span>
+                            </div>
+                            <button class="vsc-btn-danger" id="clearDownloadDirBtn" style="display:none;">✕</button>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.downloadAsk"></span>
+                                <span class="settings-hint" data-i18n="settings.downloadAskHint"></span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="settingAskDownload" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Внешний вид -->
+                <div class="settings-section" id="section-appearance">
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.theme"></div>
+                        <div class="theme-picker">
+                            <div class="theme-item active" data-theme="dark">
+                                <div class="theme-preview dark-preview">
+                                    <div class="tp-sidebar"></div>
+                                    <div class="tp-content"></div>
+                                </div>
+                                <span data-i18n="settings.themeDark"></span>
+                            </div>
+                            <div class="theme-item" data-theme="glass">
+                                <div class="theme-preview glass-preview">
+                                    <div class="tp-sidebar"></div>
+                                    <div class="tp-content"></div>
+                                </div>
+                                <span data-i18n="settings.themeGlass"></span>
+                            </div>
+                            <div class="theme-item" data-theme="midnight">
+                                <div class="theme-preview midnight-preview">
+                                    <div class="tp-sidebar"></div>
+                                    <div class="tp-content"></div>
+                                </div>
+                                <span data-i18n="settings.themeMidnight"></span>
+                            </div>
+                            <div class="theme-item" data-theme="light">
+                                <div class="theme-preview light-preview">
+                                    <div class="tp-sidebar"></div>
+                                    <div class="tp-content"></div>
+                                </div>
+                                <span data-i18n="settings.themeLight"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.accentColor"></div>
+                        <div class="accent-picker">
+                            <div class="accent-item" data-color="#0078d4" style="background:#0078d4"></div>
+                            <div class="accent-item active" data-color="#7b68ee" style="background:#7b68ee"></div>
+                            <div class="accent-item" data-color="#00b894" style="background:#00b894"></div>
+                            <div class="accent-item" data-color="#e17055" style="background:#e17055"></div>
+                            <div class="accent-item" data-color="#fd79a8" style="background:#fd79a8"></div>
+                            <div class="accent-item" data-color="#fdcb6e" style="background:#fdcb6e"></div>
+                            <div class="accent-item" data-color="#a29bfe" style="background:#a29bfe"></div>
+                            <div class="accent-item" data-color="#55efc4" style="background:#55efc4"></div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.sidebarPosition"></div>
+                        <div class="position-picker">
+                            <div class="position-item active" data-position="left">
+                                <div class="position-preview">
+                                    <div class="pp-sidebar pp-left"></div>
+                                    <div class="pp-content"></div>
+                                </div>
+                                <span data-i18n="settings.positionLeft"></span>
+                            </div>
+                            <div class="position-item" data-position="right">
+                                <div class="position-preview">
+                                    <div class="pp-content"></div>
+                                    <div class="pp-sidebar pp-right"></div>
+                                </div>
+                                <span data-i18n="settings.positionRight"></span>
+                            </div>
+                            <div class="position-item" data-position="top">
+                                <div class="position-preview pp-vertical">
+                                    <div class="pp-sidebar pp-top"></div>
+                                    <div class="pp-content"></div>
+                                </div>
+                                <span data-i18n="settings.positionTop"></span>
+                            </div>
+                            <div class="position-item" data-position="bottom">
+                                <div class="position-preview pp-vertical">
+                                    <div class="pp-content"></div>
+                                    <div class="pp-sidebar pp-bottom"></div>
+                                </div>
+                                <span data-i18n="settings.positionBottom"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.density"></div>
+                        <div class="density-picker">
+                            <div class="density-item" data-density="compact">
+                                <div class="density-preview compact-preview">
+                                    <div class="dp-bar">
+                                        <div class="dp-dot"></div>
+                                        <div class="dp-dot"></div>
+                                        <div class="dp-dot"></div>
+                                        <div class="dp-dot"></div>
+                                    </div>
+                                    <div class="dp-content"></div>
+                                </div>
+                                <span data-i18n="settings.densityCompact"></span>
+                            </div>
+                            <div class="density-item" data-density="normal">
+                                <div class="density-preview normal-preview">
+                                    <div class="dp-bar">
+                                        <div class="dp-dot"></div>
+                                        <div class="dp-dot"></div>
+                                        <div class="dp-dot"></div>
+                                    </div>
+                                    <div class="dp-content"></div>
+                                </div>
+                                <span data-i18n="settings.densityNormal"></span>
+                            </div>
+                            <div class="density-item active" data-density="comfortable">
+                                <div class="density-preview comfortable-preview">
+                                    <div class="dp-bar">
+                                        <div class="dp-dot"></div>
+                                        <div class="dp-dot"></div>
+                                    </div>
+                                    <div class="dp-content"></div>
+                                </div>
+                                <span data-i18n="settings.densityComfortable"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.fontSize"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.fontSize"></span>
+                            </div>
+                            <select class="vsc-select" id="settingFontSize">
+                                <option value="12" data-i18n="settings.fontSmall"></option>
+                                <option value="13" data-i18n="settings.fontMedium" selected></option>
+                                <option value="15" data-i18n="settings.fontLarge"></option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.showTabs"></span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="settingShowTabs" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.folders"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.foldersEnable"></span>
+                                <span class="settings-hint" data-i18n="settings.foldersEnableHint"></span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="settingFoldersEnabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.foldersLabel"></span>
+                                <span class="settings-hint" data-i18n="settings.foldersLabelHint"></span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="settingFolderLabel" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+<!-- Уведомления -->
+<div class="settings-section" id="section-notifications">
+    <div class="settings-group">
+        <div class="settings-group-title" data-i18n="settings.sections.notifications"></div>
+        <div class="settings-row">
+            <div class="settings-label">
+                <span data-i18n="settings.notifShow"></span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="settingNotifications" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-label">
+                <span data-i18n="settings.notifSound"></span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="settingNotifSound" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-label">
+                <span data-i18n="settings.trayBadge"></span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="settingTrayBadge" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Звук уведомлений -->
+    <div class="settings-group" id="soundPickerGroup">
+        <div class="settings-group-title">Звук уведомлений</div>
+
+        <!-- Встроенные звуки -->
+<div class="sound-list" id="soundList">
+    <div class="sound-item active" data-sound="single">
+        <div class="sound-item-left">
+            <div class="sound-icon">🔔</div>
+            <span>Single</span>
+        </div>
+        <button class="sound-preview-btn" data-sound="single">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+            </svg>
+        </button>
+    </div>
+    <div class="sound-item" data-sound="answer">
+        <div class="sound-item-left">
+            <div class="sound-icon">💬</div>
+            <span>Answer</span>
+        </div>
+        <button class="sound-preview-btn" data-sound="answer">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+            </svg>
+        </button>
+    </div>
+    <div class="sound-item" data-sound="mystery">
+        <div class="sound-item-left">
+            <div class="sound-icon">🎵</div>
+            <span>Mystery</span>
+        </div>
+        <button class="sound-preview-btn" data-sound="mystery">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+            </svg>
+        </button>
+    </div>
+    <div class="sound-item" data-sound="interface">
+        <div class="sound-item-left">
+            <div class="sound-icon">✨</div>
+            <span>Interface</span>
+        </div>
+        <button class="sound-preview-btn" data-sound="interface">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+            </svg>
+        </button>
+    </div>
+    <div class="sound-item" data-sound="notification">
+        <div class="sound-item-left">
+            <div class="sound-icon">🔕</div>
+            <span>Notification</span>
+        </div>
+        <button class="sound-preview-btn" data-sound="notification">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Свой звук -->
+    <div class="sound-item sound-item-custom" id="soundItemCustom" style="display:none;" data-sound="custom">
+        <div class="sound-item-left">
+            <div class="sound-icon">📁</div>
+            <span id="customSoundName">Свой звук</span>
+        </div>
+        <button class="sound-preview-btn" data-sound="custom">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+        <!-- Загрузить свой -->
+        <div class="sound-upload-row">
+            <button class="vsc-btn-secondary" id="uploadSoundBtn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Загрузить свой звук
+            </button>
+            <input type="file" id="soundFileInput" accept=".mp3,.wav,.ogg" style="display:none;">
+        </div>
+    </div>
+</div>
+
+                <!-- Горячие клавиши -->
+                <div class="settings-section" id="section-shortcuts">
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="shortcuts.navigationTitle"></div>
+                        <div class="shortcut-list">
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.next"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">Tab</span>
+                                </div>
+                            </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.prev"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">Shift</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">Tab</span>
+                                </div>
+                            </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.byNumber"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">1 — 9</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="shortcuts.searchTitle"></div>
+                        <div class="shortcut-list">
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.quickSearch"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">P</span>
+                                </div>
+                            </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.findInPage"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">F</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="shortcuts.windowTitle"></div>
+                        <div class="shortcut-list">
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.hideShow"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">M</span>
+                                </div>
+                            </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.reload"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">R</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Безопасность -->
+                <div class="settings-section" id="section-security">
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.sections.security"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.passwordEnable"></span>
+                                <span class="settings-hint" data-i18n="settings.passwordEnableHint"></span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="settingPasswordEnable">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="passwordFields" style="display:none;">
+                        <div class="settings-group">
+                            <div class="settings-group-title" data-i18n="lock.pinSet"></div>
+                            <div class="pin-setup-card">
+                                <div class="pin-setup-row">
+                                    <span class="pin-setup-label" data-i18n="lock.pinNew"></span>
+                                    <div class="pin-setup-dots" id="setPinDotsNew">
+                                        <div class="pin-setup-dot" id="setPinDot0"></div>
+                                        <div class="pin-setup-dot" id="setPinDot1"></div>
+                                        <div class="pin-setup-dot" id="setPinDot2"></div>
+                                        <div class="pin-setup-dot" id="setPinDot3"></div>
+                                        <input type="password" id="settingPasswordNew" class="pin-setup-input" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="pin-setup-divider"></div>
+                                <div class="pin-setup-row">
+                                    <span class="pin-setup-label" data-i18n="lock.pinConfirm"></span>
+                                    <div class="pin-setup-dots" id="setPinDotsConfirm">
+                                        <div class="pin-setup-dot" id="setConfirmDot0"></div>
+                                        <div class="pin-setup-dot" id="setConfirmDot1"></div>
+                                        <div class="pin-setup-dot" id="setConfirmDot2"></div>
+                                        <div class="pin-setup-dot" id="setConfirmDot3"></div>
+                                        <input type="password" id="settingPasswordConfirm" class="pin-setup-input" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="pin-setup-footer">
+                                    <p id="passwordStatus" class="password-status"></p>
+                                    <button id="savePasswordBtn" class="vsc-btn pin-setup-btn" data-i18n="lock.pinSet"></button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-group">
+                            <div class="settings-row">
+                                <div class="settings-label">
+                                    <span data-i18n="settings.lockOnHide"></span>
+                                    <span class="settings-hint" data-i18n="settings.lockOnHideHint"></span>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" id="settingLockOnHide">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Сеть -->
+                <div class="settings-section" id="section-network">
+                    <div class="settings-group">
+                        <div class="settings-group-title">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+                                <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="1.8"/>
+                            </svg>
+                            <span data-i18n="network.proxy"></span>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="network.proxyEnable"></span>
+                                <span class="settings-hint" data-i18n="network.proxyEnableHint"></span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="proxyEnabled">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div id="proxyFields" style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+                            <div class="proxy-field-group">
+                                <label class="proxy-label" data-i18n="network.proxyType"></label>
+                                <select id="proxyType" class="vsc-select" style="width:100%;">
+                                    <option value="system" data-i18n="network.proxyTypeSystem"></option>
+                                    <option value="auto"   data-i18n="network.proxyTypeAuto"></option>
+                                    <option value="none"   data-i18n="network.proxyTypeNone"></option>
+                                    <option value="http">HTTP</option>
+                                    <option value="https">HTTPS</option>
+                                    <option value="socks4">SOCKS4</option>
+                                    <option value="socks5">SOCKS5</option>
+                                </select>
+                            </div>
+                            <div id="proxyHostWrap" class="proxy-field-row" style="display:none;">
+                                <div class="proxy-field-group" style="flex:1;">
+                                    <label class="proxy-label" data-i18n="network.proxyHost"></label>
+                                    <input type="text" id="proxyHost" class="vsc-input" data-i18n-placeholder="network.proxyHostPlaceholder">
+                                </div>
+                                <div class="proxy-field-group" style="width:110px;">
+                                    <label class="proxy-label" data-i18n="network.proxyPort"></label>
+                                    <input type="text" id="proxyPort" class="vsc-input" data-i18n-placeholder="network.proxyPortPlaceholder">
+                                </div>
+                            </div>
+                            <div id="proxyAuthWrap" style="display:none;flex-direction:column;gap:8px;">
+                                <label class="proxy-label" data-i18n="network.proxyAuth"></label>
+                                <div class="proxy-field-row">
+                                    <input type="text" id="proxyLogin" class="vsc-input" data-i18n-placeholder="network.proxyLogin" style="flex:1;">
+                                    <input type="password" id="proxyPassword" class="vsc-input" data-i18n-placeholder="network.proxyPassword" style="flex:1;">
+                                </div>
+                            </div>
+                            <div id="proxyStatus" class="proxy-status"></div>
+                            <div style="display:flex;gap:8px;">
+                                <button id="proxyTestBtn" class="vsc-btn-secondary" style="flex:1;">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
+                                    <span data-i18n="network.proxyTest"></span>
+                                </button>
+                                <button id="proxySaveBtn" class="vsc-btn" style="flex:1;">
+                                    <span data-i18n="network.proxySave"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- VPN: импорт конфигов прямо в настройках -->
+                    <div class="settings-group" id="settingsVpnGroup">
+                        <div class="settings-group-title">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span data-i18n="network.vpnTitle"></span>
+                        </div>
+
+                        <!-- Список сохранённых конфигов -->
+                        <div id="settingsVpnList" class="settings-vpn-list"></div>
+
+                        <!-- Импорт -->
+                        <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:8px">
+                            <label class="settings-label" data-i18n="network.vpnAddLink"></label>
+                            <textarea id="settingsVpnInput" class="settings-vpn-textarea"
+                                data-i18n-placeholder="network.vpnLinkPh" rows="3"></textarea>
+                            <button id="settingsVpnImportBtn" class="settings-vpn-import-btn">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:5px">
+                                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                                </svg>
+                                <span data-i18n="network.vpnImport"></span>
+                            </button>
+                            <div id="settingsVpnStatus" class="settings-vpn-status" style="display:none"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Система -->
+                <div class="settings-section" id="section-system">
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.version"></div>
+
+                        <div class="settings-about settings-about-centrio">
+                            <div class="settings-about-bg"></div>
+
+                            <div class="about-logo-wrap">
+                                <img src="assets/logo.png" alt="Centrio" class="about-logo-img">
+                            </div>
+
+                            <div class="about-name">Centrio</div>
+
+                            <div class="about-version-row">
+                                <span class="about-version-badge" id="appVersionText">v1.3.3</span>
+                                <span class="about-build-badge" id="updateStatusBadge">Готово к работе</span>
+                            </div>
+
+                            <div class="about-desc" data-i18n="settings.aboutDesc"></div>
+
+                            <div class="about-actions">
+                                <div class="about-auto-update-note">
+                                    Обновления проверяются и скачиваются автоматически
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.resetLabel"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="settings.resetLabel"></span>
+                                <span class="settings-hint" data-i18n="settings.resetHint"></span>
+                            </div>
+                            <button class="vsc-btn-danger" id="resetAllBtn" data-i18n="settings.resetBtn"></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="settings-footer">
+            <div class="settings-status" id="settingsStatus"></div>
+            <button class="vsc-btn" id="applySettingsBtn" data-i18n="settings.apply"></button>
+        </div>
+    </div>
+</div>
+
+<!-- ЭКРАН БЛОКИРОВКИ -->
+<div id="lockScreen" class="lock-screen" style="display:none;">
+    <div class="lock-bg-blur"></div>
+    <div class="lock-box">
+        <div class="lock-logo-wrap">
+            <div class="lock-logo-circle">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+        <h2 class="lock-title" data-i18n="lock.title"></h2>
+        <p class="lock-sub" data-i18n="lock.sub"></p>
+        <div class="lock-pin-wrap">
+            <div class="lock-pin-dot" id="lockDot0"></div>
+            <div class="lock-pin-dot" id="lockDot1"></div>
+            <div class="lock-pin-dot" id="lockDot2"></div>
+            <div class="lock-pin-dot" id="lockDot3"></div>
+        </div>
+        <input type="password" id="lockInput" class="lock-input-hidden" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+        <div class="lock-numpad">
+            <button class="lock-key" data-digit="1">1</button>
+            <button class="lock-key" data-digit="2">2</button>
+            <button class="lock-key" data-digit="3">3</button>
+            <button class="lock-key" data-digit="4">4</button>
+            <button class="lock-key" data-digit="5">5</button>
+            <button class="lock-key" data-digit="6">6</button>
+            <button class="lock-key" data-digit="7">7</button>
+            <button class="lock-key" data-digit="8">8</button>
+            <button class="lock-key" data-digit="9">9</button>
+            <button class="lock-key lock-key-clear" id="lockClearBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 5H9L2 12l7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <button class="lock-key" data-digit="0">0</button>
+            <button class="lock-key lock-key-enter" id="lockSubmitBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+        <p id="lockError" class="lock-error" style="display:none;" data-i18n="lock.error"></p>
+        <button id="forgotPinBtn" class="forgot-pin-btn" data-i18n="lock.forgot"></button>
+    </div>
+</div>
+
+<!-- Контекстное меню webview -->
+<div id="webviewContextMenu" class="context-menu">
+    <div class="context-item" id="wvCopy">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span data-i18n="ctx.copy"></span>
+    </div>
+    <div class="context-divider"></div>
+    <div class="context-item" id="wvSavePage">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span data-i18n="ctx.savePage"></span>
+    </div>
+    <div class="context-item" id="wvSaveImage">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="2"/>
+            <polyline points="21 15 16 10 5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span data-i18n="ctx.saveImage"></span>
+    </div>
+    <div class="context-divider"></div>
+    <div class="context-item context-has-sub" id="wvZoom">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 11h6M11 8v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span data-i18n="ctx.zoom"></span>
+        <svg style="margin-left:auto" width="10" height="10" viewBox="0 0 24 24" fill="none">
+            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div class="context-submenu" id="wvZoomSubmenu">
+            <div class="context-item" id="wvZoomIn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                    <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                    <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M8 11h6M11 8v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span data-i18n="ctx.zoomIn"></span>
+            </div>
+            <div class="context-item" id="wvZoomOut">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                    <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                    <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M8 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span data-i18n="ctx.zoomOut"></span>
+            </div>
+            <div class="context-item" id="wvZoomReset">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span data-i18n="ctx.zoomReset"></span>
+            </div>
+        </div>
+    </div>
+    <div class="context-divider"></div>
+    <div class="context-item" id="wvFind">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span data-i18n="search.findInPage"></span>
+        <span class="menu-drop-shortcut" style="margin-left:auto;font-size:11px;opacity:0.45;">Ctrl+F</span>
+    </div>
+    <div class="context-item" id="wvPrint">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <polyline points="6 9 6 2 18 2 18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <rect x="6" y="14" width="12" height="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span data-i18n="ctx.print"></span>
+        <span class="menu-drop-shortcut" style="margin-left:auto;font-size:11px;opacity:0.45;">Ctrl+P</span>
+    </div>
+</div>
+
+<!-- Модал подтверждения отключения PIN -->
+<div id="pinDisableModal" class="pin-disable-overlay" style="display:none;">
+    <div class="pin-disable-box">
+        <div class="pin-disable-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <h3 class="pin-disable-title" data-i18n="lock.pinDisableTitle"></h3>
+        <p class="pin-disable-sub" data-i18n="lock.pinDisableSub"></p>
+        <div class="lock-pin-wrap" style="margin: 12px 0;">
+            <div class="lock-pin-dot" id="disableDot0"></div>
+            <div class="lock-pin-dot" id="disableDot1"></div>
+            <div class="lock-pin-dot" id="disableDot2"></div>
+            <div class="lock-pin-dot" id="disableDot3"></div>
+        </div>
+        <p id="pinDisableError" class="lock-error" style="display:none;" data-i18n="lock.error"></p>
+        <div class="lock-numpad" style="margin-top:8px;">
+            <button class="lock-key" data-disable-digit="1">1</button>
+            <button class="lock-key" data-disable-digit="2">2</button>
+            <button class="lock-key" data-disable-digit="3">3</button>
+            <button class="lock-key" data-disable-digit="4">4</button>
+            <button class="lock-key" data-disable-digit="5">5</button>
+            <button class="lock-key" data-disable-digit="6">6</button>
+            <button class="lock-key" data-disable-digit="7">7</button>
+            <button class="lock-key" data-disable-digit="8">8</button>
+            <button class="lock-key" data-disable-digit="9">9</button>
+            <button class="lock-key lock-key-clear" id="disableClearBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 5H9L2 12l7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <button class="lock-key" data-disable-digit="0">0</button>
+            <button class="lock-key lock-key-enter" id="disableConfirmBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+        <button class="pin-disable-cancel" id="pinDisableCancelBtn" data-i18n="modal.cancel"></button>
+    </div>
+</div>
+
+<!-- ===== МОДАЛ АККАУНТА CENTRIO ===== -->
+<div id="cloudModal" class="modal">
+    <div class="modal-content cloud-modal-content">
+        <div class="modal-header">
+            <h3 data-i18n="cloud.title"></h3>
+            <button id="closeCloudModalBtn" class="modal-close">✕</button>
+        </div>
+
+        <!-- Вход -->
+<div id="cloudLoginView" class="modal-body" style="display:none;">
+    <p data-i18n="cloud.loginHint"></p>
+
+    <!-- Ожидание ответа от браузера -->
+    <div id="oauthWaitView" style="display:none;flex-direction:column;align-items:center;gap:16px;padding:24px 0;">
+        <div style="width:36px;height:36px;border:3px solid rgba(99,102,241,0.25);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;"></div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.7);text-align:center;" id="oauthWaitText">Ожидаем авторизацию в браузере...</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.35);text-align:center;">Завершите вход в открывшейся вкладке</div>
+        <button id="oauthCancelBtn" style="margin-top:4px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);border-radius:8px;padding:6px 16px;font-size:12px;cursor:pointer;">Отмена</button>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+    <!-- OAuth кнопки -->
+    <div class="oauth-buttons" id="oauthButtonsView">
+        <button class="oauth-btn oauth-google" id="oauthGoogleBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span data-i18n="cloud.loginGoogle">Войти через Google</span>
+        </button>
+        <button class="oauth-btn oauth-yandex" id="oauthYandexBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0z" fill="#FC3F1D"/>
+                <path d="M13.32 7.3h-.88c-1.54 0-2.35.78-2.35 1.93 0 1.3.56 1.96 1.72 2.75l.96.65-2.74 4.07H8.17l2.52-3.73c-1.45-1.04-2.27-2.07-2.27-3.67 0-2.09 1.44-3.5 4.0-3.5h2.72V16.7H13.32V7.3z" fill="white"/>
+            </svg>
+            <span data-i18n="cloud.loginYandex">Войти через Яндекс</span>
+        </button>
+    </div>
+
+    <div class="oauth-divider">
+        <span class="oauth-divider-line"></span>
+        <span class="oauth-divider-text">или</span>
+        <span class="oauth-divider-line"></span>
+    </div>
+
+    <!-- Форма email/пароль -->
+    <input type="email" id="cloudEmail" class="vsc-input"
+           data-i18n-placeholder="cloud.emailPh">
+    <input type="password" id="cloudPassword" class="vsc-input"
+           data-i18n-placeholder="cloud.passwordPh">
+    <div id="cloudLoginError" class="cloud-login-error" style="display:none;"></div>
+    <button id="cloudLoginBtn" class="vsc-btn" data-i18n="cloud.login"></button>
+    <button id="cloudRegisterBtn" class="vsc-btn-secondary" data-i18n="cloud.register"></button>
+</div>
+
+        <!-- Профиль -->
+        <div id="cloudProfileView" style="display:none;">
+
+            <!-- Шапка -->
+            <div class="cp-header">
+                <div class="cp-avatar-ring" id="cloudAvatarRing">
+                    <div class="cloud-avatar-wrap" id="cloudUserAvatar">
+                        <div class="cloud-avatar-overlay" id="cloudAvatarOverlay">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <circle cx="12" cy="13" r="4" stroke="white" stroke-width="2"/>
+                            </svg>
+                            <span data-i18n="cloud.changePhoto"></span>
+                        </div>
+                        U
+                    </div>
+                </div>
+                <div class="cp-info">
+                    <div class="cp-name-row">
+                        <span id="cloudUserName" class="cp-name"></span>
+                        <button id="cloudEditNameBtn" class="cloud-edit-name-btn" data-i18n-title="cloud.editName">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="cloudEditNameWrap" class="cloud-edit-name-wrap" style="display:none;">
+                        <input type="text" id="cloudEditName" class="vsc-input" data-i18n-placeholder="cloud.namePh">
+                        <button id="cloudSaveNameBtn" class="cloud-save-name-btn" data-i18n="cloud.saveName"></button>
+                        <button id="cloudCancelNameBtn" class="cloud-cancel-name-btn" data-i18n="cloud.cancelName"></button>
+                    </div>
+                    <div id="cloudUserEmail" class="cp-email"></div>
+                    <span id="cloudUserPlan" class="cp-plan-badge"></span>
+                </div>
+            </div>
+
+            <!-- Инфо-строки (мессенджеры / папки / последняя синхронизация) -->
+            <div class="cp-stats-row">
+                <div class="cp-stat">
+                    <span class="cp-stat-val" id="statMessengers">—</span>
+                    <span class="cp-stat-lbl" data-i18n="cloud.statMessengers"></span>
+                </div>
+                <div class="cp-stat-sep"></div>
+                <div class="cp-stat">
+                    <span class="cp-stat-val" id="statFolders">—</span>
+                    <span class="cp-stat-lbl" data-i18n="cloud.statFolders"></span>
+                </div>
+                <div class="cp-stat-sep"></div>
+                <div class="cp-stat">
+                    <span class="cp-stat-val" id="statLastSync">—</span>
+                    <span class="cp-stat-lbl" data-i18n="cloud.statLastSync"></span>
+                </div>
+            </div>
+
+            <!-- Тарифы -->
+            <div class="cp-plans-section">
+                <div class="cp-section-label" data-i18n="cloud.plansSection"></div>
+
+                <div class="cp-plans-grid">
+
+                <!-- Free -->
+                <div class="cp-plan-row" data-plan="FREE" id="planCardFree">
+                    <div class="cp-plan-left">
+                        <div class="cp-plan-title-row">
+                            <span class="cp-plan-name" data-i18n="cloud.planFree"></span>
+                        </div>
+                        <ul class="cp-plan-feats">
+                            <li data-i18n="cloud.planFreeF1"></li>
+                            <li data-i18n="cloud.planFreeF2"></li>
+                            <li data-i18n="cloud.planFreeF3"></li>
+                            <li data-i18n="cloud.planFreeF4"></li>
+                        </ul>
+                    </div>
+                    <div class="cp-plan-right">
+                        <div class="cp-price-block">
+                            <span class="cp-price" data-i18n="cloud.planFreePrice"></span>
+                        </div>
+                        <div class="cp-plan-action is-current-label" data-i18n="cloud.planCurrent"></div>
+                    </div>
+                </div>
+
+                <!-- Pro месяц -->
+                <div class="cp-plan-row cp-plan-row--pro" data-plan="PRO" id="planCardPro">
+                    <div class="cp-plan-left">
+                        <div class="cp-plan-title-row">
+                            <span class="cp-plan-name">Pro</span>
+                        </div>
+                        <ul class="cp-plan-feats">
+                            <li data-i18n="cloud.planProF1"></li>
+                            <li data-i18n="cloud.planProF2"></li>
+                            <li data-i18n="cloud.planProF3"></li>
+                            <li data-i18n="cloud.planProF4"></li>
+                        </ul>
+                    </div>
+                    <div class="cp-plan-right">
+                        <div class="cp-price-block">
+                            <span class="cp-price" data-i18n="cloud.planProPrice"></span>
+                            <span class="cp-period" data-i18n="cloud.planPerMonth"></span>
+                        </div>
+                        <button class="cp-buy-btn" id="planBuyProBtn" data-i18n="cloud.planBuy"></button>
+                        <div class="cp-plan-action is-current-label" data-i18n="cloud.planCurrent"></div>
+                    </div>
+                </div>
+
+                <!-- Pro год -->
+                <div class="cp-plan-row cp-plan-row--year" data-plan="PRO_YEAR" id="planCardProYear">
+                    <div class="cp-best-badge" data-i18n="cloud.planBestValue"></div>
+                    <div class="cp-plan-left">
+                        <div class="cp-plan-title-row">
+                            <span class="cp-plan-name">Pro <span data-i18n="cloud.planYear"></span></span>
+                        </div>
+                        <ul class="cp-plan-feats">
+                            <li data-i18n="cloud.planProF1"></li>
+                            <li data-i18n="cloud.planProF2"></li>
+                            <li data-i18n="cloud.planProF3"></li>
+                            <li data-i18n="cloud.planYearF1"></li>
+                        </ul>
+                    </div>
+                    <div class="cp-plan-right">
+                        <div class="cp-price-block">
+                            <span class="cp-price cp-price--year" data-i18n="cloud.planProYearMonthPrice"></span>
+                            <span class="cp-period" data-i18n="cloud.planPerMonth"></span>
+                            <span class="cp-year-total" data-i18n="cloud.planProYearTotal"></span>
+                        </div>
+                        <button class="cp-buy-btn cp-buy-btn--year" id="planBuyProYearBtn" data-i18n="cloud.planBuy"></button>
+                        <div class="cp-plan-action is-current-label" data-i18n="cloud.planCurrent"></div>
+                    </div>
+                </div>
+
+                </div><!-- /cp-plans-grid -->
+            </div>
+
+            <!-- Действия -->
+            <div class="cp-footer">
+                <button id="cloudSyncNowBtn" class="cp-sync-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span data-i18n="cloud.sync"></span>
+                </button>
+                <button id="cloudLogoutBtn" class="cp-logout-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                        <polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
+                    <span data-i18n="cloud.logout"></span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Модал звука мессенджера -->
+<div id="messengerSoundModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Звук уведомления</h3>
+            <button id="closeMessengerSoundBtn" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">
+                Выберите звук для этого мессенджера или оставьте по умолчанию
+            </p>
+            <div class="sound-list" id="messengerSoundList">
+                <div class="sound-item" data-msound="__default__">
+                    <div class="sound-item-left">
+                        <div class="sound-icon">🔔</div>
+                        <span>По умолчанию</span>
+                    </div>
+                    <button class="sound-preview-btn" data-msound-preview="__default__">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="sound-item" data-msound="single">
+                    <div class="sound-item-left">
+                        <div class="sound-icon">🔔</div>
+                        <span>Single</span>
+                    </div>
+                    <button class="sound-preview-btn" data-msound-preview="single">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="sound-item" data-msound="answer">
+                    <div class="sound-item-left">
+                        <div class="sound-icon">💬</div>
+                        <span>Answer</span>
+                    </div>
+                    <button class="sound-preview-btn" data-msound-preview="answer">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="sound-item" data-msound="mystery">
+                    <div class="sound-item-left">
+                        <div class="sound-icon">🎵</div>
+                        <span>Mystery</span>
+                    </div>
+                    <button class="sound-preview-btn" data-msound-preview="mystery">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="sound-item" data-msound="interface">
+                    <div class="sound-item-left">
+                        <div class="sound-icon">✨</div>
+                        <span>Interface</span>
+                    </div>
+                    <button class="sound-preview-btn" data-msound-preview="interface">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="sound-item" data-msound="notification">
+                    <div class="sound-item-left">
+                        <div class="sound-icon">🔕</div>
+                        <span>Notification</span>
+                    </div>
+                    <button class="sound-preview-btn" data-msound-preview="notification">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <button class="vsc-btn" id="saveMessengerSoundBtn" style="margin-top:8px;width:100%;">
+                Сохранить
+            </button>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<div id="confirmModal" class="modal confirm-modal" aria-hidden="true">
+  <div class="modal-content confirm-modal-content" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="confirm-modal-glow"></div>
+
+    <div class="modal-header confirm-modal-header">
+      <div class="confirm-modal-title-wrap">
+        <div class="confirm-icon danger" id="confirmIconWrap">
+          <span class="confirm-icon-ring"></span>
+          <svg id="confirmIconSvg" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 8V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 17H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M10.29 3.86L1.82 18A2 2 0 0 0 3.53 21H20.47A2 2 0 0 0 22.18 18L13.71 3.86A2 2 0 0 0 10.29 3.86Z"
+                  stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div class="confirm-headings">
+          <h3 id="confirmTitle">Подтверждение</h3>
+          <p id="confirmSubtitle" class="confirm-subtitle">Проверь действие перед продолжением</p>
+        </div>
+      </div>
+
+      <button class="modal-close confirm-close" id="confirmCloseBtn" type="button" aria-label="Закрыть">✕</button>
+    </div>
+
+    <div class="modal-body confirm-modal-body">
+      <p id="confirmMessage" class="confirm-message">Вы уверены?</p>
+    </div>
+
+    <div class="confirm-actions">
+      <button class="vsc-btn-secondary confirm-cancel-btn" id="confirmCancelBtn" type="button">Отмена</button>
+      <button class="vsc-btn confirm-ok-btn" id="confirmOkBtn" type="button">Продолжить</button>
+    </div>
+  </div>
+</div>
+
+<div id="updateToastContainer" class="update-toast-container"></div>
+
+<!-- ── PRO Upgrade Modal ─────────────────────────────────────── -->
+<div id="upgradeModal" class="modal" style="z-index:9999;">
+  <div class="modal-content modal-sm upgrade-modal-card">
+    <!-- gradient header -->
+    <div class="upgrade-modal-header">
+      <div class="upgrade-modal-icon-wrap" id="upgradeModalIcon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="rgba(99,102,241,0.25)"/>
+        </svg>
+      </div>
+      <div>
+        <div class="upgrade-modal-title" id="upgradeModalTitle">Нужен Pro</div>
+        <div class="upgrade-modal-desc" id="upgradeModalDesc">Достигнут лимит бесплатного плана.</div>
+      </div>
+    </div>
+    <!-- features -->
+    <div class="upgrade-modal-features" id="upgradeModalFeatures">
+      <div class="upgrade-modal-features-label">Pro открывает:</div>
+      <div class="upgrade-modal-feat-list">
+        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Неограниченно мессенджеров</div>
+        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> До 5 устройств одновременно</div>
+        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Облачная синхронизация</div>
+        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Папки и группировка</div>
+        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Все темы и акцент-цвета</div>
+      </div>
+    </div>
+    <!-- actions -->
+    <div class="upgrade-modal-actions">
+      <button id="upgradeModalBtn" onclick="window.electronAPI?.openExternal('https://centrio.me/pricing')" class="upgrade-modal-cta">
+        Перейти на Pro
+      </button>
+      <button id="upgradeModalClose" class="upgrade-modal-later">
+        Позже
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="./bundle.js"></script>
+
+<!-- VPN панель -->
+<div id="vpnPanel" class="vpn-panel" style="display:none;">
+    <div class="vpn-panel-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>VPN</span>
+    </div>
+    <div class="vpn-panel-body"></div>
+</div>
+
+<!-- Панель уведомлений приложения -->
+<div id="appNotifPanel" class="app-notif-panel" style="display:none;">
+    <div class="app-notif-header">
+        <span data-i18n="notifications.appNotifTitle"></span>
+        <div class="app-notif-header-actions">
+            <button id="appNotifMuteToggle" class="app-notif-mute-btn" title="Отключить уведомления">
+                <!-- иконка: звонок (не muted) -->
+                <svg class="mute-icon-normal" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <!-- иконка: звонок перечёркнут (muted) -->
+                <svg class="mute-icon-muted" width="15" height="15" viewBox="0 0 24 24" fill="none" style="display:none;">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <button id="appNotifMarkAllRead" class="app-notif-clear-btn" data-i18n="notifications.markAllRead"></button>
+            <button id="appNotifDeleteAll" class="app-notif-delete-btn" title="Удалить все уведомления из панели">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M9 6V4h6v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <div id="appNotifList" class="app-notif-list">
+        <div class="app-notif-empty" data-i18n="notifications.noNotifs"></div>
+    </div>
+</div>
+
+</body>
+</html>

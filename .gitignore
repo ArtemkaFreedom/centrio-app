@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+dist/
+dist-v*/
+dist-build/
+*.log
+renderer.js
+renderer.js.map
+bundle.js
+bundle.js.map
+.claude/
+server-temp/
+structure.txt
+write_files.py
+generate-badges.js

@@ -1,0 +1,181 @@
+name: Build & Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 1.5.19)'
+        required: false
+
+jobs:
+  # ─── Windows ───────────────────────────────────────────────────────────────
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Write .env
+        shell: pwsh
+        run: |
+          @"
+          GOOGLE_DESKTOP_CLIENT_ID=${{ secrets.GOOGLE_DESKTOP_CLIENT_ID }}
+          GOOGLE_DESKTOP_CLIENT_SECRET=${{ secrets.GOOGLE_DESKTOP_CLIENT_SECRET }}
+          YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
+          YANDEX_CLIENT_SECRET=${{ secrets.YANDEX_CLIENT_SECRET }}
+          TELEGRAM_BOT_ID=${{ secrets.TELEGRAM_BOT_ID }}
+          UPLOAD_HOST=${{ secrets.SSH_HOST }}
+          UPLOAD_PORT=22
+          UPLOAD_USER=${{ secrets.SSH_USER }}
+          UPLOAD_PASSWORD=${{ secrets.SSH_PASSWORD }}
+          UPLOAD_PATH=/var/www/centrio-downloads
+          "@ | Out-File -FilePath .env -Encoding utf8NoBOM
+
+      - run: npm ci
+
+      - name: Build Windows
+        run: npm run build:renderer && npx electron-builder --win --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-artifacts
+          path: |
+            dist-*/*.exe
+            dist-*/*.exe.blockmap
+            dist-*/latest.yml
+          if-no-files-found: error
+
+  # ─── macOS ─────────────────────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Write .env
+        run: |
+          cat > .env << 'ENVEOF'
+          GOOGLE_DESKTOP_CLIENT_ID=${{ secrets.GOOGLE_DESKTOP_CLIENT_ID }}
+          GOOGLE_DESKTOP_CLIENT_SECRET=${{ secrets.GOOGLE_DESKTOP_CLIENT_SECRET }}
+          YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
+          YANDEX_CLIENT_SECRET=${{ secrets.YANDEX_CLIENT_SECRET }}
+          TELEGRAM_BOT_ID=${{ secrets.TELEGRAM_BOT_ID }}
+          ENVEOF
+
+      - run: npm ci
+
+      - name: Build macOS (unsigned)
+        run: npm run build:renderer && npx electron-builder --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-artifacts
+          path: |
+            dist-*/*.dmg
+            dist-*/*.dmg.blockmap
+          if-no-files-found: error
+
+  # ─── Linux ─────────────────────────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libnotify-dev libnss3 libxss1 \
+            libasound2-dev libxtst-dev xvfb
+
+      - name: Write .env
+        run: |
+          cat > .env << 'ENVEOF'
+          GOOGLE_DESKTOP_CLIENT_ID=${{ secrets.GOOGLE_DESKTOP_CLIENT_ID }}
+          GOOGLE_DESKTOP_CLIENT_SECRET=${{ secrets.GOOGLE_DESKTOP_CLIENT_SECRET }}
+          YANDEX_CLIENT_ID=${{ secrets.YANDEX_CLIENT_ID }}
+          YANDEX_CLIENT_SECRET=${{ secrets.YANDEX_CLIENT_SECRET }}
+          TELEGRAM_BOT_ID=${{ secrets.TELEGRAM_BOT_ID }}
+          ENVEOF
+
+      - run: npm ci
+
+      - name: Build Linux
+        run: npm run build:renderer && npx electron-builder --linux --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: |
+            dist-*/*.AppImage
+            dist-*/*.deb
+          if-no-files-found: error
+
+  # ─── Deploy ────────────────────────────────────────────────────────────────
+  deploy:
+    needs: [build-win, build-mac, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Show artifact tree
+        run: find artifacts -type f | sort
+
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+
+      - name: Upload Windows → /var/www/centrio-downloads/
+        run: |
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no \
+            artifacts/win-artifacts/*.exe \
+            artifacts/win-artifacts/*.exe.blockmap \
+            artifacts/win-artifacts/latest.yml \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/centrio-downloads/
+
+      - name: Upload macOS → /var/www/centrio-downloads/mac/
+        run: |
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no \
+            artifacts/mac-artifacts/*.dmg \
+            artifacts/mac-artifacts/*.dmg.blockmap \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/centrio-downloads/mac/
+
+      - name: Upload Linux → /var/www/centrio-downloads/linux/
+        run: |
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no \
+            artifacts/linux-artifacts/*.AppImage \
+            artifacts/linux-artifacts/*.deb \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/centrio-downloads/linux/
+
+      - name: Done
+        run: echo "✅ All builds deployed to centrio-downloads"
