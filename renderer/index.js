@@ -10,7 +10,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        await import('../renderer.js')
+        require('../renderer.js')
         console.log('[renderer] legacy renderer.js loaded')
     } catch (error) {
         console.error('[renderer] failed to load legacy renderer.js')
