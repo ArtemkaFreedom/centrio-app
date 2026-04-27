@@ -71,7 +71,7 @@ jobs:
       - run: npm ci
 
       - name: Build macOS (unsigned)
-        run: node build-renderer.js && npx electron-builder --mac dmg --x64 --publish never --config.mac.hardenedRuntime=false --config.mac.identity=null
+        run: node build-renderer.js && npx electron-builder --mac --publish never
         env:
           NODE_ENV: production
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'

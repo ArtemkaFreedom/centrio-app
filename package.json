@@ -68,19 +68,16 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg",  "arch": ["x64", "arm64"] },
-        { "target": "zip",  "arch": ["x64", "arm64"] }
+        { "target": "dmg", "arch": ["x64"] }
       ],
-      "icon": "assets/logotype.icns",
+      "icon": "assets/logo.png",
       "category": "public.app-category.productivity",
       "darkModeSupport": true,
-      "hardenedRuntime": true,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "hardenedRuntime": false
     },
     "dmg": {
       "title": "Centrio ${version}",
-      "icon": "assets/logotype.icns",
+      "icon": "assets/logo.png",
       "window": { "width": 540, "height": 380 }
     },
     "linux": {
@@ -88,7 +85,7 @@
         { "target": "AppImage", "arch": ["x64"] },
         { "target": "deb",      "arch": ["x64"] }
       ],
-      "icon": "assets/logotype.png",
+      "icon": "assets/logo.png",
       "category": "Network"
     },
     "nsis": {
