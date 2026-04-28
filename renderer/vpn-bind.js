@@ -105,6 +105,58 @@ function bindVpnUi ({ invokeIpc, tGet }) {
     return (status.configs || []).find(c => c.id === id) || null
   }
 
+  // ── Автопереключение (отключить → подключить новый) ──────────────
+  async function autoSwitch (conf) {
+    setStatus(tGet('network.vpnConnecting'), false)
+    try {
+      await invokeIpc('vpn-disconnect')
+      stopTimer()
+      const result = await invokeIpc('vpn-connect-saved', conf.link)
+      if (result.success) {
+        status = result.status
+        startTimer()
+        setStatus(tGet('network.vpnConnected', { name: status.name || '' }), false)
+        updateBtn()
+        render()
+      } else if (result.needsDownload) {
+        showProgress(0, tGet('network.vpnPreparing'))
+        await downloadAndConnect(conf.link)
+      } else {
+        status.active = false
+        updateBtn()
+        setStatus(result.error || tGet('network.vpnError'), true)
+        render()
+      }
+    } catch (e) {
+      setStatus(e.message || tGet('network.vpnError'), true)
+    }
+  }
+
+  // ── Репинг одного конфига ─────────────────────────────────────────
+  function repingOne (id) {
+    const conf = (status.configs || []).find(c => c.id === id)
+    if (!conf) return
+    pings[id] = 'pending'
+    // Обновить бейдж сразу (показать "пингуем")
+    const row = panel.querySelector(`.vpn-config-item[data-id="${id}"]`)
+    if (row) {
+      const existing = row.querySelector('[class^="vpn-ping"]')
+      if (existing) existing.outerHTML = pingBadge(id)
+      else {
+        const right = row.querySelector('.vpn-config-right')
+        if (right) right.insertAdjacentHTML('afterbegin', pingBadge(id))
+      }
+    }
+    invokeIpc('vpn-ping', conf.link).then(res => {
+      pings[id] = (res && res.ms !== undefined) ? res.ms : null
+      const r2 = panel.querySelector(`.vpn-config-item[data-id="${id}"]`)
+      if (r2) {
+        const b = r2.querySelector('[class^="vpn-ping"]')
+        if (b) b.outerHTML = pingBadge(id)
+      }
+    }).catch(() => { pings[id] = null })
+  }
+
   // ── Рендер панели ─────────────────────────────────────────────────
   function render () {
     const body = panel.querySelector('.vpn-panel-body')
@@ -181,6 +233,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
                 </div>
                 <div class="vpn-config-right">
                   ${pingBadge(c.id)}
+                  <button class="vpn-cfg-repingbtn" data-id="${esc(c.id)}" title="Проверить пинг" style="background:none;border:none;color:rgba(255,255,255,0.25);cursor:pointer;padding:2px 5px;font-size:13px;line-height:1;border-radius:4px;transition:color .15s" onmouseover="this.style.color='rgba(255,255,255,0.65)'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">↻</button>
                   <button class="vpn-cfg-delete" data-id="${esc(c.id)}" title="${esc(tGet('network.vpnDeleteBtn'))}">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -224,10 +277,27 @@ function bindVpnUi ({ invokeIpc, tGet }) {
 
     body.querySelectorAll('.vpn-config-item').forEach(el => {
       el.addEventListener('click', (e) => {
-        if (e.target.closest('.vpn-cfg-delete')) return
+        if (e.target.closest('.vpn-cfg-delete') || e.target.closest('.vpn-cfg-repingbtn')) return
         e.stopPropagation()   // панель не должна закрываться при выборе конфига
-        selectedId = el.dataset.id
+        const newId = el.dataset.id
+        // Если VPN активен и выбираем другой конфиг — автопереключение
+        if (isActive && newId !== selectedId) {
+          const newConf = findConfig(newId)
+          if (newConf) {
+            selectedId = newId
+            autoSwitch(newConf)
+            return
+          }
+        }
+        selectedId = newId
         render()
+      })
+    })
+
+    body.querySelectorAll('.vpn-cfg-repingbtn').forEach(b => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation()
+        repingOne(b.dataset.id)
       })
     })
 
