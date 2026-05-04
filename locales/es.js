@@ -27,7 +27,8 @@ module.exports = {
         create:    'Crear carpeta',
         rename:    'Renombrar carpeta',
         delete:    'Eliminar carpeta',
-        reloadAll: 'Recargar todas las pestañas',
+        reloadAll:  'Recargar todas las pestañas',
+        changeIcon: 'Cambiar icono',
     },
 
     modal: {

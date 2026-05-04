@@ -27,7 +27,8 @@ module.exports = {
         create:    '创建文件夹',
         rename:    '重命名文件夹',
         delete:    '删除文件夹',
-        reloadAll: '刷新所有标签',
+        reloadAll:  '刷新所有标签',
+        changeIcon: '更换图标',
     },
 
     modal: {

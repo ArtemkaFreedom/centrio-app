@@ -27,7 +27,8 @@ module.exports = {
         create:    'Créer un dossier',
         rename:    'Renommer le dossier',
         delete:    'Supprimer le dossier',
-        reloadAll: 'Recharger tous les onglets',
+        reloadAll:  'Recharger tous les onglets',
+        changeIcon: 'Changer l\'icône',
     },
 
     modal: {

@@ -27,7 +27,8 @@ module.exports = {
         create:    'Ordner erstellen',
         rename:    'Ordner umbenennen',
         delete:    'Ordner löschen',
-        reloadAll: 'Alle Tabs neu laden',
+        reloadAll:  'Alle Tabs neu laden',
+        changeIcon: 'Symbol ändern',
     },
 
     modal: {

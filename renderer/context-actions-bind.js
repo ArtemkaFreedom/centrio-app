@@ -186,6 +186,32 @@ function bindContextActionsUi({
         openEditModal()
     })
 
+    document.getElementById('ctxFolderChangeIcon')?.addEventListener('click', () => {
+        const folder = getFolderById(state.contextTargetFolderId)
+        hideAllMenus()
+        if (!folder) return
+
+        state.editMode = 'folder'
+
+        const saveBtn = document.getElementById('saveEditBtn')
+        const editName = document.getElementById('editName')
+        const editModalTitle = document.getElementById('editModalTitle')
+
+        if (saveBtn) saveBtn.dataset.pendingMessengerId = folder.id
+        if (editName) editName.value = folder.name
+        if (editModalTitle) editModalTitle.textContent = tGet ? tGet('folders.changeIcon') : 'Change Icon'
+
+        document.querySelectorAll('.folder-icon-option, .icon-picker-item').forEach(el => {
+            el.classList.remove('active', 'selected')
+        })
+
+        state.selectedFolderIcon = folder.icon || 'folder'
+        document.querySelector(`.folder-icon-option[data-icon="${state.selectedFolderIcon}"]`)?.classList.add('active')
+        document.querySelector(`.icon-picker-item[data-icon="${state.selectedFolderIcon}"]`)?.classList.add('selected')
+
+        openEditModal()
+    })
+
     document.getElementById('ctxFolderRemove')?.addEventListener('click', () => {
         const folderId = state.contextTargetFolderId
         hideAllMenus()

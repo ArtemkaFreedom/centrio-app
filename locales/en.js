@@ -27,7 +27,8 @@ module.exports = {
         create:    'Create folder',
         rename:    'Rename folder',
         delete:    'Delete folder',
-        reloadAll: 'Reload all tabs',
+        reloadAll:  'Reload all tabs',
+        changeIcon: 'Change icon',
     },
 
     modal: {

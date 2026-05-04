@@ -27,7 +27,8 @@ module.exports = {
         create:    'Crea cartella',
         rename:    'Rinomina cartella',
         delete:    'Elimina cartella',
-        reloadAll: 'Ricarica tutte le schede',
+        reloadAll:  'Ricarica tutte le schede',
+        changeIcon: 'Cambia icona',
     },
 
     modal: {

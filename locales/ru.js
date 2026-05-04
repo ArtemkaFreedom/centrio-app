@@ -27,7 +27,8 @@ module.exports = {
         create: 'Создать папку',
         rename: 'Переименовать папку',
         delete: 'Удалить папку',
-        reloadAll: 'Обновить все вкладки'
+        reloadAll: 'Обновить все вкладки',
+        changeIcon: 'Сменить иконку'
     },
 
     modal: {
