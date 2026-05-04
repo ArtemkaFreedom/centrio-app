@@ -1,10 +1,10 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
 
-const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%201.5.19.exe'
+const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%201.5.21.exe'
 
 const IcoGlobe = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
