@@ -184,6 +184,11 @@ module.exports = {
         vpnDownloadError:    '下载错误',
         vpnConnectBtn:       '连接',
         vpnDeleteBtn:        '删除',
+        vpnAppsTitle:        '按应用使用VPN',
+        vpnAppsHint:         '选择哪些应用通过VPN',
+        vpnAppsEmpty:        '没有活跃应用',
+        vpnCtx:              '使用VPN',
+        vpnCtxDisable:       '不使用VPN',
     },
 
     status: {

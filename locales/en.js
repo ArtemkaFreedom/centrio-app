@@ -190,6 +190,11 @@ module.exports = {
         vpnPingMs:        '{ms} ms',
         vpnPingFail:      '—',
         vpnAddLink:       'Add link',
+        vpnAppsTitle:     'VPN for applications',
+        vpnAppsHint:      'Choose which messengers work through VPN',
+        vpnAppsEmpty:     'No active messengers',
+        vpnCtx:           'Use VPN',
+        vpnCtxDisable:    'Don\'t use VPN',
     },
 
     status: {

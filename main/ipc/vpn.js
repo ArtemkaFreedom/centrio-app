@@ -3,9 +3,9 @@
 // ВАЖНО: не используем wrapIpc — хендлеры сами формируют { success, ... }.
 // applyAllSessionsProxy применяет прокси ко всем сессиям мессенджеров (не только defaultSession).
 
-const { ipcMain } = require('electron')
+const { ipcMain, session } = require('electron')
 const fs   = require('fs')
-const { applyAllSessionsProxy } = require('../services/proxy')
+const { applyAllSessionsProxy, applyProxyToSession } = require('../services/proxy')
 const store = require('../services/store')
 
 // Ленивая загрузка vpn-manager (находится в корне проекта)
@@ -27,6 +27,32 @@ function vpnProxyOff ()     { return { enabled: false } }
 // Сохраняем ссылку активного конфига — чтобы восстановить после перезапуска
 function saveActiveLink (link) { store.set('vpnActiveLink', link || null) }
 function loadActiveLink ()     { return store.get('vpnActiveLink', null) }
+
+// Per-app VPN modes: { [messengerId]: boolean }, true = use VPN (default)
+function getAppModes ()             { return store.get('vpnAppModes', {}) || {} }
+function setAppMode (id, enabled)   { const m = getAppModes(); m[id] = enabled; store.set('vpnAppModes', m) }
+
+// Apply VPN proxy only to messengers that have it enabled (default = all)
+async function applyVpnToEnabledSessions (proxySettings) {
+    const modes = getAppModes()
+    try {
+        const messengers = store.get('messengers', [])
+        await applyProxyToSession(session.defaultSession, proxySettings)
+        const tasks = (messengers || [])
+            .filter(m => m && m.id)
+            .map(m => {
+                const enabled = modes[m.id] !== false
+                const settings = enabled ? proxySettings : { enabled: false }
+                try {
+                    const ses = session.fromPartition(`persist:${m.id}`)
+                    return applyProxyToSession(ses, settings)
+                } catch (e) { return Promise.resolve() }
+            })
+        await Promise.all(tasks)
+    } catch (e) {
+        console.error('[VPN] applyVpnToEnabledSessions error:', e.message)
+    }
+}
 
 function registerVpnIpc ({ getMainWindow }) {
 
@@ -51,7 +77,7 @@ function registerVpnIpc ({ getMainWindow }) {
                                     const win = getMainWindow()
                                     if (win) win.webContents.send('vpn-log', line)
                                 })
-                                await applyAllSessionsProxy(vpnProxyOn(vpn.PROXY_PORT))
+                                await applyVpnToEnabledSessions(vpnProxyOn(vpn.PROXY_PORT))
                             }
                         }
                     } catch (e) {
@@ -90,7 +116,7 @@ function registerVpnIpc ({ getMainWindow }) {
                     const win = getMainWindow()
                     if (win) win.webContents.send('vpn-log', line)
                 })
-                await applyAllSessionsProxy(vpnProxyOn(vpn.PROXY_PORT))
+                await applyVpnToEnabledSessions(vpnProxyOn(vpn.PROXY_PORT))
                 saveActiveLink(items[0].link)
                 return { success: true, status: vpn.getStatus(), imported: items.length }
             }
@@ -103,7 +129,7 @@ function registerVpnIpc ({ getMainWindow }) {
                 const win = getMainWindow()
                 if (win) win.webContents.send('vpn-log', line)
             })
-            await applyAllSessionsProxy(vpnProxyOn(vpn.PROXY_PORT))
+            await applyVpnToEnabledSessions(vpnProxyOn(vpn.PROXY_PORT))
             saveActiveLink(link)
             return { success: true, status: vpn.getStatus() }
 
@@ -133,7 +159,7 @@ function registerVpnIpc ({ getMainWindow }) {
                 await vpn.startProxy(items[0].parsed, (line) => {
                     if (win) win.webContents.send('vpn-log', line)
                 })
-                await applyAllSessionsProxy(vpnProxyOn(vpn.PROXY_PORT))
+                await applyVpnToEnabledSessions(vpnProxyOn(vpn.PROXY_PORT))
                 saveActiveLink(items[0].link)
                 return { success: true, status: vpn.getStatus(), imported: items.length }
             }
@@ -145,7 +171,7 @@ function registerVpnIpc ({ getMainWindow }) {
             await vpn.startProxy(parsed, (line) => {
                 if (win) win.webContents.send('vpn-log', line)
             })
-            await applyAllSessionsProxy(vpnProxyOn(vpn.PROXY_PORT))
+            await applyVpnToEnabledSessions(vpnProxyOn(vpn.PROXY_PORT))
             saveActiveLink(link)
             return { success: true, status: vpn.getStatus() }
 
@@ -166,7 +192,7 @@ function registerVpnIpc ({ getMainWindow }) {
                 const win = getMainWindow()
                 if (win) win.webContents.send('vpn-log', line)
             })
-            await applyAllSessionsProxy(vpnProxyOn(vpn.PROXY_PORT))
+            await applyVpnToEnabledSessions(vpnProxyOn(vpn.PROXY_PORT))
             saveActiveLink(link)
             return { success: true, status: vpn.getStatus() }
         } catch (e) {
@@ -179,7 +205,7 @@ function registerVpnIpc ({ getMainWindow }) {
         try {
             const vpn = getVpn()
             await vpn.stopProxy()
-            await applyAllSessionsProxy(vpnProxyOff())
+            await applyAllSessionsProxy(vpnProxyOff())  // disconnect — убираем со всех
             saveActiveLink(null)
             return { success: true, status: vpn.getStatus() }
         } catch (e) {
@@ -202,6 +228,27 @@ function registerVpnIpc ({ getMainWindow }) {
         try {
             const configs = getVpn().deleteConfig(id)
             return { success: true, configs }
+        } catch (e) {
+            return errResult(e)
+        }
+    })
+
+    // ── Per-app VPN modes ─────────────────────────────────────────
+    ipcMain.handle('vpn-get-app-modes', () => {
+        return { success: true, modes: getAppModes() }
+    })
+
+    ipcMain.handle('vpn-set-app-vpn', async (event, messengerId, enabled) => {
+        try {
+            setAppMode(messengerId, !!enabled)
+            const vpn = getVpn()
+            const st  = vpn.getStatus()
+            if (st.active) {
+                const proxy = enabled ? vpnProxyOn(vpn.PROXY_PORT) : vpnProxyOff()
+                const ses = session.fromPartition(`persist:${messengerId}`)
+                await applyProxyToSession(ses, proxy)
+            }
+            return { success: true }
         } catch (e) {
             return errResult(e)
         }

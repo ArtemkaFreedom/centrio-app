@@ -780,13 +780,11 @@
         </svg>
         <span data-i18n="notifications.mute"></span>
     </div>
-    <div class="context-item" id="ctxProxy">
+    <div class="context-item" id="ctxVpn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-            <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span data-i18n="network.proxyCtx"></span>
+        <span id="ctxVpnLabel"></span>
     </div>
     <div class="context-item" id="ctxEdit">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -816,14 +814,6 @@
         </svg>
         <span data-i18n="ctx.changeIcon"></span>
     </div>
-    <div class="context-item" id="ctxSound">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-    </svg>
-    <span>Звук уведомления</span>
-</div>
     <div class="context-divider"></div>
     <div class="context-item context-danger" id="ctxRemove">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -1368,97 +1358,6 @@
         </div>
     </div>
 
-    <!-- Звук уведомлений -->
-    <div class="settings-group" id="soundPickerGroup">
-        <div class="settings-group-title">Звук уведомлений</div>
-
-        <!-- Встроенные звуки -->
-<div class="sound-list" id="soundList">
-    <div class="sound-item active" data-sound="single">
-        <div class="sound-item-left">
-            <div class="sound-icon">🔔</div>
-            <span>Single</span>
-        </div>
-        <button class="sound-preview-btn" data-sound="single">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
-            </svg>
-        </button>
-    </div>
-    <div class="sound-item" data-sound="answer">
-        <div class="sound-item-left">
-            <div class="sound-icon">💬</div>
-            <span>Answer</span>
-        </div>
-        <button class="sound-preview-btn" data-sound="answer">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
-            </svg>
-        </button>
-    </div>
-    <div class="sound-item" data-sound="mystery">
-        <div class="sound-item-left">
-            <div class="sound-icon">🎵</div>
-            <span>Mystery</span>
-        </div>
-        <button class="sound-preview-btn" data-sound="mystery">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
-            </svg>
-        </button>
-    </div>
-    <div class="sound-item" data-sound="interface">
-        <div class="sound-item-left">
-            <div class="sound-icon">✨</div>
-            <span>Interface</span>
-        </div>
-        <button class="sound-preview-btn" data-sound="interface">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
-            </svg>
-        </button>
-    </div>
-    <div class="sound-item" data-sound="notification">
-        <div class="sound-item-left">
-            <div class="sound-icon">🔕</div>
-            <span>Notification</span>
-        </div>
-        <button class="sound-preview-btn" data-sound="notification">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
-            </svg>
-        </button>
-    </div>
-
-    <!-- Свой звук -->
-    <div class="sound-item sound-item-custom" id="soundItemCustom" style="display:none;" data-sound="custom">
-        <div class="sound-item-left">
-            <div class="sound-icon">📁</div>
-            <span id="customSoundName">Свой звук</span>
-        </div>
-        <button class="sound-preview-btn" data-sound="custom">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
-            </svg>
-        </button>
-    </div>
-</div>
-
-        <!-- Загрузить свой -->
-        <div class="sound-upload-row">
-            <button class="vsc-btn-secondary" id="uploadSoundBtn">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Загрузить свой звук
-            </button>
-            <input type="file" id="soundFileInput" accept=".mp3,.wav,.ogg" style="display:none;">
-        </div>
-    </div>
-</div>
-
                 <!-- Горячие клавиши -->
                 <div class="settings-section" id="section-shortcuts">
                     <div class="settings-group">
@@ -1688,6 +1587,19 @@
                             </button>
                             <div id="settingsVpnStatus" class="settings-vpn-status" style="display:none"></div>
                         </div>
+                    </div>
+
+                    <!-- VPN для приложений -->
+                    <div class="settings-group" id="settingsVpnAppsGroup">
+                        <div class="settings-group-title">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
+                                <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                            <span data-i18n="network.vpnAppsTitle"></span>
+                        </div>
+                        <div class="settings-hint" style="margin-bottom:10px;" data-i18n="network.vpnAppsHint"></div>
+                        <div id="settingsVpnAppsList" class="settings-vpn-apps-list"></div>
                     </div>
                 </div>
 

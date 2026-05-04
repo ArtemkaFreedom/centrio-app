@@ -537,7 +537,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
 
 // ── Инициализация VPN-секции в настройках ────────────────────────────────
 // Рендерит список конфигов, обрабатывает textarea импорта
-function bindVpnSettings ({ invokeIpc, tGet }) {
+function bindVpnSettings ({ invokeIpc, tGet, getActiveMessengers }) {
   const listEl   = document.getElementById('settingsVpnList')
   const input    = document.getElementById('settingsVpnInput')
   const importBtn= document.getElementById('settingsVpnImportBtn')
@@ -601,10 +601,44 @@ function bindVpnSettings ({ invokeIpc, tGet }) {
     })
   }
 
+  // ── Список приложений с VPN-галочками ────────────────────────────
+  async function refreshAppsList () {
+    const appsListEl = document.getElementById('settingsVpnAppsList')
+    if (!appsListEl) return
+
+    const messengers = getActiveMessengers ? getActiveMessengers() : []
+    const modesResult = await invokeIpc('vpn-get-app-modes').catch(() => ({ modes: {} }))
+    const modes = modesResult?.modes || {}
+
+    if (!messengers.length) {
+      appsListEl.innerHTML = `<div class="settings-vpn-empty" style="padding:8px 0;">${esc(tGet('network.vpnAppsEmpty'))}</div>`
+      return
+    }
+
+    appsListEl.innerHTML = messengers.map(m => {
+      const enabled = modes[m.id] !== false
+      return `
+        <div class="settings-vpn-app-row">
+          <span class="settings-vpn-app-name">${esc(m.name)}</span>
+          <label class="toggle" title="${esc(tGet(enabled ? 'network.vpnCtx' : 'network.vpnCtxDisable'))}">
+            <input type="checkbox" class="vpn-app-toggle" data-id="${esc(m.id)}" ${enabled ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>`
+    }).join('')
+
+    appsListEl.querySelectorAll('.vpn-app-toggle').forEach(cb => {
+      cb.addEventListener('change', async () => {
+        await invokeIpc('vpn-set-app-vpn', cb.dataset.id, cb.checked).catch(() => null)
+      })
+    })
+  }
+
   // Загрузить статус при открытии настроек
   async function refresh () {
     const st = await invokeIpc('vpn-status').catch(() => ({ configs: [] }))
     renderList(st.configs || [])
+    refreshAppsList()
     applyI18n(listEl.parentElement)
   }
 

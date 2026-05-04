@@ -6,7 +6,7 @@ function bindMessengerSoundUi({
     openMessengerSoundModal,
     getMessengerById
 }) {
-    document.getElementById('ctxSound').addEventListener('click', () => {
+    document.getElementById('ctxSound')?.addEventListener('click', () => {
         if (!state.contextTargetId) return
         state.soundTargetId = state.contextTargetId
         openMessengerSoundModal(state.contextTargetId, getMessengerById)

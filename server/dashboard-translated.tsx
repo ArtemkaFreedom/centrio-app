@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import { api } from '@/lib/api'
-import { useLang, LANGS, LANG_LABELS } from '@/lib/i18n'
+import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
 
 // ── Types ─────────────────────────────────────────────────────────
 interface StatsData {
@@ -14,20 +14,12 @@ interface StatsData {
   streak:   number
   services: { name: string; minutes: number; notifCount: number }[]
   chart:    { date: string; label: string; minutes: number }[]
+  appNotifReceived?: number
 }
 
 interface Device {
   id: string; os: string; browser: string; icon: string
   ipAddress: string; createdAt: string; label: string
-}
-
-// ── Helpers ───────────────────────────────────────────────────────
-function fmtTime(secs: number) {
-  if (!secs) return '0 мин'
-  const h = Math.floor(secs / 3600)
-  const m = Math.floor((secs % 3600) / 60)
-  if (h > 0) return `${h}ч ${m}м`
-  return `${m} мин`
 }
 
 const PLAN_COLORS: Record<string, string> = {
@@ -110,12 +102,78 @@ const IcoArrow = () => (
     <path d="M7 17L17 7M17 7H7M17 7v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 )
+const IcoGlobe = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+  </svg>
+)
+const IcoChevron = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+)
+
+// ── Sidebar lang switcher ─────────────────────────────────────────
+function SidebarLangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+  return (
+    <div ref={ref} style={{ position: 'relative', marginBottom: 8 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+        padding: '9px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)',
+        fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+        transition: 'all .18s',
+      }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
+      >
+        <IcoGlobe />
+        <span style={{ flex: 1, textAlign: 'left' }}>{LANG_LABELS[lang]}</span>
+        <IcoChevron />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 0,
+          background: '#0d1525', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 12, overflow: 'hidden', zIndex: 200,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        }}>
+          {LANGS.map(l => (
+            <button key={l} onClick={() => { setLang(l); setOpen(false) }} style={{
+              display: 'block', width: '100%', padding: '9px 14px',
+              background: l === lang ? 'rgba(59,130,246,0.15)' : 'transparent',
+              border: 'none', color: l === lang ? '#60a5fa' : 'rgba(255,255,255,0.55)',
+              fontSize: 13, fontWeight: l === lang ? 600 : 400, cursor: 'pointer',
+              textAlign: 'left', fontFamily: 'inherit',
+            }}>
+              {LANG_LABELS[l]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Main Component ────────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, logout, _hasHydrated } = useAuthStore()
-  const { lang, t, setLang } = useLang()
+  const { user, logout, setUser, _hasHydrated } = useAuthStore()
+  const { t, lang, setLang } = useLang()
+
+  // ── Currency & locale helpers ─────────────────────────────────
+  const isRu = lang === 'ru'
+  const dateLocale = ({ ru: 'ru-RU', en: 'en-US', zh: 'zh-CN', fr: 'fr-FR', it: 'it-IT' } as Record<string, string>)[lang] || 'en-US'
+  const price = (rub: string, usd: string) => isRu ? rub : usd
+
   const [tab, setTab] = useState<'overview' | 'devices' | 'subscription'>('overview')
   const [stats, setStats]     = useState<StatsData | null>(null)
   const [devices, setDevices] = useState<Device[]>([])
@@ -123,23 +181,35 @@ export default function DashboardPage() {
   const [loadingDevices, setLoadingDevices] = useState(false)
   const [revokingId, setRevokingId] = useState<string | null>(null)
   const [loggingOutAll, setLoggingOutAll] = useState(false)
-  const [payMethod, setPayMethod] = useState<'fride' | 'yk'>('fride')
-  const [payLoading, setPayLoading] = useState(false)
-  const [payError, setPayError]   = useState('')
-  const [langOpen, setLangOpen]   = useState(false)
+  const [buyingPlan, setBuyingPlan] = useState<string | null>(null)
+  const [payments, setPayments] = useState<any[]>([])
+  const [loadingPayments, setLoadingPayments] = useState(false)
+  const [autoRenew, setAutoRenew]     = useState(false)
+  const [hasMethod, setHasMethod]     = useState(false)
+  const [togglingAR, setTogglingAR]   = useState(false)
+  const [paymentModal, setPaymentModal] = useState<'month' | 'year' | null>(null)
+  const [buyingCrypto, setBuyingCrypto] = useState<string | null>(null)
+
+  function fmtTime(secs: number) {
+    if (!secs) return `0 ${t.dash_min}`
+    const h = Math.floor(secs / 3600)
+    const m = Math.floor((secs % 3600) / 60)
+    if (h > 0) return `${h}${t.dash_hour} ${m}${t.dash_minute_short}`
+    return `${m} ${t.dash_min}`
+  }
 
   useEffect(() => {
     if (!_hasHydrated) return
     if (!user) router.push('/auth/login')
-  }, [user, router, _hasHydrated])
+  }, [user?.id, _hasHydrated]) // eslint-disable-line
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
     api.get('/api/stats/summary')
       .then(r => setStats(r.data))
       .catch(() => setStats(null))
       .finally(() => setLoadingStats(false))
-  }, [user])
+  }, [user?.id]) // eslint-disable-line
 
   const loadDevices = useCallback(() => {
     setLoadingDevices(true)
@@ -163,30 +233,97 @@ export default function DashboardPage() {
   }
 
   const handleLogoutAll = async () => {
+    if (!confirm(t.dash_confirm_logout_all)) return
     setLoggingOutAll(true)
     try {
-      await api.delete('/api/user/devices')
+      await api.delete('/api/user/devices', { data: {} })
       logout()
       router.push('/auth/login')
-    } catch {
+    } catch (e: any) {
+      alert(e?.response?.data?.error || e?.message || 'Error')
       setLoggingOutAll(false)
     }
   }
 
-  const handleFridePay = async (plan: 'month' | 'year') => {
-    setPayLoading(true)
-    setPayError('')
+  const handleBuyPlan = async (plan: 'month' | 'year') => {
+    setBuyingPlan(plan)
+    setPaymentModal(null)
     try {
-      const res = await api.post('/api/payments/fride-create', { plan })
-      const url = res.data?.data?.paymentUrl
-      if (url) window.location.href = url
-      else setPayError(t.db_pay_error)
-    } catch {
-      setPayError(t.db_pay_error)
+      const { data } = await api.post('/api/payments/create', { plan })
+      if (data?.data?.confirmationUrl) {
+        window.location.href = data.data.confirmationUrl
+      }
+    } catch (e: any) {
+      alert(e?.response?.data?.error || t.dash_pay_error)
     } finally {
-      setPayLoading(false)
+      setBuyingPlan(null)
     }
   }
+
+  const handleBuyCrypto = async (plan: 'month' | 'year') => {
+    setBuyingCrypto(plan)
+    setPaymentModal(null)
+    try {
+      const { data } = await api.post('/api/payments/crypto-create', { plan })
+      if (data?.data?.confirmationUrl) {
+        window.open(data.data.confirmationUrl, '_blank')
+      }
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Error')
+    } finally {
+      setBuyingCrypto(null)
+    }
+  }
+
+  const handleBuyFride = async (plan: 'month' | 'year') => {
+    setPaymentModal(null)
+    try {
+      const { data } = await api.post('/api/payments/fride-create', { plan })
+      if (data?.data?.paymentUrl) {
+        window.location.href = data.data.paymentUrl
+      } else {
+        alert(t.dash_pay_error)
+      }
+    } catch (e: any) {
+      alert(e?.response?.data?.error || t.dash_pay_error)
+    }
+  }
+
+  const loadPayments = useCallback(() => {
+    setLoadingPayments(true)
+    api.get('/api/payments/my')
+      .then(r => setPayments(r.data?.data || []))
+      .catch(() => setPayments([]))
+      .finally(() => setLoadingPayments(false))
+  }, [])
+
+  const refreshUser = useCallback(() => {
+    api.get('/api/user/profile')
+      .then(r => { if (r.data?.id) setUser(r.data) })
+      .catch(() => {})
+  }, [setUser])
+
+  const loadAutoRenew = useCallback(() => {
+    api.get('/api/payments/auto-renew')
+      .then(r => { setAutoRenew(r.data?.data?.autoRenew ?? false); setHasMethod(r.data?.data?.hasMethod ?? false) })
+      .catch(() => {})
+  }, [])
+
+  const toggleAutoRenew = async () => {
+    setTogglingAR(true)
+    try {
+      const { data } = await api.patch('/api/payments/auto-renew', { enabled: !autoRenew })
+      setAutoRenew(data?.data?.autoRenew ?? !autoRenew)
+    } catch {} finally { setTogglingAR(false) }
+  }
+
+  useEffect(() => {
+    if (tab === 'subscription') {
+      refreshUser()
+      loadPayments()
+      loadAutoRenew()
+    }
+  }, [tab, loadPayments, refreshUser, loadAutoRenew])
 
   if (!_hasHydrated || !user) {
     return (
@@ -202,10 +339,16 @@ export default function DashboardPage() {
   const planColor = PLAN_COLORS[user.plan || 'FREE'] || '#64748b'
   const chartMax = Math.max(...(stats?.chart.map(c => c.minutes) || [1]), 1)
 
+  // Notification count: use appNotifReceived from API if usageStat.notifCount is 0
+  const notifDisplayCount = Math.max(
+    stats?.total.notifCount || 0,
+    stats?.appNotifReceived || 0
+  )
+
   const NAV = [
-    { key: 'overview',     label: t.db_tab_overview,     Icon: IcoOverview },
-    { key: 'devices',      label: t.db_tab_devices,      Icon: IcoDevices },
-    { key: 'subscription', label: t.db_tab_subscription, Icon: IcoSubscription },
+    { key: 'overview',     label: t.dash_overview,     Icon: IcoOverview },
+    { key: 'devices',      label: t.dash_devices,       Icon: IcoDevices },
+    { key: 'subscription', label: t.dash_subscription,  Icon: IcoSubscription },
   ] as const
 
   const glass = {
@@ -224,6 +367,13 @@ export default function DashboardPage() {
     borderRadius: 20,
     boxShadow: '0 0 40px rgba(59,130,246,0.08)',
   } as React.CSSProperties
+
+  const PAY_STATUS: Record<string, { label: string; color: string }> = {
+    SUCCEEDED: { label: t.pay_succeeded, color: '#22c55e' },
+    PENDING:   { label: t.pay_pending,   color: '#f59e0b' },
+    FAILED:    { label: t.pay_failed,    color: '#ef4444' },
+    CANCELLED: { label: t.pay_cancelled, color: '#6b7280' },
+  }
 
   return (
     <div style={{ minHeight:'100vh', background:'#060a14', color:'#fff', fontFamily:'Inter,-apple-system,sans-serif', display:'flex' }}>
@@ -347,6 +497,86 @@ export default function DashboardPage() {
         .bar-fill{width:100%;border-radius:5px 5px 2px 2px;transition:height .5s cubic-bezier(.4,0,.2,1),filter .2s}
       `}</style>
 
+      {/* ── Payment method modal ── */}
+      {paymentModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(8px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => setPaymentModal(null)}>
+          <div style={{ background:'#0d1525', border:'1px solid rgba(255,255,255,0.1)', borderRadius:20, padding:28, width:'100%', maxWidth:400, position:'relative', boxShadow:'0 24px 60px rgba(0,0,0,0.5)' }}
+            onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPaymentModal(null)} style={{ position:'absolute', top:16, right:16, background:'none', border:'none', color:'rgba(255,255,255,0.35)', cursor:'pointer', fontSize:20, lineHeight:1 }}>✕</button>
+            <div style={{ fontWeight:800, fontSize:17, marginBottom:4 }}>{t.dash_pay_method_title}</div>
+            <div style={{ fontSize:13, color:'rgba(255,255,255,0.35)', marginBottom:22 }}>
+              {paymentModal === 'month'
+                ? (isRu ? 'Pro · 199 ₽/мес' : 'Pro · $2.99/mo')
+                : (isRu ? 'Pro · 1 590 ₽/год' : 'Pro · $17.99/yr')}
+            </div>
+            {/* YooKassa — only for RU */}
+            {isRu && (
+              <button
+                onClick={() => handleBuyPlan(paymentModal)}
+                disabled={buyingPlan !== null}
+                style={{ width:'100%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:14, padding:'16px 20px', marginBottom:12, cursor:'pointer', display:'flex', alignItems:'center', gap:14, textAlign:'left', transition:'all .2s', fontFamily:'inherit' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(59,130,246,0.5)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+              >
+                <div style={{ width:40, height:40, borderRadius:12, background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="1" y="4" width="22" height="16" rx="3" stroke="#60a5fa" strokeWidth="1.8"/><line x1="1" y1="10" x2="23" y2="10" stroke="#60a5fa" strokeWidth="1.8"/></svg>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#fff', marginBottom:2 }}>{t.dash_yk_name}</div>
+                  <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)' }}>
+                    {buyingPlan ? t.dash_loading_short : (paymentModal === 'month' ? t.dash_yk_month_desc : t.dash_yk_year_desc)}
+                  </div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round"/></svg>
+              </button>
+            )}
+            {/* FRIDE — RU/CIS cards */}
+            {isRu && (
+              <button
+                onClick={() => handleBuyFride(paymentModal)}
+                style={{ width:'100%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:14, padding:'16px 20px', marginBottom:12, cursor:'pointer', display:'flex', alignItems:'center', gap:14, textAlign:'left', transition:'all .2s', fontFamily:'inherit' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(16,185,129,0.5)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+              >
+                <div style={{ width:40, height:40, borderRadius:12, background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#fff', marginBottom:2 }}>FRIDE</div>
+                  <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)' }}>
+                    {paymentModal === 'month' ? 'Pro · 199 ₽/мес · Карты РФ/СНГ' : 'Pro · 1 590 ₽/год · Карты РФ/СНГ'}
+                  </div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round"/></svg>
+              </button>
+            )}
+            {/* Crypto */}
+            <button
+              onClick={() => handleBuyCrypto(paymentModal)}
+              disabled={buyingCrypto !== null}
+              style={{ width:'100%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:14, padding:'16px 20px', cursor:'pointer', display:'flex', alignItems:'center', gap:14, textAlign:'left', transition:'all .2s', fontFamily:'inherit' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(249,115,22,0.5)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+            >
+              <div style={{ width:40, height:40, borderRadius:12, background:'rgba(249,115,22,0.12)', border:'1px solid rgba(249,115,22,0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#f97316" strokeWidth="1.8"/><path d="M9 12h6M12 9v6" stroke="#f97316" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:'#fff', marginBottom:2 }}>{t.dash_crypto_name}</div>
+                <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)' }}>
+                  {buyingCrypto ? t.dash_loading_short : 'BTC, ETH, USDT, TON и 300+'}
+                </div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
+            <div style={{ marginTop:16, fontSize:11.5, color:'rgba(255,255,255,0.2)', textAlign:'center', lineHeight:1.5 }}>
+              {t.dash_pay_footer}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Ambient glow ── */}
       <div style={{ position:'fixed', top:-200, left:'20%', width:600, height:600, borderRadius:'50%', background:'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
       <div style={{ position:'fixed', bottom:-100, right:'10%', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
@@ -369,7 +599,7 @@ export default function DashboardPage() {
         {/* Navigation */}
         <nav style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
           <div style={{ fontSize:10.5, fontWeight:700, color:'rgba(255,255,255,0.25)', letterSpacing:'.09em', textTransform:'uppercase', marginBottom:6, paddingLeft:4 }}>
-            {t.db_menu}
+            {t.dash_menu}
           </div>
           {NAV.map(({ key, label, Icon }) => (
             <button
@@ -383,8 +613,12 @@ export default function DashboardPage() {
           ))}
         </nav>
 
-        {/* User card */}
+        {/* Bottom: lang switcher + user card */}
         <div style={{ borderTop:'1px solid rgba(255,255,255,0.07)', paddingTop:18 }}>
+          {/* Language switcher */}
+          <SidebarLangSwitcher lang={lang} setLang={setLang} />
+
+          {/* User card */}
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14, paddingLeft:2 }}>
             <div style={{
               width:36, height:36, borderRadius:10, flexShrink:0,
@@ -404,37 +638,8 @@ export default function DashboardPage() {
               </span>
             </div>
           </div>
-          {/* Language switcher */}
-          <div style={{ position:'relative', marginBottom:8 }}>
-            <button
-              className="btn-ghost"
-              style={{ width:'100%', justifyContent:'space-between', fontSize:12.5 }}
-              onClick={() => setLangOpen(o => !o)}
-            >
-              <span>{LANG_LABELS[lang]}</span>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-            </button>
-            {langOpen && (
-              <div style={{
-                position:'absolute', bottom:'100%', left:0, right:0, marginBottom:4,
-                background:'#0d1527', border:'1px solid rgba(255,255,255,0.1)',
-                borderRadius:10, overflow:'hidden', zIndex:100,
-              }}>
-                {LANGS.map(l => (
-                  <button key={l} onClick={() => { setLang(l); setLangOpen(false) }} style={{
-                    display:'block', width:'100%', textAlign:'left',
-                    padding:'8px 14px', background: l === lang ? 'rgba(59,130,246,0.15)' : 'none',
-                    border:'none', color: l === lang ? '#60a5fa' : 'rgba(255,255,255,0.65)',
-                    fontSize:13, cursor:'pointer', fontFamily:'inherit',
-                  }}>
-                    {LANG_LABELS[l]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
           <button className="btn-ghost" style={{ width:'100%', justifyContent:'center', fontSize:12.5 }} onClick={() => { logout(); router.push('/') }}>
-            <IcoLogout /> {t.db_logout}
+            <IcoLogout /> {t.dash_logout}
           </button>
         </div>
       </aside>
@@ -448,11 +653,11 @@ export default function DashboardPage() {
             {/* Page header */}
             <div style={{ marginBottom:32 }}>
               <h1 style={{ fontSize:24, fontWeight:800, letterSpacing:'-.03em', marginBottom:6 }}>
-                {new Date().getHours() < 12 ? t.db_greet_morning : new Date().getHours() < 17 ? t.db_greet_day : t.db_greet_evening}
+                {new Date().getHours() < 12 ? t.dash_greeting_morning : new Date().getHours() < 17 ? t.dash_greeting_day : t.dash_greeting_evening}
                 {user.name ? `, ${user.name.split(' ')[0]}` : ''}
               </h1>
               <p style={{ color:'rgba(255,255,255,0.38)', fontSize:13.5 }}>
-                {t.db_stats_sub}
+                {t.dash_usage_subtitle}
               </p>
             </div>
 
@@ -463,11 +668,11 @@ export default function DashboardPage() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:600, fontSize:14, marginBottom:2 }}>{t.db_install_title}</div>
-                  <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.45)' }}>{t.db_install_sub}</div>
+                  <div style={{ fontWeight:600, fontSize:14, marginBottom:2 }}>{t.dash_install_title}</div>
+                  <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.45)' }}>{t.dash_install_sub}</div>
                 </div>
                 <a href="/download/windows" className="btn-primary" style={{ textDecoration:'none' }}>
-                  {t.db_install_btn} <IcoArrow />
+                  {t.dash_download} <IcoArrow />
                 </a>
               </div>
             )}
@@ -476,30 +681,30 @@ export default function DashboardPage() {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:24 }}>
               {[
                 {
-                  label: t.db_stat_today,
+                  label: t.dash_time_today,
                   value: loadingStats ? '...' : fmtTime(stats?.today.appTime || 0),
-                  sub: `${t.db_stat_week_prefix}${fmtTime(stats?.week.appTime || 0)}`,
+                  sub: `${t.dash_week_prefix} ${fmtTime(stats?.week.appTime || 0)}`,
                   color: '#3b82f6',
                   Icon: IcoTime,
                 },
                 {
-                  label: t.db_stat_notif,
-                  value: loadingStats ? '...' : (stats?.total.notifCount || 0).toLocaleString(),
-                  sub: `${t.db_stat_today_prefix}${stats?.today.notifCount || 0}`,
+                  label: t.dash_notif_count,
+                  value: loadingStats ? '...' : notifDisplayCount.toLocaleString(),
+                  sub: `${t.dash_today_prefix} ${stats?.today.notifCount || 0}`,
                   color: '#818cf8',
                   Icon: IcoBell,
                 },
                 {
-                  label: t.db_stat_msg,
+                  label: t.dash_msg_count,
                   value: loadingStats ? '...' : (stats?.total.msgSent || 0).toLocaleString(),
-                  sub: `${t.db_stat_received_prefix}${(stats?.total.msgReceived || 0).toLocaleString()}`,
+                  sub: `${t.dash_received_prefix} ${(stats?.total.msgReceived || 0).toLocaleString()}`,
                   color: '#38bdf8',
                   Icon: IcoMsg,
                 },
                 {
-                  label: t.db_stat_streak,
+                  label: t.dash_streak_days,
                   value: loadingStats ? '...' : `${stats?.streak || 0}`,
-                  sub: t.db_stat_streak_sub,
+                  sub: 'Streak',
                   color: '#f472b6',
                   Icon: IcoFlame,
                 },
@@ -523,15 +728,15 @@ export default function DashboardPage() {
               <div className="glass-card" style={{ padding:28 }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
                   <div>
-                    <div style={{ fontWeight:700, fontSize:15.5 }}>{t.db_activity}</div>
-                    <div style={{ fontSize:12, color:'rgba(255,255,255,0.35)', marginTop:2 }}>{t.db_activity_sub}</div>
+                    <div style={{ fontWeight:700, fontSize:15.5 }}>{t.dash_activity_title}</div>
+                    <div style={{ fontSize:12, color:'rgba(255,255,255,0.35)', marginTop:2 }}>{t.dash_activity_sub}</div>
                   </div>
                   <div style={{ fontSize:11, color:'rgba(59,130,246,0.8)', background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.2)', padding:'4px 10px', borderRadius:8 }}>
-                    {t.db_min} / {t.db_tab_overview.toLowerCase()}
+                    {t.dash_activity_unit}
                   </div>
                 </div>
                 {loadingStats ? (
-                  <div style={{ height:140, display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.2)', fontSize:13 }}>Загрузка...</div>
+                  <div style={{ height:140, display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.2)', fontSize:13 }}>{t.dash_loading}</div>
                 ) : (
                   <div style={{ display:'flex', alignItems:'flex-end', gap:10, height:140 }}>
                     {(stats?.chart || Array(7).fill({ label:'', minutes:0 })).map((day, i) => {
@@ -542,7 +747,7 @@ export default function DashboardPage() {
                           <div style={{ width:'100%', height:120, display:'flex', alignItems:'flex-end' }}>
                             <div
                               className="bar-fill"
-                              title={`${day.minutes} мин`}
+                              title={`${day.minutes} ${t.dash_min}`}
                               style={{
                                 height:`${h}%`,
                                 background: day.minutes > 0
@@ -563,13 +768,13 @@ export default function DashboardPage() {
 
               {/* Services */}
               <div className="glass-card" style={{ padding:28 }}>
-                <div style={{ fontWeight:700, fontSize:15.5, marginBottom:6 }}>{t.db_services}</div>
-                <div style={{ fontSize:12, color:'rgba(255,255,255,0.35)', marginBottom:20 }}>{t.db_activity_sub}</div>
+                <div style={{ fontWeight:700, fontSize:15.5, marginBottom:6 }}>{t.dash_services_title}</div>
+                <div style={{ fontSize:12, color:'rgba(255,255,255,0.35)', marginBottom:20 }}>{t.dash_services_sub}</div>
                 {loadingStats ? (
-                  <div style={{ color:'rgba(255,255,255,0.25)', fontSize:13 }}>Загрузка...</div>
+                  <div style={{ color:'rgba(255,255,255,0.25)', fontSize:13 }}>{t.dash_loading}</div>
                 ) : !stats?.services.length ? (
                   <div style={{ color:'rgba(255,255,255,0.25)', fontSize:13, lineHeight:1.7 }}>
-                    Статистика появится после установки приложения
+                    {t.dash_services_empty}
                   </div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -596,10 +801,10 @@ export default function DashboardPage() {
             {/* Summary strip */}
             <div style={{ ...glassBlue, padding:'22px 28px', display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:0 }}>
               {[
-                { label:'Всего в приложении', value: fmtTime(stats?.total.appTime || 0), Icon: IcoTime },
-                { label:'Всего уведомлений',  value: (stats?.total.notifCount || 0).toLocaleString(), Icon: IcoBell },
-                { label:'Всего сообщений',    value: ((stats?.total.msgSent||0)+(stats?.total.msgReceived||0)).toLocaleString(), Icon: IcoMsg },
-                { label:'Дней активности',    value: `${stats?.streak || 0}`, Icon: IcoFlame },
+                { label: t.dash_total_time,  value: fmtTime(stats?.total.appTime || 0),  Icon: IcoTime },
+                { label: t.dash_total_notif, value: notifDisplayCount.toLocaleString(), Icon: IcoBell },
+                { label: t.dash_total_msg,   value: ((stats?.total.msgSent||0)+(stats?.total.msgReceived||0)).toLocaleString(), Icon: IcoMsg },
+                { label: t.dash_active_days, value: `${stats?.streak || 0}`, Icon: IcoFlame },
               ].map((s, i) => (
                 <div key={s.label} style={{ paddingLeft: i > 0 ? 24 : 0, borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.07)' : 'none', marginLeft: i > 0 ? 24 : 0 }}>
                   <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.38)', marginBottom:6, display:'flex', alignItems:'center', gap:5 }}>
@@ -617,18 +822,18 @@ export default function DashboardPage() {
           <div>
             <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:28, flexWrap:'wrap', gap:12 }}>
               <div>
-                <h2 style={{ fontSize:22, fontWeight:800, letterSpacing:'-.03em', marginBottom:6 }}>Устройства</h2>
+                <h2 style={{ fontSize:22, fontWeight:800, letterSpacing:'-.03em', marginBottom:6 }}>{t.dash_devices_title}</h2>
                 <p style={{ color:'rgba(255,255,255,0.38)', fontSize:13.5 }}>
-                  {isPro ? 'Все активные сессии вашего аккаунта' : 'Free план — 1 активное устройство'}
+                  {isPro ? t.dash_devices_pro_sub : t.dash_devices_free_sub}
                 </p>
               </div>
               <button
                 className="btn-danger"
                 onClick={handleLogoutAll}
-                disabled={loggingOutAll || devices.length === 0}
+                disabled={loggingOutAll}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                {loggingOutAll ? 'Выходим...' : 'Выйти на всех устройствах'}
+                {loggingOutAll ? t.dash_logging_out : t.dash_logout_all_btn}
               </button>
             </div>
 
@@ -636,9 +841,9 @@ export default function DashboardPage() {
               <div style={{ background:'rgba(245,158,11,0.07)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:14, padding:'14px 20px', marginBottom:20, display:'flex', alignItems:'center', gap:12 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink:0, color:'#fbbf24' }}><path d="M10.29 3.86L1.82 18A2 2 0 0 0 3.53 21H20.47A2 2 0 0 0 22.18 18L13.71 3.86A2 2 0 0 0 10.29 3.86Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12 9v4M12 17h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
                 <span style={{ fontSize:13, color:'rgba(255,255,255,0.65)' }}>
-                  На плане Free — только 1 устройство.{' '}
+                  {t.dash_free_warn}{' '}
                   <button onClick={() => setTab('subscription')} style={{ background:'none', border:'none', color:'#60a5fa', cursor:'pointer', fontSize:13, padding:0, textDecoration:'underline', fontFamily:'inherit' }}>
-                    Перейти на Pro
+                    {t.dash_upgrade_pro}
                   </button>
                 </span>
               </div>
@@ -647,15 +852,15 @@ export default function DashboardPage() {
             {loadingDevices ? (
               <div style={{ display:'flex', alignItems:'center', gap:12, color:'rgba(255,255,255,0.3)', padding:'40px 0' }}>
                 <div style={{ width:22, height:22, border:'2px solid rgba(59,130,246,0.25)', borderTopColor:'#3b82f6', borderRadius:'50%', animation:'spin .8s linear infinite' }} />
-                Загружаем сессии...
+                {t.dash_loading_sessions}
               </div>
             ) : devices.length === 0 ? (
               <div style={{ textAlign:'center', padding:'70px 0', color:'rgba(255,255,255,0.25)' }}>
                 <div style={{ width:60, height:60, borderRadius:18, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.07)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', color:'rgba(255,255,255,0.2)' }}>
                   <IcoDevices />
                 </div>
-                <div style={{ fontSize:16, fontWeight:600, marginBottom:6, color:'rgba(255,255,255,0.5)' }}>Нет активных сессий</div>
-                <div style={{ fontSize:13 }}>Войдите в Centrio на устройстве и оно появится здесь</div>
+                <div style={{ fontSize:16, fontWeight:600, marginBottom:6, color:'rgba(255,255,255,0.5)' }}>{t.dash_no_sessions_title}</div>
+                <div style={{ fontSize:13 }}>{t.dash_no_sessions_sub}</div>
               </div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -669,17 +874,17 @@ export default function DashboardPage() {
                         <span style={{ fontWeight:600, fontSize:14.5 }}>{device.label}</span>
                         {idx === 0 && (
                           <span className="badge" style={{ background:'rgba(59,130,246,0.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.3)' }}>
-                            Текущая
+                            {t.dash_current_session}
                           </span>
                         )}
                       </div>
                       <div style={{ fontSize:12, color:'rgba(255,255,255,0.35)' }}>
-                        IP: {device.ipAddress} &nbsp;·&nbsp; Вход: {new Date(device.createdAt).toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' })}
+                        {t.dash_ip_label} {device.ipAddress} &nbsp;·&nbsp; {t.dash_login_label} {new Date(device.createdAt).toLocaleDateString(dateLocale, { day:'numeric', month:'long', year:'numeric' })}
                       </div>
                     </div>
                     {idx !== 0 && (
                       <button className="btn-danger" onClick={() => handleRevoke(device.id)} disabled={revokingId === device.id} style={{ fontSize:12.5, padding:'7px 14px' }}>
-                        {revokingId === device.id ? '...' : 'Отключить'}
+                        {revokingId === device.id ? '...' : t.dash_revoke}
                       </button>
                     )}
                   </div>
@@ -690,8 +895,7 @@ export default function DashboardPage() {
             <div style={{ marginTop:28, background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:14, padding:'16px 20px', display:'flex', alignItems:'center', gap:12 }}>
               <div style={{ color:'rgba(59,130,246,0.6)', flexShrink:0 }}><IcoShield /></div>
               <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.35)', lineHeight:1.65 }}>
-                Если видите незнакомое устройство — немедленно отключите его и смените пароль.
-                Сессии автоматически истекают через 30 дней.
+                {t.dash_security_note}
               </div>
             </div>
           </div>
@@ -701,8 +905,8 @@ export default function DashboardPage() {
         {tab === 'subscription' && (
           <div>
             <div style={{ marginBottom:28 }}>
-              <h2 style={{ fontSize:22, fontWeight:800, letterSpacing:'-.03em', marginBottom:6 }}>{t.db_sub_title}</h2>
-              <p style={{ color:'rgba(255,255,255,0.38)', fontSize:13.5 }}>{t.db_sub_sub}</p>
+              <h2 style={{ fontSize:22, fontWeight:800, letterSpacing:'-.03em', marginBottom:6 }}>{t.dash_sub_title}</h2>
+              <p style={{ color:'rgba(255,255,255,0.38)', fontSize:13.5 }}>{t.dash_sub_subtitle}</p>
             </div>
 
             {/* Current plan */}
@@ -712,18 +916,45 @@ export default function DashboardPage() {
               </div>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>
-                  {t.db_current_plan}&nbsp;<span style={{ color:planColor }}>{PLAN_LABELS[user.plan || 'FREE']}</span>
+                  {t.dash_current_plan_label}&nbsp;<span style={{ color:planColor }}>{PLAN_LABELS[user.plan || 'FREE']}</span>
                 </div>
                 <div style={{ fontSize:13, color:'rgba(255,255,255,0.42)' }}>
-                  {isPro ? t.db_pro_desc : t.db_free_desc}
+                  {isPro
+                    ? (user.planExpiresAt
+                        ? `${t.dash_plan_active_until} ${new Date(user.planExpiresAt).toLocaleDateString(dateLocale, { day:'numeric', month:'long', year:'numeric' })}`
+                        : t.dash_plan_full_access)
+                    : t.dash_plan_basic_desc}
                 </div>
               </div>
               {!isPro && (
-                <button className="btn-primary" onClick={() => setTab('subscription')}>
-                  {t.db_upgrade} <IcoArrow />
+                <button className="btn-primary" onClick={() => setPaymentModal('month')} disabled={buyingPlan !== null || buyingCrypto !== null}>
+                  {(buyingPlan === 'month' || buyingCrypto === 'month') ? t.dash_loading_short : <>{t.dash_buy_pro} <IcoArrow /></>}
                 </button>
               )}
             </div>
+
+            {/* Auto-renew toggle (only for PRO users) */}
+            {isPro && (
+              <div className="glass-card" style={{ padding:'18px 24px', marginBottom:20, display:'flex', alignItems:'center', gap:16 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14, fontWeight:700, marginBottom:3, display:'flex', alignItems:'center', gap:8 }}>
+                    {t.dash_auto_renew}
+                    {autoRenew && <span style={{ fontSize:10, background:'rgba(34,197,94,0.15)', color:'#22c55e', border:'1px solid rgba(34,197,94,0.3)', borderRadius:10, padding:'1px 8px' }}>{t.dash_ar_enabled_badge}</span>}
+                  </div>
+                  <div style={{ fontSize:12, color:'rgba(255,255,255,0.38)', lineHeight:1.5 }}>
+                    {hasMethod
+                      ? (autoRenew ? t.dash_ar_active : t.dash_ar_has_method)
+                      : t.dash_ar_no_method}
+                  </div>
+                </div>
+                {hasMethod && (
+                  <button onClick={toggleAutoRenew} disabled={togglingAR}
+                    style={{ background: autoRenew ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${autoRenew ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, borderRadius:10, padding:'9px 20px', color: autoRenew ? '#ef4444' : '#22c55e', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', opacity: togglingAR ? 0.6 : 1, transition:'all 0.2s' }}>
+                    {togglingAR ? '...' : autoRenew ? t.dash_ar_disable : t.dash_ar_enable}
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Plan cards */}
             <div style={{ display:'flex', gap:16, marginBottom:32 }}>
@@ -731,11 +962,13 @@ export default function DashboardPage() {
               <div className={`plan-card${!isPro ? ' current-plan' : ''}`}>
                 <div>
                   <div style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.3)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:10 }}>Free</div>
-                  <div style={{ fontSize:30, fontWeight:900, letterSpacing:'-.03em' }}>0 <span style={{ fontSize:16, fontWeight:400, color:'rgba(255,255,255,0.35)' }}>₽/мес</span></div>
-                  {!isPro && <span className="badge" style={{ background:'rgba(100,116,139,0.2)', color:'#94a3b8', border:'1px solid rgba(100,116,139,0.3)', marginTop:8, display:'inline-block' }}>{t.db_plan_current_badge}</span>}
+                  <div style={{ fontSize:30, fontWeight:900, letterSpacing:'-.03em' }}>
+                    0 <span style={{ fontSize:16, fontWeight:400, color:'rgba(255,255,255,0.35)' }}>{isRu ? '₽/мес' : '$/mo'}</span>
+                  </div>
+                  {!isPro && <span className="badge" style={{ background:'rgba(100,116,139,0.2)', color:'#94a3b8', border:'1px solid rgba(100,116,139,0.3)', marginTop:8, display:'inline-block' }}>{t.dash_plan_current}</span>}
                 </div>
                 <div style={{ borderTop:'1px solid rgba(255,255,255,0.07)', paddingTop:16, display:'flex', flexDirection:'column', gap:9 }}>
-                  {(t.db_free_features as string[]).map(f => (
+                  {t.dash_free_plan_features.map((f: string) => (
                     <div key={f} style={{ display:'flex', alignItems:'center', gap:9, fontSize:13, color:'rgba(255,255,255,0.55)' }}>
                       <IcoCheck color="#64748b" /> {f}
                     </div>
@@ -747,26 +980,32 @@ export default function DashboardPage() {
               <div className={`plan-card pro${isPro && !isTeam ? ' current-plan' : ''}`}>
                 <div>
                   <div style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:10 }}>Pro</div>
-                  <div style={{ fontSize:30, fontWeight:900, letterSpacing:'-.03em', color:'#fff' }}>199 <span style={{ fontSize:16, fontWeight:400, color:'rgba(255,255,255,0.35)' }}>₽/мес</span></div>
-                  <div style={{ fontSize:12, color:'rgba(255,255,255,0.28)', marginTop:4 }}>или 1 590 ₽/год</div>
-                  {isPro && !isTeam && <span className="badge" style={{ background:'rgba(59,130,246,0.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.35)', marginTop:8, display:'inline-block' }}>{t.db_plan_current_badge}</span>}
+                  <div style={{ fontSize:30, fontWeight:900, letterSpacing:'-.03em', color:'#fff' }}>
+                    {isRu ? '199' : '$2.99'} <span style={{ fontSize:16, fontWeight:400, color:'rgba(255,255,255,0.35)' }}>{isRu ? '₽/мес' : '/mo'}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:'rgba(255,255,255,0.28)', marginTop:4 }}>
+                    {isRu ? 'или 1 590 ₽/год (−34%)' : 'or $17.99/yr (−50%)'}
+                  </div>
+                  {isPro && !isTeam && <span className="badge" style={{ background:'rgba(59,130,246,0.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.35)', marginTop:8, display:'inline-block' }}>{t.dash_plan_current}</span>}
                 </div>
                 <div style={{ borderTop:'1px solid rgba(59,130,246,0.15)', paddingTop:16, display:'flex', flexDirection:'column', gap:9 }}>
-                  {(t.db_pro_features as string[]).map(f => (
+                  {t.dash_pro_plan_features.map((f: string) => (
                     <div key={f} style={{ display:'flex', alignItems:'center', gap:9, fontSize:13, color:'rgba(255,255,255,0.7)' }}>
                       <IcoCheck color="#3b82f6" /> {f}
                     </div>
                   ))}
                 </div>
                 {!isPro && (
-                  <button
-                    className="btn-primary"
-                    style={{ marginTop:'auto' }}
-                    disabled={payLoading}
-                    onClick={() => payMethod === 'fride' ? handleFridePay('month') : window.location.href = 'https://centrio.me/pricing'}
-                  >
-                    {payLoading ? t.db_pay_loading : t.db_buy_pro} <IcoArrow />
-                  </button>
+                  <div style={{ marginTop:'auto', display:'flex', flexDirection:'column', gap:8 }}>
+                    <button className="btn-primary" onClick={() => setPaymentModal('month')} disabled={buyingPlan !== null || buyingCrypto !== null}
+                      style={{ fontSize:13, padding:'11px 16px' }}>
+                      {buyingPlan === 'month' || buyingCrypto === 'month' ? '...' : price('199 ₽/мес', '$2.99/mo')}
+                    </button>
+                    <button className="btn-primary" onClick={() => setPaymentModal('year')} disabled={buyingPlan !== null || buyingCrypto !== null}
+                      style={{ fontSize:13, padding:'11px 16px', background:'linear-gradient(135deg,#1d4ed8,#2563eb)', boxShadow:'0 4px 16px rgba(37,99,235,0.3)' }}>
+                      {buyingPlan === 'year' || buyingCrypto === 'year' ? '...' : price('1 590 ₽/год', '$17.99/yr')}
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -774,61 +1013,79 @@ export default function DashboardPage() {
               <div className={`plan-card team${isTeam ? ' current-plan' : ''}`}>
                 <div>
                   <div style={{ fontSize:11, fontWeight:700, color:'#22d3ee', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:10 }}>Team</div>
-                  <div style={{ fontSize:30, fontWeight:900, letterSpacing:'-.03em' }}>699 <span style={{ fontSize:16, fontWeight:400, color:'rgba(255,255,255,0.35)' }}>₽/мес</span></div>
-                  <div style={{ fontSize:12, color:'rgba(255,255,255,0.28)', marginTop:4 }}>/ user</div>
-                  {isTeam && <span className="badge" style={{ background:'rgba(6,182,212,0.2)', color:'#22d3ee', border:'1px solid rgba(6,182,212,0.35)', marginTop:8, display:'inline-block' }}>{t.db_plan_current_badge}</span>}
+                  <div style={{ fontSize:30, fontWeight:900, letterSpacing:'-.03em' }}>
+                    {isRu ? '699' : '$6.99'} <span style={{ fontSize:16, fontWeight:400, color:'rgba(255,255,255,0.35)' }}>{isRu ? '₽/мес' : '/mo'}</span>
+                  </div>
+                  <div style={{ fontSize:12, color:'rgba(255,255,255,0.28)', marginTop:4 }}>{isRu ? 'за пользователя' : 'per user'}</div>
+                  {isTeam && <span className="badge" style={{ background:'rgba(6,182,212,0.2)', color:'#22d3ee', border:'1px solid rgba(6,182,212,0.35)', marginTop:8, display:'inline-block' }}>{t.dash_plan_current}</span>}
                 </div>
                 <div style={{ borderTop:'1px solid rgba(6,182,212,0.15)', paddingTop:16, display:'flex', flexDirection:'column', gap:9 }}>
-                  {(t.db_team_features as string[]).map(f => (
+                  {t.dash_team_plan_features.map((f: string) => (
                     <div key={f} style={{ display:'flex', alignItems:'center', gap:9, fontSize:13, color:'rgba(255,255,255,0.7)' }}>
                       <IcoCheck color="#06b6d4" /> {f}
                     </div>
                   ))}
                 </div>
                 {!isTeam && (
-                  <button className="btn-primary" style={{ marginTop:'auto', background:'linear-gradient(135deg,#0891b2,#06b6d4)', boxShadow:'0 4px 20px rgba(6,182,212,0.3)' }} onClick={() => { window.location.href = 'https://centrio.me/pricing' }}>
-                    {t.db_buy_team} <IcoArrow />
+                  <button className="btn-primary" style={{ marginTop:'auto', background:'linear-gradient(135deg,#0891b2,#06b6d4)', boxShadow:'0 4px 20px rgba(6,182,212,0.3)', opacity:0.6, cursor:'not-allowed' }} disabled>
+                    {t.dash_coming_soon}
                   </button>
                 )}
               </div>
             </div>
 
             {/* Payment methods */}
-            <div className="glass-card" style={{ padding:'22px 26px' }}>
+            <div className="glass-card" style={{ padding:'22px 26px', marginBottom:20 }}>
               <div style={{ fontWeight:700, fontSize:15, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
                 <div style={{ color:'rgba(255,255,255,0.4)' }}><IcoCard /></div>
-                {t.db_pay_methods}
+                {t.dash_pay_methods_title}
               </div>
-              <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
+              <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
                 {[
-                  { key:'fride' as const, label: t.db_pay_fride, sub: t.db_pay_fride_sub },
-                  { key:'yk'    as const, label: t.db_pay_yk,    sub: t.db_pay_yk_sub },
+                  ...(isRu ? [{ label: t.dash_yk_name, sub: 'Карты РФ, СБП, ЮMoney', active: true }] : []),
+                  { label: t.dash_crypto_name, sub: 'BTC, ETH, USDT, TON и 300+', active: true },
+                  { label: 'Cards EU/US', sub: t.dash_coming_soon, active: false },
                 ].map(m => (
-                  <div
-                    key={m.key}
-                    onClick={() => setPayMethod(m.key)}
-                    style={{
-                      background: payMethod === m.key ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${payMethod === m.key ? 'rgba(59,130,246,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                      borderRadius:12, padding:'12px 18px', cursor:'pointer', transition:'all .18s',
-                    }}
-                  >
-                    <div style={{ fontSize:13.5, fontWeight:600, marginBottom:2, color: payMethod === m.key ? '#60a5fa' : '#fff' }}>{m.label}</div>
-                    <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.35)' }}>{m.sub}</div>
-                  </div>
-                ))}
-                {[
-                  { label: t.db_pay_crypto, sub: t.db_pay_crypto_sub },
-                  { label: t.db_pay_eu,     sub: t.db_pay_eu_sub },
-                ].map(m => (
-                  <div key={m.label} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)', borderRadius:12, padding:'12px 18px', opacity:.5 }}>
+                  <div key={m.label} style={{ background: m.active ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.04)', border: m.active ? '1px solid rgba(59,130,246,0.3)' : '1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:'12px 18px' }}>
                     <div style={{ fontSize:13.5, fontWeight:600, marginBottom:2 }}>{m.label}</div>
-                    <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.35)' }}>{m.sub}</div>
+                    <div style={{ fontSize:11.5, color: m.active ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)' }}>{m.sub}</div>
                   </div>
                 ))}
               </div>
-              {payError && <div style={{ fontSize:12.5, color:'#f87171', marginBottom:10 }}>{payError}</div>}
-              <div style={{ fontSize:12, color:'rgba(255,255,255,0.28)' }}>{t.db_pay_note}</div>
+              <div style={{ marginTop:14, fontSize:12, color:'rgba(255,255,255,0.22)', lineHeight:1.6 }}>
+                {t.dash_pay_footer_note}
+              </div>
+            </div>
+
+            {/* Payment history */}
+            <div className="glass-card" style={{ padding:'22px 26px' }}>
+              <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>{t.dash_history_title}</div>
+              {loadingPayments ? (
+                <div style={{ color:'rgba(255,255,255,0.3)', fontSize:13 }}>{t.dash_history_loading}</div>
+              ) : payments.length === 0 ? (
+                <div style={{ color:'rgba(255,255,255,0.25)', fontSize:13 }}>{t.dash_no_payments}</div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {payments.map((p: any) => {
+                    const s = PAY_STATUS[p.status] || { label: p.status, color:'#6b7280' }
+                    const months = p.months === 12 ? t.dash_months_year_label : `${p.months} ${t.dash_months_label}`
+                    return (
+                      <div key={p.id} style={{ display:'flex', alignItems:'center', gap:14, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:12, padding:'12px 16px' }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:13.5, fontWeight:600 }}>Centrio Pro · {months}</div>
+                          <div style={{ fontSize:12, color:'rgba(255,255,255,0.35)', marginTop:2 }}>
+                            {new Date(p.createdAt).toLocaleDateString(dateLocale, { day:'numeric', month:'long', year:'numeric' })}
+                          </div>
+                        </div>
+                        <div style={{ fontSize:14, fontWeight:700 }}>
+                          {p.currency === 'USD' ? `$${p.amount}` : `${p.amount} ₽`}
+                        </div>
+                        <div style={{ fontSize:12, fontWeight:600, color: s.color, background: `${s.color}18`, border:`1px solid ${s.color}40`, borderRadius:8, padding:'4px 10px' }}>{s.label}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}

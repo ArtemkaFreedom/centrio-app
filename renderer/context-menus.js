@@ -32,6 +32,7 @@ function createContextMenusApi({
             (messenger && messenger.folderId) ? 'flex' : 'none'
 
         updateContextMuteLabel(messengerId)
+        document.dispatchEvent(new CustomEvent('contextmenu-opened', { detail: { messengerId } }))
         contextMenu.style.left = `${e.clientX}px`
         contextMenu.style.top = `${e.clientY}px`
         contextMenu.classList.add('show')

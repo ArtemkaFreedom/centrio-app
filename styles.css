@@ -7908,6 +7908,27 @@ body.startup-locked #lockScreen {
     padding: 6px 0;
 }
 
+.settings-vpn-apps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.settings-vpn-app-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-vpn-app-row:last-child { border-bottom: none; }
+
+.settings-vpn-app-name {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
 .settings-vpn-textarea {
     width: 100%;
     background: var(--bg-tertiary);

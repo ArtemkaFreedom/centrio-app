@@ -184,6 +184,11 @@ module.exports = {
         vpnDownloadError:    'Error de descarga',
         vpnConnectBtn:       'Conectar',
         vpnDeleteBtn:        'Eliminar',
+        vpnAppsTitle:        'VPN por aplicación',
+        vpnAppsHint:         'Elige qué mensajeros usan VPN',
+        vpnAppsEmpty:        'Sin mensajeros activos',
+        vpnCtx:              'Usar VPN',
+        vpnCtxDisable:       'No usar VPN',
     },
 
     status: {

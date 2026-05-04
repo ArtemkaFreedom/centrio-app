@@ -184,6 +184,11 @@ module.exports = {
         vpnDownloadError:    'Download-Fehler',
         vpnConnectBtn:       'Verbinden',
         vpnDeleteBtn:        'Löschen',
+        vpnAppsTitle:        'VPN für Anwendungen',
+        vpnAppsHint:         'Wähle, welche Messenger über VPN laufen',
+        vpnAppsEmpty:        'Keine aktiven Messenger',
+        vpnCtx:              'VPN verwenden',
+        vpnCtxDisable:       'VPN nicht verwenden',
     },
 
     status: {

@@ -4,7 +4,7 @@ function bindContextActionsUi({
     saveData,
     hideAllMenus,
     openEditModal,
-    openProxyModal,
+    toggleMessengerVpn,
     removeMessenger,
     moveMessengerToFolder,
     removeFolder,
@@ -192,11 +192,11 @@ function bindContextActionsUi({
         if (folderId) removeFolder(folderId)
     })
 
-    document.getElementById('ctxProxy')?.addEventListener('click', () => {
+    document.getElementById('ctxVpn')?.addEventListener('click', () => {
         const m = getMessengerById(state.contextTargetId)
         hideAllMenus()
-        if (!m || !openProxyModal) return
-        openProxyModal(m)
+        if (!m || !toggleMessengerVpn) return
+        toggleMessengerVpn(m.id)
     })
 }
 
