@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useLang } from '@/lib/i18n'
 
-const VERSION = '1.5.21'
+const VERSION = '1.5.22'
 
 export default function SiteFooter() {
   const { t } = useLang()

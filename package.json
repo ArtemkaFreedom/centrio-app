@@ -1,7 +1,7 @@
 {
   "name": "messengerapp",
   "productName": "Centrio",
-  "version": "1.5.21",
+  "version": "1.5.22",
   "description": "All messengers in one app",
   "author": {
     "name": "Centrio",
@@ -68,7 +68,12 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/logo.png",
       "category": "public.app-category.productivity",
@@ -78,12 +83,25 @@
     "dmg": {
       "title": "Centrio ${version}",
       "icon": "assets/logo.png",
-      "window": { "width": 540, "height": 380 }
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb",      "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/logo.png",
       "category": "Network"
