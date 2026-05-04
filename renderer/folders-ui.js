@@ -4,6 +4,7 @@ function createFoldersUiApi({
     folderPanel,
     messengerList,
     renderMessengerItem,
+    addToSidebar,
     saveData
 }) {
     function updateFolderBadge(folderId) {
@@ -99,10 +100,10 @@ function createFoldersUiApi({
         document.getElementById(`folder-${folderId}`)?.classList.add('open')
     }
 
-    function removeFolder(folderId, addToSidebar) {
+    function removeFolder(folderId) {
         state.activeMessengers.filter(m => m.folderId === folderId).forEach(m => {
             m.folderId = null
-            addToSidebar(m)
+            if (typeof addToSidebar === 'function') addToSidebar(m)
         })
         document.getElementById(`folder-${folderId}`)?.remove()
         state.folders = state.folders.filter(f => f.id !== folderId)

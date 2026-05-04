@@ -491,6 +491,15 @@
     </div>
     <div class="changelog-popup-body">
         <div class="changelog-entry">
+            <div class="changelog-version">v1.5.23</div>
+            <ul class="changelog-list">
+                <li>Настройки → Сеть: VPN-приложения наверх, серверы и прокси сворачиваются кнопкой</li>
+                <li>Папки: мессенджеры возвращаются в общий список при удалении папки</li>
+                <li>Добавлены иконки для всех 40+ мессенджеров</li>
+                <li>Obsidian: создан чеклист релиза</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
             <div class="changelog-version">v1.5.22</div>
             <ul class="changelog-list">
                 <li>Исправлены настройки: все разделы (горячие клавиши, безопасность, сеть, система) теперь работают корректно</li>
@@ -1531,108 +1540,118 @@
 
                 <!-- Сеть -->
                 <div class="settings-section" id="section-network">
-                    <div class="settings-group">
+
+                    <!-- 1. VPN для приложений (вверху) -->
+                    <div class="settings-group" id="settingsVpnAppsGroup">
                         <div class="settings-group-title">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span data-i18n="network.vpnAppsTitle"></span>
+                        </div>
+                        <div class="settings-hint" style="margin-bottom:10px;" data-i18n="network.vpnAppsHint"></div>
+                        <div id="settingsVpnAppsList" class="settings-vpn-apps-list"></div>
+                    </div>
+
+                    <!-- 2. VPN серверы (сворачиваемые) -->
+                    <div class="settings-group" id="settingsVpnGroup">
+                        <div class="settings-group-title settings-collapsible" id="settingsVpnToggle" style="cursor:pointer;user-select:none;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span data-i18n="network.vpnTitle"></span>
+                            <svg id="settingsVpnChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" style="margin-left:auto;transition:transform 0.2s;">
+                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div id="settingsVpnBody" style="display:none;">
+                            <!-- Список сохранённых конфигов -->
+                            <div id="settingsVpnList" class="settings-vpn-list"></div>
+                            <!-- Импорт -->
+                            <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:8px">
+                                <label class="settings-label" data-i18n="network.vpnAddLink"></label>
+                                <textarea id="settingsVpnInput" class="settings-vpn-textarea"
+                                    data-i18n-placeholder="network.vpnLinkPh" rows="3"></textarea>
+                                <button id="settingsVpnImportBtn" class="settings-vpn-import-btn">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:5px">
+                                        <path d="M12 5v14M5 12l7 7 7-7"/>
+                                    </svg>
+                                    <span data-i18n="network.vpnImport"></span>
+                                </button>
+                                <div id="settingsVpnStatus" class="settings-vpn-status" style="display:none"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Прокси (внизу) -->
+                    <div class="settings-group">
+                        <div class="settings-group-title settings-collapsible" id="settingsProxyToggle" style="cursor:pointer;user-select:none;">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
                                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
                                 <line x1="2" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.8"/>
                                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" stroke-width="1.8"/>
                             </svg>
                             <span data-i18n="network.proxy"></span>
-                        </div>
-                        <div class="settings-row">
-                            <div class="settings-label">
-                                <span data-i18n="network.proxyEnable"></span>
-                                <span class="settings-hint" data-i18n="network.proxyEnableHint"></span>
-                            </div>
-                            <label class="toggle">
-                                <input type="checkbox" id="proxyEnabled">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div id="proxyFields" style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
-                            <div class="proxy-field-group">
-                                <label class="proxy-label" data-i18n="network.proxyType"></label>
-                                <select id="proxyType" class="vsc-select" style="width:100%;">
-                                    <option value="system" data-i18n="network.proxyTypeSystem"></option>
-                                    <option value="auto"   data-i18n="network.proxyTypeAuto"></option>
-                                    <option value="none"   data-i18n="network.proxyTypeNone"></option>
-                                    <option value="http">HTTP</option>
-                                    <option value="https">HTTPS</option>
-                                    <option value="socks4">SOCKS4</option>
-                                    <option value="socks5">SOCKS5</option>
-                                </select>
-                            </div>
-                            <div id="proxyHostWrap" class="proxy-field-row" style="display:none;">
-                                <div class="proxy-field-group" style="flex:1;">
-                                    <label class="proxy-label" data-i18n="network.proxyHost"></label>
-                                    <input type="text" id="proxyHost" class="vsc-input" data-i18n-placeholder="network.proxyHostPlaceholder">
-                                </div>
-                                <div class="proxy-field-group" style="width:110px;">
-                                    <label class="proxy-label" data-i18n="network.proxyPort"></label>
-                                    <input type="text" id="proxyPort" class="vsc-input" data-i18n-placeholder="network.proxyPortPlaceholder">
-                                </div>
-                            </div>
-                            <div id="proxyAuthWrap" style="display:none;flex-direction:column;gap:8px;">
-                                <label class="proxy-label" data-i18n="network.proxyAuth"></label>
-                                <div class="proxy-field-row">
-                                    <input type="text" id="proxyLogin" class="vsc-input" data-i18n-placeholder="network.proxyLogin" style="flex:1;">
-                                    <input type="password" id="proxyPassword" class="vsc-input" data-i18n-placeholder="network.proxyPassword" style="flex:1;">
-                                </div>
-                            </div>
-                            <div id="proxyStatus" class="proxy-status"></div>
-                            <div style="display:flex;gap:8px;">
-                                <button id="proxyTestBtn" class="vsc-btn-secondary" style="flex:1;">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
-                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                        <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    </svg>
-                                    <span data-i18n="network.proxyTest"></span>
-                                </button>
-                                <button id="proxySaveBtn" class="vsc-btn" style="flex:1;">
-                                    <span data-i18n="network.proxySave"></span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- VPN: импорт конфигов прямо в настройках -->
-                    <div class="settings-group" id="settingsVpnGroup">
-                        <div class="settings-group-title">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <svg id="settingsProxyChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" style="margin-left:auto;transition:transform 0.2s;">
+                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             </svg>
-                            <span data-i18n="network.vpnTitle"></span>
                         </div>
-
-                        <!-- Список сохранённых конфигов -->
-                        <div id="settingsVpnList" class="settings-vpn-list"></div>
-
-                        <!-- Импорт -->
-                        <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:8px">
-                            <label class="settings-label" data-i18n="network.vpnAddLink"></label>
-                            <textarea id="settingsVpnInput" class="settings-vpn-textarea"
-                                data-i18n-placeholder="network.vpnLinkPh" rows="3"></textarea>
-                            <button id="settingsVpnImportBtn" class="settings-vpn-import-btn">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:5px">
-                                    <path d="M12 5v14M5 12l7 7 7-7"/>
-                                </svg>
-                                <span data-i18n="network.vpnImport"></span>
-                            </button>
-                            <div id="settingsVpnStatus" class="settings-vpn-status" style="display:none"></div>
+                        <div id="settingsProxyBody" style="display:none;">
+                            <div class="settings-row" style="margin-top:8px;">
+                                <div class="settings-label">
+                                    <span data-i18n="network.proxyEnable"></span>
+                                    <span class="settings-hint" data-i18n="network.proxyEnableHint"></span>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" id="proxyEnabled">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="proxyFields" style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+                                <div class="proxy-field-group">
+                                    <label class="proxy-label" data-i18n="network.proxyType"></label>
+                                    <select id="proxyType" class="vsc-select" style="width:100%;">
+                                        <option value="system" data-i18n="network.proxyTypeSystem"></option>
+                                        <option value="auto"   data-i18n="network.proxyTypeAuto"></option>
+                                        <option value="none"   data-i18n="network.proxyTypeNone"></option>
+                                        <option value="http">HTTP</option>
+                                        <option value="https">HTTPS</option>
+                                        <option value="socks4">SOCKS4</option>
+                                        <option value="socks5">SOCKS5</option>
+                                    </select>
+                                </div>
+                                <div id="proxyHostWrap" class="proxy-field-row" style="display:none;">
+                                    <div class="proxy-field-group" style="flex:1;">
+                                        <label class="proxy-label" data-i18n="network.proxyHost"></label>
+                                        <input type="text" id="proxyHost" class="vsc-input" data-i18n-placeholder="network.proxyHostPlaceholder">
+                                    </div>
+                                    <div class="proxy-field-group" style="width:110px;">
+                                        <label class="proxy-label" data-i18n="network.proxyPort"></label>
+                                        <input type="text" id="proxyPort" class="vsc-input" data-i18n-placeholder="network.proxyPortPlaceholder">
+                                    </div>
+                                </div>
+                                <div id="proxyAuthWrap" style="display:none;flex-direction:column;gap:8px;">
+                                    <label class="proxy-label" data-i18n="network.proxyAuth"></label>
+                                    <div class="proxy-field-row">
+                                        <input type="text" id="proxyLogin" class="vsc-input" data-i18n-placeholder="network.proxyLogin" style="flex:1;">
+                                        <input type="password" id="proxyPassword" class="vsc-input" data-i18n-placeholder="network.proxyPassword" style="flex:1;">
+                                    </div>
+                                </div>
+                                <div id="proxyStatus" class="proxy-status"></div>
+                                <div style="display:flex;gap:8px;">
+                                    <button id="proxyTestBtn" class="vsc-btn-secondary" style="flex:1;">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        </svg>
+                                        <span data-i18n="network.proxyTest"></span>
+                                    </button>
+                                    <button id="proxySaveBtn" class="vsc-btn" style="flex:1;">
+                                        <span data-i18n="network.proxySave"></span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- VPN для приложений -->
-                    <div class="settings-group" id="settingsVpnAppsGroup">
-                        <div class="settings-group-title">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="display:inline;margin-right:6px;vertical-align:middle;">
-                                <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/>
-                                <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                            </svg>
-                            <span data-i18n="network.vpnAppsTitle"></span>
-                        </div>
-                        <div class="settings-hint" style="margin-bottom:10px;" data-i18n="network.vpnAppsHint"></div>
-                        <div id="settingsVpnAppsList" class="settings-vpn-apps-list"></div>
                     </div>
                 </div>
 

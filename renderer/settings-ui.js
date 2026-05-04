@@ -190,6 +190,31 @@ function createSettingsUiApi({
         updateDownloadDirUI(settings.downloadDir || '')
         initProxySection()
         initSoundPicker()
+        initCollapsibles()
+    }
+
+    let collapsiblesInited = false
+    function initCollapsibles() {
+        if (collapsiblesInited) return
+        collapsiblesInited = true
+
+        const pairs = [
+            ['settingsVpnToggle', 'settingsVpnBody', 'settingsVpnChevron'],
+            ['settingsProxyToggle', 'settingsProxyBody', 'settingsProxyChevron']
+        ]
+
+        pairs.forEach(([toggleId, bodyId, chevronId]) => {
+            const toggle = document.getElementById(toggleId)
+            const body = document.getElementById(bodyId)
+            const chevron = document.getElementById(chevronId)
+            if (!toggle || !body) return
+
+            toggle.addEventListener('click', () => {
+                const open = body.style.display !== 'none'
+                body.style.display = open ? 'none' : 'block'
+                if (chevron) chevron.style.transform = open ? '' : 'rotate(180deg)'
+            })
+        })
     }
 
     function initSettings() {
