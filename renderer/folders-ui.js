@@ -35,6 +35,8 @@ function createFoldersUiApi({
         const content = document.getElementById('folderPanelContent')
         content.innerHTML = ''
 
+        let panelDragSrcId = null
+
         state.activeMessengers
             .filter(m => m.folderId === folderId)
             .forEach(messenger => {
@@ -51,6 +53,54 @@ function createFoldersUiApi({
                     }
                     badge.textContent = count > 99 ? '99+' : count
                 }
+
+                item.setAttribute('draggable', 'true')
+                item.style.cursor = 'grab'
+
+                item.addEventListener('dragstart', (e) => {
+                    panelDragSrcId = messenger.id
+                    setTimeout(() => item.classList.add('dragging'), 0)
+                    e.dataTransfer.effectAllowed = 'move'
+                })
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging')
+                    content.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom')
+                        .forEach(el => el.classList.remove('drop-indicator-top', 'drop-indicator-bottom'))
+                    panelDragSrcId = null
+                })
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault()
+                    if (!panelDragSrcId || panelDragSrcId === messenger.id) return
+                    const rect = item.getBoundingClientRect()
+                    const insertBefore = e.clientY < rect.top + rect.height / 2
+                    content.querySelectorAll('.drop-indicator-top, .drop-indicator-bottom')
+                        .forEach(el => el.classList.remove('drop-indicator-top', 'drop-indicator-bottom'))
+                    item.classList.add(insertBefore ? 'drop-indicator-top' : 'drop-indicator-bottom')
+                    e.dataTransfer.dropEffect = 'move'
+                })
+                item.addEventListener('dragleave', (e) => {
+                    if (!item.contains(e.relatedTarget))
+                        item.classList.remove('drop-indicator-top', 'drop-indicator-bottom')
+                })
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault()
+                    item.classList.remove('drop-indicator-top', 'drop-indicator-bottom')
+                    if (!panelDragSrcId || panelDragSrcId === messenger.id) return
+                    const srcEl = content.querySelector(`#sidebar-${panelDragSrcId}`)
+                    if (!srcEl) return
+                    const rect = item.getBoundingClientRect()
+                    const insertBefore = e.clientY < rect.top + rect.height / 2
+                    if (insertBefore) content.insertBefore(srcEl, item)
+                    else content.insertBefore(srcEl, item.nextSibling)
+                    const srcIdx = state.activeMessengers.findIndex(m => m.id === panelDragSrcId)
+                    const tgtIdx = state.activeMessengers.findIndex(m => m.id === messenger.id)
+                    if (srcIdx !== -1 && tgtIdx !== -1) {
+                        const [moved] = state.activeMessengers.splice(srcIdx, 1)
+                        const newTgt = state.activeMessengers.findIndex(m => m.id === messenger.id)
+                        state.activeMessengers.splice(insertBefore ? newTgt : newTgt + 1, 0, moved)
+                        saveData()
+                    }
+                })
 
                 content.appendChild(item)
             })
@@ -101,6 +151,7 @@ function createFoldersUiApi({
     }
 
     function removeFolder(folderId) {
+        if (state.activeFolderPanelId === folderId) closeFolderPanel()
         state.activeMessengers.filter(m => m.folderId === folderId).forEach(m => {
             m.folderId = null
             if (typeof addToSidebar === 'function') addToSidebar(m)

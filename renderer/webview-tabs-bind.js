@@ -90,12 +90,17 @@ function createWebviewTabsApi({
         tabMain.className = 'tab-main'
 
         const icon = document.createElement('img')
-        icon.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`
         icon.width = 16
         icon.height = 16
         icon.className = 'tab-icon'
+        icon.src = messenger.icon || `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`
         icon.onerror = () => {
-            icon.style.display = 'none'
+            if (icon.src.includes('logomessenger') || icon.src.includes('assets')) {
+                icon.src = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`
+                icon.onerror = () => { icon.style.display = 'none' }
+            } else {
+                icon.style.display = 'none'
+            }
         }
 
         const title = document.createElement('span')
@@ -141,7 +146,58 @@ function createWebviewTabsApi({
             }
         })
 
+        initTabDrag(tab, messenger.id)
         tabsBar.appendChild(tab)
+    }
+
+    let _tabDragSrcId = null
+
+    function initTabDrag(tab, messengerId) {
+        tab.setAttribute('draggable', 'true')
+
+        tab.addEventListener('dragstart', (e) => {
+            _tabDragSrcId = messengerId
+            setTimeout(() => tab.classList.add('tab-dragging'), 0)
+            e.dataTransfer.effectAllowed = 'move'
+            e.stopPropagation()
+        })
+
+        tab.addEventListener('dragend', () => {
+            tab.classList.remove('tab-dragging')
+            tabsBar.querySelectorAll('.tab').forEach(t =>
+                t.classList.remove('tab-drop-before', 'tab-drop-after'))
+            _tabDragSrcId = null
+        })
+
+        tab.addEventListener('dragover', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (!_tabDragSrcId || _tabDragSrcId === messengerId) return
+            const rect = tab.getBoundingClientRect()
+            const insertBefore = e.clientX < rect.left + rect.width / 2
+            tabsBar.querySelectorAll('.tab').forEach(t =>
+                t.classList.remove('tab-drop-before', 'tab-drop-after'))
+            tab.classList.add(insertBefore ? 'tab-drop-before' : 'tab-drop-after')
+            e.dataTransfer.dropEffect = 'move'
+        })
+
+        tab.addEventListener('dragleave', (e) => {
+            if (!tab.contains(e.relatedTarget))
+                tab.classList.remove('tab-drop-before', 'tab-drop-after')
+        })
+
+        tab.addEventListener('drop', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            tab.classList.remove('tab-drop-before', 'tab-drop-after')
+            if (!_tabDragSrcId || _tabDragSrcId === messengerId) return
+            const srcTab = document.getElementById(`tab-${_tabDragSrcId}`)
+            if (!srcTab) return
+            const rect = tab.getBoundingClientRect()
+            const insertBefore = e.clientX < rect.left + rect.width / 2
+            if (insertBefore) tabsBar.insertBefore(srcTab, tab)
+            else tabsBar.insertBefore(srcTab, tab.nextSibling)
+        })
     }
 
     function attachFindListener(webview) {

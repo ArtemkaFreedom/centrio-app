@@ -99,6 +99,9 @@ module.exports = {
         resetConfirm:     '确定吗？所有数据将被删除，应用将重启！',
         version:          '版本',
         aboutDesc:        '在一个窗口中使用所有应用',
+        checkUpdatesBtn:      '检查更新',
+        checkUpdatesChecking: '检查中...',
+        autoUpdateNote:       '更新将自动下载',
         passwordEnable:   'PIN 保护',
         passwordEnableHint:'启动时需要 PIN',
         passwordSet:      '设置 PIN',
@@ -266,6 +269,7 @@ module.exports = {
     tray: {
         open:   '打开',
         hide:   '最小化到托盘',
+        checkUpdates: '检查更新',
         quit:   '退出',
         unread: '条未读',
     },

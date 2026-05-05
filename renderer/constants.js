@@ -43,6 +43,15 @@ const popularMessengers = [
     { name: 'Todoist',          url: 'https://app.todoist.com',             icon: 'assets/logomessenger/todoist.png',       color: '#DB4035' },
     { name: 'Twitch',           url: 'https://twitch.tv',                   icon: 'assets/logomessenger/twitch.png',        color: '#9146FF' },
     { name: 'Zendesk',          url: 'https://www.zendesk.com',             icon: 'assets/logomessenger/zendesk.png',       color: '#03363D' },
+    // ── Нейросети ─────────────────────────────────────────────────────────
+    { name: 'ChatGPT',          url: 'https://chat.openai.com',             icon: 'assets/logomessenger/chatgpt.png',       color: '#10A37F' },
+    { name: 'Claude',           url: 'https://claude.ai',                   icon: 'assets/logomessenger/claude.png',        color: '#CC785C' },
+    { name: 'Gemini',           url: 'https://gemini.google.com',           icon: 'assets/logomessenger/gemini.png',        color: '#4285F4' },
+    { name: 'Grok',             url: 'https://grok.com',                    icon: 'assets/logomessenger/grok.png',          color: '#000000' },
+    { name: 'Perplexity',       url: 'https://www.perplexity.ai',           icon: 'assets/logomessenger/perplexity.png',    color: '#20808D' },
+    { name: 'Mistral',          url: 'https://chat.mistral.ai',             icon: 'assets/logomessenger/mistral.png',       color: '#FF7000' },
+    { name: 'DeepSeek',         url: 'https://chat.deepseek.com',           icon: 'assets/logomessenger/deepseek.png',      color: '#4D6BFE' },
+    { name: 'Copilot',          url: 'https://copilot.microsoft.com',       icon: 'assets/logomessenger/copilot.png',       color: '#0078D4' },
 ]
 
 const folderIcons = {

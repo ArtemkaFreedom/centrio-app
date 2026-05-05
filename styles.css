@@ -4695,6 +4695,26 @@ button:active {
     box-shadow: 0 2px 8px var(--accent-glow);
 }
 
+.folder-drop-target {
+    background: var(--accent-dim) !important;
+    box-shadow: 0 0 0 2px var(--accent), 0 0 12px var(--accent-glow);
+    border-radius: 8px;
+}
+
+.sidebar-root-drop-zone {
+    height: 32px;
+    margin: 4px 6px;
+    border-radius: 8px;
+    border: 2px dashed transparent;
+    transition: border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+}
+
+.sidebar-root-drop-zone.active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+
 /* Отключаем только проблемные анимации внутри folder-panel */
 .folder-panel-content .messenger-item {
     animation: none !important;
@@ -6129,6 +6149,21 @@ button:active {
 /* =========================================================
    BADGE — круглый
    ========================================================= */
+
+.tab.tab-dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+}
+
+.tab.tab-drop-before {
+    border-left: 2px solid var(--accent) !important;
+    box-shadow: -2px 0 8px var(--accent-glow);
+}
+
+.tab.tab-drop-after {
+    border-right: 2px solid var(--accent) !important;
+    box-shadow: 2px 0 8px var(--accent-glow);
+}
 
 .tab-badge {
     display: inline-flex;

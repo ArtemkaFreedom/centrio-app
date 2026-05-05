@@ -99,6 +99,9 @@ module.exports = {
         resetConfirm: 'Вы уверены? Все данные будут удалены и приложение перезапустится!',
         version: 'Версия',
         aboutDesc: 'Все мессенджеры в одном окне',
+        checkUpdatesBtn: 'Проверить обновления',
+        checkUpdatesChecking: 'Проверяем...',
+        autoUpdateNote: 'Обновления скачиваются автоматически',
         passwordEnable: 'Защита PIN-кодом',
         passwordEnableHint: 'Требовать PIN при запуске',
         passwordSet: 'Установить PIN',
@@ -272,6 +275,7 @@ module.exports = {
     tray: {
         open: 'Открыть',
         hide: 'Свернуть в трей',
+        checkUpdates: 'Проверить обновления',
         quit: 'Выход',
         unread: 'непрочитанных'
     },

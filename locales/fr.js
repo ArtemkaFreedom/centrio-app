@@ -99,6 +99,9 @@ module.exports = {
         resetConfirm:     'Êtes-vous sûr ? Toutes les données seront supprimées et l\'app redémarrera.',
         version:          'Version',
         aboutDesc:        'Tous les messengers dans une fenêtre',
+        checkUpdatesBtn:      'Vérifier les mises à jour',
+        checkUpdatesChecking: 'Vérification...',
+        autoUpdateNote:       'Les mises à jour sont téléchargées automatiquement',
         passwordEnable:   'Protection par PIN',
         passwordEnableHint:'Demander le PIN au démarrage',
         passwordSet:      'Définir le PIN',
@@ -266,6 +269,7 @@ module.exports = {
     tray: {
         open:   'Ouvrir',
         hide:   'Réduire dans la barre système',
+        checkUpdates: 'Vérifier les mises à jour',
         quit:   'Quitter',
         unread: 'non lu(s)',
     },

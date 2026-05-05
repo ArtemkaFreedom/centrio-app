@@ -122,6 +122,24 @@ function bindSettingsUi({
         })
     })
 
+    const checkUpdatesBtn = document.getElementById('checkUpdatesBtn')
+    if (checkUpdatesBtn) {
+        checkUpdatesBtn.addEventListener('click', async () => {
+            checkUpdatesBtn.disabled = true
+            checkUpdatesBtn.textContent = tGet('settings.checkUpdatesChecking') || 'Проверяем...'
+            try {
+                await ipcRenderer.invoke('check-for-updates')
+            } catch (e) {
+                console.error('[settings] checkForUpdates error:', e)
+            } finally {
+                setTimeout(() => {
+                    checkUpdatesBtn.disabled = false
+                    checkUpdatesBtn.textContent = tGet('settings.checkUpdatesBtn') || 'Проверить обновления'
+                }, 3000)
+            }
+        })
+    }
+
     if (resetAllBtn) {
         resetAllBtn.addEventListener('click', async () => {
             if (!confirm(tGet('settings.resetConfirm'))) return

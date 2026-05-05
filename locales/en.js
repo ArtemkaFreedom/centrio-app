@@ -99,6 +99,9 @@ module.exports = {
         resetConfirm:     'Are you sure? All data will be deleted and the app will restart!',
         version:          'Version',
         aboutDesc:        'All messengers in one window',
+        checkUpdatesBtn:      'Check for updates',
+        checkUpdatesChecking: 'Checking...',
+        autoUpdateNote:       'Updates download automatically',
         passwordEnable:   'PIN protection',
         passwordEnableHint:'Require PIN on launch',
         passwordSet:      'Set PIN',
@@ -272,6 +275,7 @@ module.exports = {
     tray: {
         open:   'Open',
         hide:   'Minimize to tray',
+        checkUpdates: 'Check for updates',
         quit:   'Quit',
         unread: 'unread',
     },
