@@ -432,5 +432,8 @@ module.exports = {
         uninstallTitle: 'Remove extension?',
         uninstallMsg:   'The extension will be removed. This action cannot be undone.',
         uninstallBtn:   'Remove',
+        openPopup:      'Open popup',
+        openSettings:   'Extension settings',
+        noPages:        'No extension pages',
     },
 }

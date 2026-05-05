@@ -426,5 +426,8 @@ module.exports = {
         uninstallTitle: '删除扩展？',
         uninstallMsg:   '扩展将被删除，此操作无法撤销。',
         uninstallBtn:   '删除',
+        openPopup:      '打开弹出窗口',
+        openSettings:   '扩展设置',
+        noPages:        '无扩展页面',
     },
 }

@@ -426,5 +426,8 @@ module.exports = {
         uninstallTitle: 'Supprimer l\'extension ?',
         uninstallMsg:   'L\'extension sera supprimée. Cette action est irréversible.',
         uninstallBtn:   'Supprimer',
+        openPopup:      'Ouvrir le popup',
+        openSettings:   'Paramètres de l\'extension',
+        noPages:        'Pas de pages d\'extension',
     },
 }

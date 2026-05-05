@@ -437,5 +437,8 @@ module.exports = {
         uninstallTitle: 'Удалить расширение?',
         uninstallMsg:   'Расширение будет удалено. Это действие необратимо.',
         uninstallBtn:   'Удалить',
+        openPopup:      'Открыть попап',
+        openSettings:   'Настройки расширения',
+        noPages:        'Нет страниц расширения',
     },
 }

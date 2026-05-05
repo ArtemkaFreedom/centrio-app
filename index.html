@@ -491,6 +491,23 @@
     </div>
     <div class="changelog-popup-body">
         <div class="changelog-entry">
+            <div class="changelog-version">v1.6.6</div>
+            <ul class="changelog-list">
+                <li>Каталог расширений: добавлен Юбуст (SEO & Аналитика), Яндекс Переводчик, Поиск картинки Яндексом</li>
+                <li>Плагины: всплывающие окна расширений открываются корректно</li>
+                <li>Плагины: правая кнопка на карточке — меню «Открыть попап» / «Настройки расширения»</li>
+                <li>Grammarly: авторизация через браузер работает корректно</li>
+                <li>Акцент-цвет: убран последний пресет, добавлен кружочек для выбора любого цвета</li>
+                <li>Вкладки: кнопки управления окном не съезжают в центр при скрытых вкладках</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.6.5</div>
+            <ul class="changelog-list">
+                <li>Уменьшен размер установщика, исправлены таймауты скачивания</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
             <div class="changelog-version">v1.5.23</div>
             <ul class="changelog-list">
                 <li>Настройки → Сеть: VPN-приложения наверх, серверы и прокси сворачиваются кнопкой</li>
@@ -1248,7 +1265,8 @@
                             <div class="accent-item" data-color="#fd79a8" style="background:#fd79a8"></div>
                             <div class="accent-item" data-color="#fdcb6e" style="background:#fdcb6e"></div>
                             <div class="accent-item" data-color="#a29bfe" style="background:#a29bfe"></div>
-                            <div class="accent-item" data-color="#55efc4" style="background:#55efc4"></div>
+                            <div class="accent-item accent-custom" id="accentCustomItem" data-color="" title="Свой цвет"></div>
+                            <input type="color" id="accentColorPicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" tabindex="-1">
                         </div>
                     </div>
 

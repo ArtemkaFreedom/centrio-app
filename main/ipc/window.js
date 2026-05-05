@@ -88,6 +88,22 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
                     partition: opts.partition || undefined
                 }
             })
+
+            popup.webContents.on('will-navigate', (e, navUrl) => {
+                if (!navUrl.startsWith('chrome-extension://')) {
+                    e.preventDefault()
+                    shell.openExternal(navUrl).catch(() => {})
+                }
+            })
+
+            popup.webContents.setWindowOpenHandler(({ url: newUrl }) => {
+                if (!newUrl.startsWith('chrome-extension://')) {
+                    shell.openExternal(newUrl).catch(() => {})
+                    return { action: 'deny' }
+                }
+                return { action: 'allow' }
+            })
+
             popup.loadURL(url)
             popup.once('ready-to-show', () => popup.show())
             return { success: true }
