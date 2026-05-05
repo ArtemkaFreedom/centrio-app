@@ -13,6 +13,8 @@ function safeHandle(channel, handler) {
 }
 
 function registerWindowIpc({ getMainWindow, isQuittingRef }) {
+    // expose getMainWindow for popup-window handler
+    const _getMainWindow = getMainWindow
     safeOn('minimize-window', (event) => {
         const win = BrowserWindow.fromWebContents(event.sender) || getMainWindow()
         if (win && !win.isDestroyed()) win.minimize()
@@ -71,7 +73,9 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
 
     safeHandle('open-popup-window', async (_event, url, opts = {}) => {
         try {
+            const mainWin = _getMainWindow()
             const popup = new BrowserWindow({
+                parent:          mainWin || undefined,
                 width:           opts.width  || 400,
                 height:          opts.height || 600,
                 resizable:       true,

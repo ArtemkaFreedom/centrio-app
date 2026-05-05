@@ -67,7 +67,7 @@ const CATALOG = [
         id: 'jddgbeighonaipjikdnfdpiefhoomlae',
         name: 'Юбуст',
         desc: 'SEO-анализ и продвижение: позиции, аудит, ключевые слова',
-        category: 'SEO & Аналитика',
+        category: 'VPN и прокси',
         color: '#FF6B35',
         icon: 'https://www.google.com/s2/favicons?domain=uboost.ru&sz=64'
     },
@@ -161,8 +161,10 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
                 busyIds.add(ext.id)
                 await invokeIpc('ext:uninstall', ext.id)
                 installedIds.delete(ext.id)
+                extMetaMap.delete(ext.id)
                 busyIds.delete(ext.id)
                 renderAll(container)
+                renderExtBar()
             })
 
             card.addEventListener('contextmenu', (e) => {
@@ -180,6 +182,8 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
                 busyIds.delete(ext.id)
                 if (res?.success) {
                     installedIds.add(ext.id)
+                    await refreshInstalled()
+                    renderExtBar()
                 } else {
                     alert(`Ошибка установки: ${res?.error || 'неизвестно'}`)
                 }
@@ -199,19 +203,19 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
             const items = CATALOG.filter(e => e.category === cat)
             const section = document.createElement('div')
             section.className = 'ext-category'
-            section.innerHTML = `<div class="ext-category-title">${cat}</div>`
+            let catHeader = `<div class="ext-category-title">${cat}`
+            if (cat === 'VPN и прокси') {
+                catHeader += ` <span class="ext-cat-badge ext-cat-pro" title="VPN — только PRO">VPN: PRO</span>`
+                catHeader += ` <span class="ext-cat-badge ext-cat-free" title="Прокси — бесплатно">Прокси: Free</span>`
+            }
+            catHeader += `</div>`
+            section.innerHTML = catHeader
             const grid = document.createElement('div')
             grid.className = 'ext-grid'
             items.forEach(ext => grid.appendChild(renderCard(ext, container)))
             section.appendChild(grid)
             container.appendChild(section)
         }
-    }
-
-    async function openExtensionsSection() {
-        await refreshInstalled()
-        const container = document.getElementById('extensionsCatalog')
-        renderAll(container)
     }
 
     function getOrCreateContextMenu() {
@@ -262,7 +266,76 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
         menu.classList.add('show')
     }
 
-    return { openExtensionsSection }
+    // ── Extension toolbar (ext-bar) ────────────────────────────────────────
+    function renderExtBar() {
+        const bar = document.getElementById('extBar')
+        if (!bar) return
+
+        const installed = [...installedIds].filter(id => !disabledIds.has(id))
+        if (!installed.length) {
+            bar.style.display = 'none'
+            return
+        }
+
+        bar.style.display = 'flex'
+        bar.innerHTML = ''
+
+        const label = document.createElement('span')
+        label.className = 'ext-bar-label'
+        label.textContent = 'Расширения:'
+        bar.appendChild(label)
+
+        const sep = document.createElement('div')
+        sep.className = 'ext-bar-sep'
+        bar.appendChild(sep)
+
+        installed.forEach(id => {
+            const meta = extMetaMap.get(id)
+            const catEntry = CATALOG.find(e => e.id === id)
+            const iconUrl = catEntry?.icon || `https://www.google.com/s2/favicons?domain=${id}&sz=32`
+            const name = meta?.name || catEntry?.name || id
+
+            const btn = document.createElement('div')
+            btn.className = 'ext-bar-icon'
+            btn.title = name
+            btn.dataset.id = id
+
+            const img = document.createElement('img')
+            img.src = iconUrl
+            img.alt = name
+            img.onerror = function() {
+                this.style.display = 'none'
+                const l = document.createElement('div')
+                l.className = 'ext-bar-letter'
+                l.textContent = name[0]?.toUpperCase() || '?'
+                btn.appendChild(l)
+            }
+            btn.appendChild(img)
+
+            btn.addEventListener('click', () => {
+                if (meta?.popupPage) {
+                    invokeIpc('open-popup-window', meta.popupPage, { width: 380, height: 560 }).catch(() => {})
+                } else {
+                    showExtContextMenu(
+                        btn.getBoundingClientRect().left,
+                        btn.getBoundingClientRect().bottom + 4,
+                        id
+                    )
+                }
+            })
+
+            bar.appendChild(btn)
+        })
+    }
+
+    async function openExtensionsSection() {
+        await refreshInstalled()
+        const container = document.getElementById('extensionsCatalog')
+        renderAll(container)
+        renderExtBar()
+    }
+
+    return { openExtensionsSection, renderExtBar, refreshInstalled }
 }
 
 module.exports = { createExtensionsUiApi, EXTENSION_CATALOG: CATALOG }

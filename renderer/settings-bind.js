@@ -104,7 +104,7 @@ function bindSettingsUi({
         item.addEventListener('click', () => {
             if (item.id === 'accentCustomItem') {
                 if (requirePro && !requirePro('accent')) return
-                document.getElementById('accentColorPicker')?.click()
+                openColorPickerModal()
                 return
             }
             const color = item.dataset.color
@@ -116,18 +116,89 @@ function bindSettingsUi({
         })
     })
 
-    const accentColorPicker = document.getElementById('accentColorPicker')
-    if (accentColorPicker) {
-        accentColorPicker.addEventListener('input', (e) => {
-            const color = e.target.value
-            const customItem = document.getElementById('accentCustomItem')
-            document.querySelectorAll('.accent-item').forEach((i) => i.classList.remove('active'))
-            if (customItem) {
-                customItem.classList.add('active')
-                customItem.dataset.color = color
+    // ── Custom color picker modal ─────────────────────────────────────────────
+    const COLOR_PRESETS = [
+        '#7b68ee','#e17055','#00b894','#fd79a8','#fdcb6e','#a29bfe',
+        '#0984e3','#e84393','#00cec9','#d63031','#6c5ce7','#55efc4',
+        '#f39c12','#2d3436','#74b9ff','#ff7675',
+    ]
+
+    function openColorPickerModal() {
+        const modal = document.getElementById('colorPickerModal')
+        if (!modal) return
+        const customItem = document.getElementById('accentCustomItem')
+        const currentColor = customItem?.dataset.color || '#7b68ee'
+
+        // Build presets
+        const presetsEl = document.getElementById('colorPickerPresets')
+        if (presetsEl) {
+            presetsEl.innerHTML = ''
+            COLOR_PRESETS.forEach(c => {
+                const dot = document.createElement('div')
+                dot.className = 'color-picker-preset' + (c === currentColor ? ' active' : '')
+                dot.style.background = c
+                dot.dataset.color = c
+                dot.addEventListener('click', () => {
+                    presetsEl.querySelectorAll('.color-picker-preset').forEach(d => d.classList.remove('active'))
+                    dot.classList.add('active')
+                    setPickerColor(c)
+                })
+                presetsEl.appendChild(dot)
+            })
+        }
+
+        setPickerColor(currentColor)
+        modal.style.display = 'flex'
+    }
+
+    function setPickerColor(hex) {
+        const clean = hex.replace('#', '').slice(0, 6)
+        const preview = document.getElementById('colorPickerPreview')
+        const hexInput = document.getElementById('colorPickerHex')
+        if (preview) preview.style.background = '#' + clean
+        if (hexInput) hexInput.value = clean
+    }
+
+    function applyPickerColor(hex) {
+        const color = '#' + hex.replace('#', '').slice(0, 6)
+        const customItem = document.getElementById('accentCustomItem')
+        document.querySelectorAll('.accent-item').forEach(i => i.classList.remove('active'))
+        if (customItem) {
+            customItem.classList.add('active', 'has-color')
+            customItem.dataset.color = color
+            customItem.style.setProperty('--accent-custom-color', color)
+        }
+    }
+
+    const colorPickerHex = document.getElementById('colorPickerHex')
+    if (colorPickerHex) {
+        colorPickerHex.addEventListener('input', (e) => {
+            const v = e.target.value.replace(/[^0-9a-fA-F]/g, '')
+            e.target.value = v
+            if (v.length === 6) {
+                const preview = document.getElementById('colorPickerPreview')
+                if (preview) preview.style.background = '#' + v
             }
         })
     }
+
+    const colorPickerApply = document.getElementById('colorPickerApply')
+    if (colorPickerApply) {
+        colorPickerApply.addEventListener('click', () => {
+            const hex = document.getElementById('colorPickerHex')?.value || ''
+            if (hex.length >= 3) applyPickerColor(hex)
+            document.getElementById('colorPickerModal').style.display = 'none'
+        })
+    }
+
+    const colorPickerCancel = document.getElementById('colorPickerCancel')
+    const colorPickerClose = document.getElementById('colorPickerClose')
+    const closePicker = () => { document.getElementById('colorPickerModal').style.display = 'none' }
+    if (colorPickerCancel) colorPickerCancel.addEventListener('click', closePicker)
+    if (colorPickerClose) colorPickerClose.addEventListener('click', closePicker)
+
+    const colorPickerBackdrop = document.querySelector('.color-picker-backdrop')
+    if (colorPickerBackdrop) colorPickerBackdrop.addEventListener('click', closePicker)
 
     document.querySelectorAll('.density-item').forEach((item) => {
         item.addEventListener('click', () => {

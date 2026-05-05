@@ -307,6 +307,9 @@
     </div>
 </div>
 
+<!-- Extension toolbar -->
+<div id="extBar" class="ext-bar" style="display:none"></div>
+
 <!-- MAIN -->
 <div class="main-container">
     <div class="activity-bar">
@@ -466,6 +469,27 @@
     </div>
 </div>
 
+<!-- Custom color picker -->
+<div id="colorPickerModal" class="color-picker-modal" style="display:none">
+    <div class="color-picker-backdrop"></div>
+    <div class="color-picker-popup">
+        <div class="color-picker-header">
+            <span>Цвет акцента</span>
+            <button class="color-picker-close" id="colorPickerClose">✕</button>
+        </div>
+        <div class="color-picker-presets" id="colorPickerPresets"></div>
+        <div class="color-picker-hex-row">
+            <div class="color-picker-preview" id="colorPickerPreview"></div>
+            <span class="color-picker-hash">#</span>
+            <input type="text" class="color-picker-hex" id="colorPickerHex" maxlength="6" placeholder="7b68ee">
+        </div>
+        <div class="color-picker-actions">
+            <button class="color-picker-cancel" id="colorPickerCancel">Отмена</button>
+            <button class="color-picker-apply" id="colorPickerApply">Применить</button>
+        </div>
+    </div>
+</div>
+
 <!-- Попап с календарём -->
 <div id="calendarPopup" class="calendar-popup" style="display:none;">
     <div class="cal-header">
@@ -491,7 +515,7 @@
     </div>
     <div class="changelog-popup-body">
         <div class="changelog-entry">
-            <div class="changelog-version">v1.6.7</div>
+            <div class="changelog-version">v1.6.8</div>
             <ul class="changelog-list">
                 <li>Каталог расширений: добавлен Юбуст (SEO & Аналитика), Яндекс Переводчик, Поиск картинки Яндексом</li>
                 <li>Плагины: всплывающие окна расширений открываются корректно</li>
@@ -1266,7 +1290,6 @@
                             <div class="accent-item" data-color="#fdcb6e" style="background:#fdcb6e"></div>
                             <div class="accent-item" data-color="#a29bfe" style="background:#a29bfe"></div>
                             <div class="accent-item accent-custom" id="accentCustomItem" data-color="" title="Свой цвет"></div>
-                            <input type="color" id="accentColorPicker" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" tabindex="-1">
                         </div>
                     </div>
 

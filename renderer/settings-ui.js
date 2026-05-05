@@ -141,11 +141,12 @@ function createSettingsUiApi({
             item.classList.toggle('active', item.dataset.color === (settings.accentColor || '#7b68ee'))
         })
         const customItem = document.getElementById('accentCustomItem')
-        const colorPicker = document.getElementById('accentColorPicker')
         if (customItem && settings.accentColor && !document.querySelector('.accent-item.active')) {
-            customItem.classList.add('active')
+            customItem.classList.add('active', 'has-color')
             customItem.dataset.color = settings.accentColor
-            if (colorPicker) colorPicker.value = settings.accentColor
+            customItem.style.setProperty('--accent-custom-color', settings.accentColor)
+        } else if (customItem) {
+            customItem.classList.remove('has-color')
         }
 
         document.querySelectorAll('.density-item').forEach((item) => {

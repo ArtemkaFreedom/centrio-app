@@ -294,7 +294,10 @@ function createMessengersApi({
 
         tabsContent.appendChild(webview)
         tabsContent.style.pointerEvents = 'auto'
-        invokeIpc('ext:apply-to-session', `persist:${messenger.id}`).catch(() => {})
+        // Delayed to avoid race conditions during initial messenger loading
+        setTimeout(() => {
+            invokeIpc('ext:apply-to-session', `persist:${messenger.id}`).catch(() => {})
+        }, 800)
     }
 
     function addMessenger(messenger) {

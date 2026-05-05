@@ -19,13 +19,13 @@ function run(cmd) {
 
 async function main() {
   await sftp.connect(config);
-  for (const f of ['Centrio Setup 1.6.7.exe', 'Centrio Setup 1.6.7.exe.blockmap', 'latest.yml']) {
+  for (const f of ['Centrio Setup 1.6.8.exe', 'Centrio Setup 1.6.8.exe.blockmap', 'latest.yml']) {
     const local = path.join(DIST, f);
     console.log(`📤 ${f}...`);
     await sftp.put(local, `${DL}/${f}`);
     console.log('  ✓');
   }
-  console.log(await run('curl -sI "https://download.centrio.me/Centrio%20Setup%201.6.7.exe" | head -2'));
+  console.log(await run('curl -sI "https://download.centrio.me/Centrio%20Setup%201.6.8.exe" | head -2'));
   console.log('✅ installer uploaded!');
   await sftp.end();
 }

@@ -170,9 +170,28 @@ async function loadSavedOnStart() {
     const sessions = getActiveSessions()
     for (const id of enabled) {
         const extDir = path.join(EXTENSIONS_DIR, id)
-        if (!fs.existsSync(path.join(extDir, 'manifest.json'))) continue
+        const manifestPath = path.join(extDir, 'manifest.json')
+        if (!fs.existsSync(manifestPath)) {
+            console.warn(`[ext] skipping ${id}: no manifest.json`)
+            continue
+        }
+        // Validate manifest is parseable
+        try {
+            const manifest = readManifest(extDir)
+            if (!manifest.name && !manifest.version) {
+                console.warn(`[ext] skipping ${id}: invalid manifest`)
+                continue
+            }
+        } catch {
+            console.warn(`[ext] skipping ${id}: manifest parse error`)
+            continue
+        }
         for (const entry of sessions) {
-            await loadExtIntoSession(id, extDir, entry)
+            try {
+                await loadExtIntoSession(id, extDir, entry)
+            } catch (e) {
+                console.warn(`[ext] skipping ${id} for ${entry.key}:`, e.message)
+            }
         }
     }
 }

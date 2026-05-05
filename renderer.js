@@ -2002,6 +2002,9 @@ function applyTabZoom(level) {
     applyI18n()
     updateCloudBtn()
     updateLockBtn()
+
+    // Init extension toolbar on startup
+    extensionsUiApi.refreshInstalled().then(() => extensionsUiApi.renderExtBar()).catch(() => {})
     initProxySection()
     updateGlobalProxyBtn()
     console.log('[bootstrap] security =', store.get('security', {}))
