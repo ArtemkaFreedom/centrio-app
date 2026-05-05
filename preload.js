@@ -143,7 +143,14 @@ const electronAPI = {
     },
     offVpnProgress: () => {
         ipcRenderer.removeAllListeners('vpn-download-progress')
-    }
+    },
+
+    // Extensions
+    extList:           ()         => ipcRenderer.invoke('ext:list'),
+    extInstall:        (id)       => ipcRenderer.invoke('ext:install', id),
+    extUninstall:      (id)       => ipcRenderer.invoke('ext:uninstall', id),
+    extToggle:         (id, on)   => ipcRenderer.invoke('ext:toggle', id, on),
+    extApplyToSession: (partition) => ipcRenderer.invoke('ext:apply-to-session', partition)
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

@@ -1,5 +1,6 @@
 const { registerShortcuts } = require('../services/shortcuts')
 const { initUpdater, checkForUpdates } = require('../services/updater')
+const { loadSavedOnStart: loadExtensions } = require('../services/extensions')
 const { APP_PROTOCOL } = require('../config/constants')
 const tracker        = require('../services/tracker')
 const visitorTracker = require('../services/visitor-tracker')
@@ -52,6 +53,7 @@ function initApp({
         visitorTracker.start()
 
         initUpdater(getMainWindow)
+        loadExtensions().catch(e => console.warn('[extensions] startup load error:', e.message))
 
         // ── Первая проверка через 10–20 сек после старта ─────────
         const delay = Math.floor(Math.random() * 10000) + 10000

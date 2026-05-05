@@ -360,6 +360,7 @@ function createWebviewTabsApi({
     }
 
     function addWebview(messenger) {
+        invokeIpc('ext:apply-to-session', `persist:${messenger.id}`).catch(() => {})
         const webview = document.createElement('webview')
         webview.id = `webview-${messenger.id}`
         webview.src = messenger.url

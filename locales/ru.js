@@ -63,10 +63,13 @@ module.exports = {
             appearance: 'Внешний вид',
             notifications: 'Уведомления',
             shortcuts: 'Горячие клавиши',
+            extensions: 'Расширения',
             system: 'Система',
             security: 'Безопасность',
             network: 'Сеть'
         },
+        extensionsTitle: 'Каталог расширений',
+        extensionsHint: 'Расширения Chrome работают прямо внутри мессенджеров. Функция PRO.',
         language: 'Язык интерфейса',
         langHint: 'Применяется мгновенно',
         closeLabel: 'При нажатии кнопки закрытия',

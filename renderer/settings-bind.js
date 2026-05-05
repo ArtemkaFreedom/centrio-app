@@ -9,7 +9,8 @@ function bindSettingsUi({
     setActivePinBlock,
     openPinDisableModal,
     updateLockBtn,
-    requirePro
+    requirePro,
+    openExtensionsSection
 }) {
     const settingsBtn = document.getElementById('settingsBtn')
     const closeSettingsBtn = document.getElementById('closeSettingsBtn')
@@ -45,8 +46,10 @@ function bindSettingsUi({
 
             const sectionId = `section-${item.dataset.section}`
             const section = document.getElementById(sectionId)
-            if (section) {
-                section.classList.add('active')
+            if (section) section.classList.add('active')
+
+            if (item.dataset.section === 'extensions' && typeof openExtensionsSection === 'function') {
+                openExtensionsSection()
             }
         })
     })
