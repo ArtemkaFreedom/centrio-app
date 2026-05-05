@@ -632,6 +632,23 @@ body {
     transform: scale(0.95);
 }
 
+.messenger-icon-wrap {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.vpn-badge {
+    position: absolute;
+    bottom: -3px;
+    right: -3px;
+    font-size: 11px;
+    line-height: 1;
+    filter: drop-shadow(0 0 3px rgba(0,200,100,.6));
+    pointer-events: none;
+    user-select: none;
+}
+
 .messenger-icon {
     width: 30px;
     height: 30px;
@@ -7097,6 +7114,50 @@ body.startup-locked #lockScreen {
 .about-auto-update-note {
     font-size: 13px;
     color: var(--text-secondary, rgba(255,255,255,0.7));
+}
+
+.about-update-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.about-update-note {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.about-check-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background .15s, color .15s;
+}
+
+.about-check-btn:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.about-check-btn:disabled {
+    opacity: .5;
+    cursor: default;
 }
 
 /* ===== CONFIRM MODAL ===== */

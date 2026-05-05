@@ -421,4 +421,10 @@ module.exports = {
         cancelBtn:      'Annulla',
         removeTabLabel: 'Rimuovi {name}',
     },
+
+    extensions: {
+        uninstallTitle: 'Rimuovere l\'estensione?',
+        uninstallMsg:   'L\'estensione verrà rimossa. Questa azione è irreversibile.',
+        uninstallBtn:   'Rimuovi',
+    },
 }

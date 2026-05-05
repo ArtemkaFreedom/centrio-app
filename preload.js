@@ -150,7 +150,9 @@ const electronAPI = {
     extInstall:        (id)       => ipcRenderer.invoke('ext:install', id),
     extUninstall:      (id)       => ipcRenderer.invoke('ext:uninstall', id),
     extToggle:         (id, on)   => ipcRenderer.invoke('ext:toggle', id, on),
-    extApplyToSession: (partition) => ipcRenderer.invoke('ext:apply-to-session', partition)
+    extApplyToSession: (partition) => ipcRenderer.invoke('ext:apply-to-session', partition),
+
+    openPopupWindow: (url, opts) => ipcRenderer.invoke('open-popup-window', url, opts)
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

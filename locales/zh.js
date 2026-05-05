@@ -421,4 +421,10 @@ module.exports = {
         cancelBtn:      '取消',
         removeTabLabel: '删除 {name}',
     },
+
+    extensions: {
+        uninstallTitle: '删除扩展？',
+        uninstallMsg:   '扩展将被删除，此操作无法撤销。',
+        uninstallBtn:   '删除',
+    },
 }

@@ -387,7 +387,18 @@ function createWebviewTabsApi({
 
         webview.addEventListener('new-window', (e) => {
             e.preventDefault()
-            if (e.url && e.url !== 'about:blank') ipcRenderer.send('open-url', e.url)
+            const url = e.url
+            if (!url || url === 'about:blank') return
+            // Extension popups (chrome-extension://) → open as popup BrowserWindow
+            if (url.startsWith('chrome-extension://')) {
+                invokeIpc('open-popup-window', url, {
+                    width: e.frameName === 'popup' ? 380 : 420,
+                    height: 600,
+                    partition: `persist:${messenger.id}`
+                }).catch(() => {})
+            } else {
+                ipcRenderer.send('open-url', url)
+            }
         })
 
         webview.addEventListener('will-navigate', (e) => {

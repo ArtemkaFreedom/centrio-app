@@ -427,4 +427,10 @@ module.exports = {
         cancelBtn:      'Cancel',
         removeTabLabel: 'Remove {name}',
     },
+
+    extensions: {
+        uninstallTitle: 'Remove extension?',
+        uninstallMsg:   'The extension will be removed. This action cannot be undone.',
+        uninstallBtn:   'Remove',
+    },
 }

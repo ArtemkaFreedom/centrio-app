@@ -431,5 +431,11 @@ module.exports = {
         removeBtn: 'Удалить',
         cancelBtn: 'Отмена',
         removeTabLabel: 'Удалить {name}'
-    }
+    },
+
+    extensions: {
+        uninstallTitle: 'Удалить расширение?',
+        uninstallMsg:   'Расширение будет удалено. Это действие необратимо.',
+        uninstallBtn:   'Удалить',
+    },
 }

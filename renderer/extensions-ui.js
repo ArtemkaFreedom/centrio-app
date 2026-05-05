@@ -119,7 +119,19 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
 
             const uninstallBtn = card.querySelector('.ext-uninstall-btn')
             uninstallBtn?.addEventListener('click', async () => {
-                if (!confirm(`Удалить ${ext.name}?`)) return
+                let confirmed = false
+                if (typeof window.showConfirmModal === 'function') {
+                    confirmed = await window.showConfirmModal({
+                        title: tGet('extensions.uninstallTitle') || `Удалить ${ext.name}?`,
+                        message: tGet('extensions.uninstallMsg') || 'Расширение будет удалено. Это действие необратимо.',
+                        confirmText: tGet('extensions.uninstallBtn') || 'Удалить',
+                        cancelText: tGet('dialogs.cancel') || 'Отмена',
+                        danger: true
+                    })
+                } else {
+                    confirmed = confirm(`Удалить ${ext.name}?`)
+                }
+                if (!confirmed) return
                 busyIds.add(ext.id)
                 await invokeIpc('ext:uninstall', ext.id)
                 installedIds.delete(ext.id)

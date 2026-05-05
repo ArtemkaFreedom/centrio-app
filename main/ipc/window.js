@@ -69,6 +69,34 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
         }
     })
 
+    safeHandle('open-popup-window', async (_event, url, opts = {}) => {
+        try {
+            const popup = new BrowserWindow({
+                width:           opts.width  || 400,
+                height:          opts.height || 600,
+                resizable:       true,
+                minimizable:     false,
+                maximizable:     false,
+                fullscreenable:  false,
+                title:           opts.title || 'Centrio',
+                autoHideMenuBar: true,
+                backgroundColor: '#1e1e1e',
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    sandbox: false,
+                    partition: opts.partition || undefined
+                }
+            })
+            popup.loadURL(url)
+            popup.once('ready-to-show', () => popup.show())
+            return { success: true }
+        } catch (e) {
+            console.error('[popup-window] error:', e.message)
+            return { success: false, error: e.message }
+        }
+    })
+
     safeHandle('get-window-visibility-state', (event) => {
         const win = BrowserWindow.fromWebContents(event.sender) || getMainWindow()
 
