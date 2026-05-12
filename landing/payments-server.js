@@ -11,7 +11,7 @@ const YK_API    = 'https://api.yookassa.ru/v3'
 const FRONT     = process.env.FRONTEND_URL || 'https://centrio.me'
 
 const FRIDE_API_KEY      = process.env.FRIDE_API_KEY      || 'MjI2Y2IzMDEtZWEzNi00YjQ0LWI1OTktZjZmNDg1NjY0OTg1OlRlTmZfMHpjKldAc3hVc05ARzlENEdOS2kkNWRTM2Nr'
-const FRIDE_MERCHANT_ID  = process.env.FRIDE_MERCHANT_ID  || ''
+const FRIDE_MERCHANT_ID  = process.env.FRIDE_MERCHANT_ID  || '7dc7e217-0041-48b9-98b0-94a02ffd67c0'
 const FRIDE_WEBHOOK_KEY  = process.env.FRIDE_WEBHOOK_KEY  || '5521541e9425f1de6157a89232e3c9f3'
 const FRIDE_API          = 'https://api.fride.io'
 

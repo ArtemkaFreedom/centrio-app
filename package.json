@@ -1,7 +1,7 @@
 {
   "name": "messengerapp",
   "productName": "Centrio",
-  "version": "1.6.8",
+  "version": "1.6.68",
   "description": "All messengers in one app",
   "author": {
     "name": "Centrio",
@@ -119,7 +119,8 @@
       "shortcutName": "Centrio"
     },
     "asarUnpack": [
-      "assets/sounds/**/*"
+      "assets/sounds/**/*",
+      "main/ext-bridge/**/*"
     ],
     "publish": {
       "provider": "generic",

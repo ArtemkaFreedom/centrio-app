@@ -1141,8 +1141,8 @@ body {
     flex-shrink: 0;
 }
 .ext-bar-icon {
-    width: 26px;
-    height: 26px;
+    width: 20px;
+    height: 20px;
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
@@ -1156,9 +1156,9 @@ body {
     background: var(--bg-hover);
 }
 .ext-bar-icon img {
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
 }
 .ext-bar-icon .ext-bar-letter {
     font-size: 11px;
@@ -4577,14 +4577,8 @@ webview.active { display: flex; }
 /* ===== АНИМАЦИИ — PREMIUM UX ===== */
 
 /* Переключение вкладок */
-@keyframes webviewFadeIn {
-    from { opacity: 0; transform: scale(0.995); filter: blur(2px); }
-    to   { opacity: 1; transform: scale(1);     filter: blur(0); }
-}
-
-webview.active {
-    animation: webviewFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* webview fade animation removed — opacity animations on <webview> tags
+   cause GPU compositor to freeze on initial keyframe in Electron 36 */
 
 /* Добавление мессенджера */
 @keyframes messengerAppear {

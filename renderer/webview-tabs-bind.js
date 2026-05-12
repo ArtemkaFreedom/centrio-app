@@ -382,23 +382,53 @@ function createWebviewTabsApi({
             } catch {}
         }
 
-        webview.addEventListener('dom-ready', applyInitialZoom)
+        webview.addEventListener('dom-ready', () => {
+            applyInitialZoom()
+            // Register this messenger as a Chrome-compatible tab in the main process
+            // registry so extension popups can query it via chrome.tabs.query().
+            try {
+                const url = webview.getURL?.() || messenger.url
+                invokeIpc('ext:tabs:register', messenger.id, `persist:${messenger.id}`, url, messenger.name)
+                    .catch(() => {})
+            } catch {}
+        })
+
         webview.addEventListener('did-finish-load', applyInitialZoom)
+
+        // Keep tab registry up to date as the user navigates within a messenger.
+        webview.addEventListener('did-navigate', (e) => {
+            if (e.url && !e.url.startsWith('about:')) {
+                invokeIpc('ext:tabs:update', messenger.id, { url: e.url, status: 'complete' }).catch(() => {})
+            }
+        })
+
+        webview.addEventListener('did-navigate-in-page', (e) => {
+            if (e.url && !e.url.startsWith('about:')) {
+                invokeIpc('ext:tabs:update', messenger.id, { url: e.url, status: 'complete' }).catch(() => {})
+            }
+        })
+
+        webview.addEventListener('page-title-updated', (e) => {
+            if (e.title) {
+                invokeIpc('ext:tabs:update', messenger.id, { title: e.title }).catch(() => {})
+            }
+        })
 
         webview.addEventListener('new-window', (e) => {
             e.preventDefault()
             const url = e.url
             if (!url || url === 'about:blank') return
-            // Extension popups (chrome-extension://) → open as popup BrowserWindow
             if (url.startsWith('chrome-extension://')) {
+                // Webview-shell обход: грузим data:HTML с <webview src> — webview guest
+                // navigations идут другим code-path и не блокируются ExtensionNavigationThrottle.
                 invokeIpc('open-popup-window', url, {
-                    width: e.frameName === 'popup' ? 380 : 420,
-                    height: 600,
-                    partition: `persist:${messenger.id}`
+                    width:     e.frameName === 'popup' ? 380 : 400,
+                    height:    600,
+                    partition: messenger?.id ? `persist:${messenger.id}` : 'persist:ext-popup',
                 }).catch(() => {})
-            } else {
-                ipcRenderer.send('open-url', url)
+                return
             }
+            ipcRenderer.send('open-url', url)
         })
 
         webview.addEventListener('will-navigate', (e) => {

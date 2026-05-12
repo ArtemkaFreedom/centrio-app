@@ -1,6 +1,62 @@
 require('dotenv').config()
 
-const { app, ipcMain, BrowserWindow } = require('electron')
+const fs = require('fs')
+const path = require('path')
+const { app, ipcMain, BrowserWindow, protocol } = require('electron')
+
+// ── Custom protocol for extension popups ─────────────────────────────────────
+// Electron's ExtensionNavigationThrottle blocks ALL navigations to chrome-extension://
+// unless the initiator is itself an extension. We bypass this by serving the
+// extension's own files under a custom `centrio-ext://` scheme — the throttle
+// only filters chrome-extension:// requests. Shims for chrome.* APIs are injected
+// via session preload (see main/ext-shim-preload.js).
+// MUST be called before app.whenReady().
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'centrio-ext', privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        corsEnabled: true,
+        stream: true,
+        codeCache: true,
+    }}
+])
+
+// ── GPU / compositing fixes (must run before app.whenReady) ──────────────────
+// Electron 36.9+ on Windows: CalculateNativeWinOcclusion can incorrectly mark
+// the window as hidden → GPU stops presenting frames → black screen while
+// mouse hit-testing still works (content is rendered but not shown).
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
+// Force ANGLE D3D11 backend — avoids swapchain issues on some GPU drivers.
+app.commandLine.appendSwitch('use-angle', 'd3d11')
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Логирование необработанных ошибок главного процесса
+function _writeCrashLog(label, err) {
+    try {
+        const logDir = app.isReady()
+            ? app.getPath('userData')
+            : path.join(process.env.APPDATA || '', 'Centrio')
+        const logFile = path.join(logDir, 'crash.log')
+        const line = `[${new Date().toISOString()}] ${label}: ${err?.stack || err}\n`
+        fs.appendFileSync(logFile, line, 'utf8')
+        console.error(line)
+    } catch {}
+}
+
+process.on('uncaughtException', (err) => {
+    _writeCrashLog('uncaughtException', err)
+})
+
+process.on('unhandledRejection', (reason) => {
+    _writeCrashLog('unhandledRejection', reason)
+})
+
+// Ошибки из рендерера (window.onerror / unhandledrejection)
+ipcMain.on('renderer-error-log', (_event, data) => {
+    _writeCrashLog('renderer-js', JSON.stringify(data))
+})
+
 const { APP_USER_MODEL_ID } = require('./main/config/constants')
 
 const {

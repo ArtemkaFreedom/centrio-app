@@ -1,3 +1,7 @@
+// Расширения отмечены: работают ли popup/функции в Electron.
+// ✅ content-script only — работают (Dark Reader, uBlock, AdBlock)
+// ⚠️ popup + chrome.tabs — работает частично (Grammarly, переводчики)
+// ❌ требуют реальных браузерных вкладок — убраны из каталога
 const CATALOG = [
     {
         id: 'cjpalhdlnbpafiamejdnhcphjbkeiagm',
@@ -6,14 +10,6 @@ const CATALOG = [
         category: 'Безопасность',
         color: '#800000',
         icon: 'https://www.google.com/s2/favicons?domain=ublockorigin.com&sz=64'
-    },
-    {
-        id: 'hdokiejnpimakedhajhdlcegeplioahd',
-        name: 'LastPass',
-        desc: 'Менеджер паролей — автозаполнение форм',
-        category: 'Безопасность',
-        color: '#CC0000',
-        icon: 'https://www.google.com/s2/favicons?domain=lastpass.com&sz=64'
     },
     {
         id: 'nngceckbapebfimnlniiiahkandclblb',
@@ -34,7 +30,7 @@ const CATALOG = [
     {
         id: 'kbfnbcaeplbcioakkpcpgfkobkghlhen',
         name: 'Grammarly',
-        desc: 'Проверка орфографии и грамматики',
+        desc: 'Проверка орфографии и грамматики на английском',
         category: 'Инструменты',
         color: '#15C39A',
         icon: 'https://www.google.com/s2/favicons?domain=grammarly.com&sz=64'
@@ -42,7 +38,7 @@ const CATALOG = [
     {
         id: 'aapbdbdomjkkjkaonfhkkikfgjllcleb',
         name: 'Google Переводчик',
-        desc: 'Перевод страниц одним кликом',
+        desc: 'Перевод выделенного текста на страницах',
         category: 'Инструменты',
         color: '#4285F4',
         icon: 'https://www.google.com/s2/favicons?domain=translate.google.com&sz=64'
@@ -56,42 +52,85 @@ const CATALOG = [
         icon: 'https://www.google.com/s2/favicons?domain=getadblock.com&sz=64'
     },
     {
+        id: 'oldceeleldhonbafppcapldpdifcinji',
+        name: 'LanguageTool',
+        desc: 'Проверка орфографии и грамматики на 25+ языках',
+        category: 'Инструменты',
+        color: '#0070C0',
+        icon: 'https://www.google.com/s2/favicons?domain=languagetool.org&sz=64'
+    },
+    {
         id: 'bmnlcjabgnpnenekpadlanbbkooimhnj',
         name: 'Honey',
-        desc: 'Автоматический поиск купонов при покупках',
+        desc: 'Автоматический поиск и применение промокодов',
         category: 'Покупки',
-        color: '#FFA500',
+        color: '#F5A623',
         icon: 'https://www.google.com/s2/favicons?domain=joinhoney.com&sz=64'
     },
     {
-        id: 'jddgbeighonaipjikdnfdpiefhoomlae',
-        name: 'Юбуст',
-        desc: 'SEO-анализ и продвижение: позиции, аудит, ключевые слова',
-        category: 'VPN и прокси',
-        color: '#FF6B35',
-        icon: 'https://www.google.com/s2/favicons?domain=uboost.ru&sz=64'
+        id: 'knheggckgoiihginacbkhaalnibhilkk',
+        name: 'Notion Web Clipper',
+        desc: 'Сохранение веб-страниц в Notion одним кликом',
+        category: 'Продуктивность',
+        color: '#000000',
+        icon: 'https://www.google.com/s2/favicons?domain=notion.so&sz=64'
     },
     {
-        id: 'icpmbhohkmnbobaibikffolbgmijomjn',
-        name: 'Яндекс Переводчик',
-        desc: 'Перевод страниц и текста от Яндекса',
-        category: 'Инструменты',
-        color: '#FC3F1D',
-        icon: 'https://www.google.com/s2/favicons?domain=translate.yandex.ru&sz=64'
+        id: 'niloccemoadcdkdjlinkgdfekeahmflj',
+        name: 'Save to Pocket',
+        desc: 'Сохранение статей и видео для чтения позже',
+        category: 'Продуктивность',
+        color: '#EF4056',
+        icon: 'https://www.google.com/s2/favicons?domain=getpocket.com&sz=64'
     },
     {
-        id: 'mpcooeefegelfehalmefdeojlkinjjho',
-        name: 'Поиск картинки Яндексом',
-        desc: 'Поиск похожих изображений через Яндекс',
-        category: 'Инструменты',
-        color: '#FC3F1D',
-        icon: 'https://www.google.com/s2/favicons?domain=yandex.ru&sz=64'
-    }
+        id: 'dbepggeogbaibhgnhhndojpepiihcmeb',
+        name: 'Vimium',
+        desc: 'Управление браузером с клавиатуры в стиле Vim',
+        category: 'Продуктивность',
+        color: '#3D3D3D',
+        icon: 'https://www.google.com/s2/favicons?domain=vimium.github.io&sz=64'
+    },
+    {
+        id: 'bhlhnicpbhignbdhedgjhgdocnmhomnp',
+        name: 'ColorZilla',
+        desc: 'Пипетка цвета и анализатор палитры страницы',
+        category: 'Дизайн',
+        color: '#E4002B',
+        icon: 'https://www.google.com/s2/favicons?domain=colorzilla.com&sz=64'
+    },
+    {
+        id: 'gbmdgpbipfallnflgajpaliibnhdgobh',
+        name: 'JSON Viewer',
+        desc: 'Красивый просмотр JSON-страниц с подсветкой',
+        category: 'Разработка',
+        color: '#009688',
+        icon: 'https://www.google.com/s2/favicons?domain=tulios.github.io&sz=64'
+    },
+    {
+        id: 'pkehgijcmpdhfbdbbnkijodmdjhbjlgp',
+        name: 'Privacy Badger',
+        desc: 'Автоматическая защита от трекеров от EFF',
+        category: 'Безопасность',
+        color: '#EF8E1D',
+        icon: 'https://www.google.com/s2/favicons?domain=privacybadger.org&sz=64'
+    },
 ]
 
-function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
+function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition, getActiveTabUrl }) {
     let installedIds   = new Set()
     let disabledIds    = new Set()
+
+    // Открыть попап расширения нативно: вызываем window.open() прямо внутри
+    // активного webview (renderer-initiated), чтобы Electron создал окно через
+    // setWindowOpenHandler({action:'allow'}) и обошёл ExtensionNavigationThrottle.
+    function openExtPopupNative(url) {
+        if (!url) return
+        // Webview-shell обход: главное окно грузит data:HTML с <webview src="chrome-extension://...">
+        // — webview guest navigations не блокируются ExtensionNavigationThrottle.
+        const partition = (typeof getActivePartition === 'function' && getActivePartition()) || 'persist:ext-popup'
+        invokeIpc('open-popup-window', url, { width: 400, height: 600, partition }).catch(() => {})
+    }
     let busyIds        = new Set()
     let extMetaMap     = new Map()
 
@@ -254,7 +293,7 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
 
         menu.querySelectorAll('.ext-ctx-item[data-url]').forEach(el => {
             el.addEventListener('click', () => {
-                invokeIpc('open-popup-window', el.dataset.url, { width: 420, height: 600 }).catch(() => {})
+                openExtPopupNative(el.dataset.url)
                 menu.classList.remove('show')
             })
         })
@@ -266,28 +305,31 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
         menu.classList.add('show')
     }
 
-    // ── Extension toolbar (ext-bar) ────────────────────────────────────────
+    // ── Status-bar icons: убраны, иконки переехали в сайдбар (appsBtn) ────────
     function renderExtBar() {
-        const bar = document.getElementById('extBar')
-        if (!bar) return
+        // Скрываем статус-бар иконки расширений
+        const bar = document.getElementById('statusExtIcons')
+        const sep = document.getElementById('statusExtSep')
+        if (bar) bar.style.display = 'none'
+        if (sep) sep.style.display = 'none'
+        // Обновляем submenu в webview context menu
+        _populateExtContextSubmenu()
+        // Обновляем popover если открыт
+        _renderAppsPopoverList()
+    }
+
+    // ── Apps popover in sidebar ───────────────────────────────────────────────
+    function _renderAppsPopoverList() {
+        const listEl = document.getElementById('appsPopoverList')
+        if (!listEl) return
 
         const installed = [...installedIds].filter(id => !disabledIds.has(id))
+        listEl.innerHTML = ''
+
         if (!installed.length) {
-            bar.style.display = 'none'
+            listEl.innerHTML = '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);">Нет установленных расширений</div>'
             return
         }
-
-        bar.style.display = 'flex'
-        bar.innerHTML = ''
-
-        const label = document.createElement('span')
-        label.className = 'ext-bar-label'
-        label.textContent = 'Расширения:'
-        bar.appendChild(label)
-
-        const sep = document.createElement('div')
-        sep.className = 'ext-bar-sep'
-        bar.appendChild(sep)
 
         installed.forEach(id => {
             const meta = extMetaMap.get(id)
@@ -295,37 +337,94 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
             const iconUrl = catEntry?.icon || `https://www.google.com/s2/favicons?domain=${id}&sz=32`
             const name = meta?.name || catEntry?.name || id
 
-            const btn = document.createElement('div')
-            btn.className = 'ext-bar-icon'
-            btn.title = name
-            btn.dataset.id = id
+            const item = document.createElement('div')
+            item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--radius);cursor:pointer;transition:background .15s;'
+            item.onmouseenter = () => { item.style.background = 'var(--bg-hover)' }
+            item.onmouseleave = () => { item.style.background = '' }
 
             const img = document.createElement('img')
             img.src = iconUrl
             img.alt = name
-            img.onerror = function() {
+            img.style.cssText = 'width:20px;height:20px;border-radius:4px;flex-shrink:0;'
+            img.onerror = function () {
                 this.style.display = 'none'
                 const l = document.createElement('div')
-                l.className = 'ext-bar-letter'
+                l.style.cssText = 'width:20px;height:20px;border-radius:4px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;'
                 l.textContent = name[0]?.toUpperCase() || '?'
-                btn.appendChild(l)
+                item.insertBefore(l, item.firstChild)
             }
-            btn.appendChild(img)
 
-            btn.addEventListener('click', () => {
+            const label = document.createElement('span')
+            label.style.cssText = 'font-size:13px;color:var(--text-primary);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+            label.textContent = name
+
+            item.appendChild(img)
+            item.appendChild(label)
+
+            item.addEventListener('click', () => {
+                closeAppsPopover()
                 if (meta?.popupPage) {
-                    invokeIpc('open-popup-window', meta.popupPage, { width: 380, height: 560 }).catch(() => {})
+                    openExtPopupNative(meta.popupPage)
                 } else {
-                    showExtContextMenu(
-                        btn.getBoundingClientRect().left,
-                        btn.getBoundingClientRect().bottom + 4,
-                        id
-                    )
+                    // Открываем контекст меню расширения
+                    const rect = document.getElementById('appsBtn')?.getBoundingClientRect() || {}
+                    showExtContextMenu((rect.right || 60) + 4, rect.top || 100, id)
                 }
             })
 
-            bar.appendChild(btn)
+            listEl.appendChild(item)
         })
+    }
+
+    function closeAppsPopover() {
+        const pop = document.getElementById('appsPopover')
+        if (pop) pop.style.display = 'none'
+    }
+
+    function initAppsBtn({ openSettingsSection }) {
+        const btn = document.getElementById('appsBtn')
+        const pop = document.getElementById('appsPopover')
+        if (!btn || !pop) return
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation()
+            const isOpen = pop.style.display === 'flex'
+            if (isOpen) {
+                pop.style.display = 'none'
+                return
+            }
+            // Позиционируем popover над кнопкой
+            const rect = btn.getBoundingClientRect()
+            pop.style.bottom = (window.innerHeight - rect.bottom + rect.height + 4) + 'px'
+            pop.style.left = (rect.right + 4) + 'px'
+            pop.style.display = 'flex'
+            _renderAppsPopoverList()
+        })
+
+        // Закрываем при клике вне
+        document.addEventListener('click', (e) => {
+            if (!pop.contains(e.target) && e.target !== btn) {
+                pop.style.display = 'none'
+            }
+        })
+
+        // Кнопка "Установить расширения"
+        const installBtn = document.getElementById('appsPopoverInstallBtn')
+        if (installBtn) {
+            installBtn.addEventListener('click', () => {
+                closeAppsPopover()
+                if (typeof openSettingsSection === 'function') openSettingsSection('extensions')
+            })
+        }
+    }
+
+    function _populateExtContextSubmenu() {
+        // Расширения убраны из контекстного меню вебью — пользователь
+        // открывает их через кнопку приложений в сайдбаре.
+        const extItem    = document.getElementById('wvExtensions')
+        const extDivider = document.getElementById('wvExtDivider')
+        if (extItem)    extItem.style.display    = 'none'
+        if (extDivider) extDivider.style.display = 'none'
     }
 
     async function openExtensionsSection() {
@@ -335,7 +434,20 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro }) {
         renderExtBar()
     }
 
-    return { openExtensionsSection, renderExtBar, refreshInstalled }
+    function getExtInfo(id) {
+        const meta = extMetaMap.get(id)
+        const catEntry = CATALOG.find(e => e.id === id)
+        if (!meta && !catEntry) return null
+        return {
+            id,
+            name: meta?.name || catEntry?.name || id,
+            icon: catEntry?.icon || null,
+            popupPage: meta?.popupPage || null,
+            optionsPage: meta?.optionsPage || null,
+        }
+    }
+
+    return { openExtensionsSection, renderExtBar, refreshInstalled, getExtInfo, initAppsBtn }
 }
 
 module.exports = { createExtensionsUiApi, EXTENSION_CATALOG: CATALOG }

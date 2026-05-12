@@ -257,18 +257,16 @@ function createMessengersApi({
         }
 
         webview.addEventListener('new-window', (e) => {
-            e.preventDefault()
             const url = e.url
-            if (!url || url === 'about:blank') return
-            if (url.startsWith('chrome-extension://')) {
-                invokeIpc('open-popup-window', url, {
-                    width: 400,
-                    height: 600,
-                    partition: `persist:${messenger.id}`
-                }).catch(() => {})
-            } else {
-                ipcRenderer.send('open-url', url)
+            if (!url || url === 'about:blank') {
+                e.preventDefault()
+                return
             }
+            // Extension popups — не блокируем, пусть Electron создаёт нативно
+            // через setWindowOpenHandler({action:'allow'}) (registerAppEvents.js).
+            if (url.startsWith('chrome-extension://')) return
+            e.preventDefault()
+            ipcRenderer.send('open-url', url)
         })
 
         webview.addEventListener('will-navigate', (e) => {

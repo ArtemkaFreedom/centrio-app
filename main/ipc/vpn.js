@@ -56,37 +56,10 @@ async function applyVpnToEnabledSessions (proxySettings) {
 
 function registerVpnIpc ({ getMainWindow }) {
 
-    // ── Получить текущий статус (+ авто-восстановление при перезапуске) ──
+    // ── Получить текущий статус (БЕЗ авто-восстановления — оно теперь в window.js after did-finish-load) ──
     ipcMain.handle('vpn-status', async () => {
         try {
             const vpn = getVpn()
-            // Если прокси не активен, но есть сохранённая ссылка — пробуем переподключиться
-            const st = vpn.getStatus()
-            if (!st.active) {
-                const link = loadActiveLink()
-                if (link) {
-                    try {
-                        const binPath = vpn.getSingboxPath()
-                        if (fs.existsSync(binPath)) {
-                            // Тихое восстановление: парсим и запускаем
-                            const parsed = link.startsWith('http://') || link.startsWith('https://')
-                                ? null  // подписки не восстанавливаем — только одиночные конфиги
-                                : vpn.parseVpnLink(link)
-                            if (parsed) {
-                                await vpn.startProxy(parsed, (line) => {
-                                    const win = getMainWindow()
-                                    if (win) win.webContents.send('vpn-log', line)
-                                })
-                                await applyVpnToEnabledSessions(vpnProxyOn(vpn.PROXY_PORT))
-                            }
-                        }
-                    } catch (e) {
-                        // Если не получилось восстановить — сбрасываем сохранённую ссылку
-                        console.warn('[VPN] auto-restore failed:', e.message)
-                        saveActiveLink(null)
-                    }
-                }
-            }
             return vpn.getStatus()
         } catch (e) {
             return { active: false, port: 7890, name: null, configs: [] }

@@ -12,7 +12,9 @@ const validReceiveChannels = new Set([
     'reload-active',
     'open-settings',
     'notification-clicked-id',
-    'update-status'
+    'update-status',
+    'ext:show-popup',
+    'vpn-restored'
 ])
 
 const invokeChannelMap = {
@@ -156,3 +158,25 @@ const electronAPI = {
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
+
+// Перехват JS-ошибок рендерера → логируем в crash.log главного процесса
+window.addEventListener('error', (event) => {
+    try {
+        ipcRenderer.send('renderer-error-log', {
+            type: 'error',
+            message: event.message,
+            filename: event.filename,
+            lineno: event.lineno,
+            stack: event.error?.stack || ''
+        })
+    } catch {}
+})
+window.addEventListener('unhandledrejection', (event) => {
+    try {
+        ipcRenderer.send('renderer-error-log', {
+            type: 'unhandledrejection',
+            message: String(event.reason),
+            stack: event.reason?.stack || ''
+        })
+    } catch {}
+})

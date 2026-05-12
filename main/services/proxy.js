@@ -24,16 +24,14 @@ function buildProxyRules (proxySettings) {
 async function applyProxyToSession (targetSession, proxySettings) {
     if (!proxySettings || !proxySettings.enabled) {
         await targetSession.setProxy({ mode: 'system' })
-        // Принудительно закрываем существующие соединения, чтобы они переустановились без прокси
-        try { targetSession.closeAllConnections() } catch {}
+        // closeAllConnections() убрано — крашит Chromium нативно при наличии extension service workers
         return
     }
 
     const rules = buildProxyRules(proxySettings)
     await targetSession.setProxy(rules)
-    // Принудительно закрываем существующие соединения — они переустановятся через новый прокси.
-    // Без этого уже открытые TCP-соединения продолжают идти напрямую до своего закрытия.
-    try { targetSession.closeAllConnections() } catch {}
+    // closeAllConnections() убрано — крашит Chromium нативно при наличии extension service workers
+    // Соединения переустановятся через новый прокси при следующем запросе
 
     targetSession.removeAllListeners('login')
 
