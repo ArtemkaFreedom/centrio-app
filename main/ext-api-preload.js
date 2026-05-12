@@ -1,5 +1,5 @@
 /**
- * ext-api-preload.js  —  Chrome Extension API bridge
+ * ext-api-preload.js  —  Chrome Extension API bridge for Centrio
  *
  * Injected via session.setPreloads() so it runs in the MAIN WORLD of every
  * renderer that uses a Centrio extension session.  Running in the main world
