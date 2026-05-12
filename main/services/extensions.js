@@ -665,12 +665,33 @@ function uninstallExtension(id) {
     loadedMap.delete(id)
 }
 
-function toggleExtension(id, enabled) {
+async function toggleExtension(id, enabled) {
     const disabled = store.get('extensions.disabled', [])
     if (enabled) {
         store.set('extensions.disabled', disabled.filter(x => x !== id))
     } else {
         if (!disabled.includes(id)) store.set('extensions.disabled', [...disabled, id])
+    }
+
+    // Apply changes immediately to all active sessions
+    const sessions = getActiveSessions()
+    const extDir = path.join(EXTENSIONS_DIR, id)
+
+    for (const { key, sess } of sessions) {
+        try {
+            if (enabled) {
+                if (fs.existsSync(path.join(extDir, 'manifest.json'))) {
+                    await loadExtIntoSession(id, extDir, { key, sess })
+                }
+            } else {
+                await sess.removeExtension(id)
+                const lm = loadedMap.get(id)
+                if (lm) lm.delete(key)
+                log.info(`[ext] removeExtension (toggle off): ${id} → ${key}`)
+            }
+        } catch (e) {
+            log.warn(`[ext] toggle error for ${id} in ${key}:`, e.message)
+        }
     }
 }
 

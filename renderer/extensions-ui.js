@@ -4,28 +4,12 @@
 // ❌ требуют реальных браузерных вкладок — убраны из каталога
 const CATALOG = [
     {
-        id: 'cjpalhdlnbpafiamejdnhcphjbkeiagm',
-        name: 'uBlock Origin',
-        desc: 'Лучший блокировщик рекламы и трекеров',
+        id: 'gighmmpiobklfepjocnamgkkbiglidom',
+        name: 'AdBlock',
+        desc: 'Блокировщик рекламы и всплывающих окон',
         category: 'Безопасность',
-        color: '#800000',
-        icon: 'https://www.google.com/s2/favicons?domain=ublockorigin.com&sz=64'
-    },
-    {
-        id: 'nngceckbapebfimnlniiiahkandclblb',
-        name: 'Bitwarden',
-        desc: 'Бесплатный менеджер паролей с открытым кодом',
-        category: 'Безопасность',
-        color: '#175DDC',
-        icon: 'https://www.google.com/s2/favicons?domain=bitwarden.com&sz=64'
-    },
-    {
-        id: 'eimadpbcbfnmbkopoojfekhnkhdbieeh',
-        name: 'Dark Reader',
-        desc: 'Тёмная тема для любого сайта',
-        category: 'Внешний вид',
-        color: '#1A1A2E',
-        icon: 'https://www.google.com/s2/favicons?domain=darkreader.org&sz=64'
+        color: '#F8321E',
+        icon: 'https://www.google.com/s2/favicons?domain=getadblock.com&sz=64'
     },
     {
         id: 'kbfnbcaeplbcioakkpcpgfkobkghlhen',
@@ -42,78 +26,6 @@ const CATALOG = [
         category: 'Инструменты',
         color: '#4285F4',
         icon: 'https://www.google.com/s2/favicons?domain=translate.google.com&sz=64'
-    },
-    {
-        id: 'gighmmpiobklfepjocnamgkkbiglidom',
-        name: 'AdBlock',
-        desc: 'Блокировщик рекламы и всплывающих окон',
-        category: 'Безопасность',
-        color: '#F8321E',
-        icon: 'https://www.google.com/s2/favicons?domain=getadblock.com&sz=64'
-    },
-    {
-        id: 'oldceeleldhonbafppcapldpdifcinji',
-        name: 'LanguageTool',
-        desc: 'Проверка орфографии и грамматики на 25+ языках',
-        category: 'Инструменты',
-        color: '#0070C0',
-        icon: 'https://www.google.com/s2/favicons?domain=languagetool.org&sz=64'
-    },
-    {
-        id: 'bmnlcjabgnpnenekpadlanbbkooimhnj',
-        name: 'Honey',
-        desc: 'Автоматический поиск и применение промокодов',
-        category: 'Покупки',
-        color: '#F5A623',
-        icon: 'https://www.google.com/s2/favicons?domain=joinhoney.com&sz=64'
-    },
-    {
-        id: 'knheggckgoiihginacbkhaalnibhilkk',
-        name: 'Notion Web Clipper',
-        desc: 'Сохранение веб-страниц в Notion одним кликом',
-        category: 'Продуктивность',
-        color: '#000000',
-        icon: 'https://www.google.com/s2/favicons?domain=notion.so&sz=64'
-    },
-    {
-        id: 'niloccemoadcdkdjlinkgdfekeahmflj',
-        name: 'Save to Pocket',
-        desc: 'Сохранение статей и видео для чтения позже',
-        category: 'Продуктивность',
-        color: '#EF4056',
-        icon: 'https://www.google.com/s2/favicons?domain=getpocket.com&sz=64'
-    },
-    {
-        id: 'dbepggeogbaibhgnhhndojpepiihcmeb',
-        name: 'Vimium',
-        desc: 'Управление браузером с клавиатуры в стиле Vim',
-        category: 'Продуктивность',
-        color: '#3D3D3D',
-        icon: 'https://www.google.com/s2/favicons?domain=vimium.github.io&sz=64'
-    },
-    {
-        id: 'bhlhnicpbhignbdhedgjhgdocnmhomnp',
-        name: 'ColorZilla',
-        desc: 'Пипетка цвета и анализатор палитры страницы',
-        category: 'Дизайн',
-        color: '#E4002B',
-        icon: 'https://www.google.com/s2/favicons?domain=colorzilla.com&sz=64'
-    },
-    {
-        id: 'gbmdgpbipfallnflgajpaliibnhdgobh',
-        name: 'JSON Viewer',
-        desc: 'Красивый просмотр JSON-страниц с подсветкой',
-        category: 'Разработка',
-        color: '#009688',
-        icon: 'https://www.google.com/s2/favicons?domain=tulios.github.io&sz=64'
-    },
-    {
-        id: 'pkehgijcmpdhfbdbbnkijodmdjhbjlgp',
-        name: 'Privacy Badger',
-        desc: 'Автоматическая защита от трекеров от EFF',
-        category: 'Безопасность',
-        color: '#EF8E1D',
-        icon: 'https://www.google.com/s2/favicons?domain=privacybadger.org&sz=64'
     },
 ]
 

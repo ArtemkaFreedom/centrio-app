@@ -47,7 +47,7 @@ function registerExtensionsIpc() {
 
     safe('ext:toggle', async (_, id, enabled) => {
         try {
-            toggleExtension(id, enabled)
+            await toggleExtension(id, enabled)
             return { success: true }
         } catch (e) {
             return { success: false, error: e.message }
