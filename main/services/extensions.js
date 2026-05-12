@@ -303,6 +303,7 @@ async function openViaSW(targetExtId, url, width, height) {
 // Session preloads (unlike window-level preloads) run on chrome-extension:// pages.
 const EXT_POPUP_PRELOAD = path.join(__dirname, '..', 'ext-popup-preload.js')
 const EXT_SHIM_PRELOAD  = path.join(__dirname, '..', 'ext-shim-preload.js')
+const EXT_API_PRELOAD   = path.join(__dirname, '..', 'ext-api-preload.js')
 
 // Используем electron-log если доступен, иначе console
 let log
@@ -320,6 +321,14 @@ const BLOCKED_EXTENSION_IDS = new Set([
 
 // extension id → Set of partitions already loaded
 const loadedMap = new Map()
+
+function isPro() {
+    try {
+        const user = store.get('cloud.user', {})
+        const plan = (user?.plan || 'FREE').toUpperCase()
+        return plan === 'PRO' || plan === 'TEAM' || plan === 'PRO_YEAR'
+    } catch { return false }
+}
 
 // ── Download CRX from Chrome Web Store ───────────────────────────────────────
 function downloadCrx(id) {
@@ -555,6 +564,7 @@ function setupSessionPreloads(sess) {
         const toAdd = []
         if (!existing.includes(EXT_POPUP_PRELOAD)) toAdd.push(EXT_POPUP_PRELOAD)
         if (!existing.includes(EXT_SHIM_PRELOAD))  toAdd.push(EXT_SHIM_PRELOAD)
+        if (!existing.includes(EXT_API_PRELOAD))   toAdd.push(EXT_API_PRELOAD)
         if (!toAdd.length) return
         sess.setPreloads([...existing, ...toAdd])
         log.info('[ext] preloads injected via setPreloads(): ' + toAdd.map(p => path.basename(p)).join(', '))
@@ -582,6 +592,10 @@ async function loadExtIntoSession(id, extDir, sessEntry) {
     const { key, sess } = sessEntry
     const loaded = loadedMap.get(id) || new Set()
     if (loaded.has(key)) return
+
+    // Ensure session has all required Chrome API shims before loading extensions.
+    setupSessionPreloads(sess)
+
     log.info(`[ext] loadExtension START: ${id} → ${key}`)
     try {
         await sess.loadExtension(extDir, { allowFileAccess: true })
@@ -600,6 +614,9 @@ async function loadExtIntoSession(id, extDir, sessEntry) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 async function installExtension(id) {
+    if (!isPro()) {
+        throw new Error('PRO plan required to install extensions')
+    }
     const extDir = path.join(EXTENSIONS_DIR, id)
 
     if (!fs.existsSync(path.join(extDir, 'manifest.json'))) {
@@ -627,6 +644,7 @@ async function installExtension(id) {
 }
 
 async function loadIntoPartition(partition) {
+    if (!isPro()) return
     const enabled = getEnabled()
     const key = partition || 'default'
     const sess = partition ? session.fromPartition(partition) : session.defaultSession
@@ -690,6 +708,10 @@ function getInstalledList() {
 }
 
 async function loadSavedOnStart() {
+    if (!isPro()) {
+        log.info('[ext] skipping startup load: not a PRO user')
+        return
+    }
     // One-time cleanup: remove blocked extensions from the installed list
     // so they disappear from the UI and no longer load.
     try {

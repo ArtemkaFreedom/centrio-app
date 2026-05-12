@@ -63,13 +63,13 @@ module.exports = {
             appearance: 'Внешний вид',
             notifications: 'Уведомления',
             shortcuts: 'Горячие клавиши',
-            extensions: 'Расширения',
             system: 'Система',
             security: 'Безопасность',
-            network: 'Сеть'
+            network: 'Сеть',
+            extensions: 'Расширения'
         },
         extensionsTitle: 'Каталог расширений',
-        extensionsHint: 'Расширения Chrome работают прямо внутри мессенджеров. Функция PRO.',
+        extensionsHint: 'Расширения Chrome работают прямо внутри мессенджеров. PRO-функция.',
         language: 'Язык интерфейса',
         langHint: 'Применяется мгновенно',
         closeLabel: 'При нажатии кнопки закрытия',
@@ -421,6 +421,8 @@ module.exports = {
         soundDesc: 'Индивидуальные звуки уведомлений для каждого мессенджера доступны на плане Pro.',
         customMessengerTitle: 'Свой мессенджер — только в Pro',
         customMessengerDesc: 'Добавление любого сайта как мессенджера доступно на плане Pro. Обновитесь для неограниченных возможностей.',
+        extensionsTitle: 'Расширения — только в Pro',
+        extensionsDesc: 'Используйте расширения Chrome прямо внутри мессенджеров для повышения продуктивности.',
         upgradeBtn: 'Перейти на Pro',
         laterBtn: 'Позже'
     },
