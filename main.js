@@ -19,6 +19,7 @@ protocol.registerSchemesAsPrivileged([
         corsEnabled: true,
         stream: true,
         codeCache: true,
+        allowServiceWorkers: true,
     }}
 ])
 
