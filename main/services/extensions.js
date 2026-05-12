@@ -474,13 +474,10 @@ function patchManifestWAR(extDir, bridgeId) {
 
         if (mv >= 3) {
             // MV3: WAR is an array of objects.
-            // MUST be a single entry (wildcard rule). Replace entirely.
-            // Use actual bridgeId in extension_ids (not '*' — Electron may reject
-            // '*' as an invalid extension ID in the manifest parser, causing
-            // loadExtension to fail with 'invalid value for web_accessible_resources').
             const newEntry = {
                 resources: ['*'],
                 matches:   ['<all_urls>'],
+                use_dynamic_url: true
             }
             if (bridgeId) newEntry.extension_ids = [bridgeId]
 
@@ -492,7 +489,6 @@ function patchManifestWAR(extDir, bridgeId) {
             }
         } else {
             // MV2: WAR is an array of strings.
-            // '*' must be the ONLY element — replace entire array.
             const existing = manifest.web_accessible_resources
             if (!Array.isArray(existing) || existing.length !== 1 || existing[0] !== '*') {
                 manifest.web_accessible_resources = ['*']
@@ -501,16 +497,20 @@ function patchManifestWAR(extDir, bridgeId) {
         }
 
         // ── externally_connectable ──────────────────────────────────────────
-        // Allow our Centrio bridge extension to send cross-extension messages
-        // into this extension. Bridge id is unknown at install time, so use
-        // wildcard "*" which matches any sender extension.
-        // If the extension already declares externally_connectable, append "*"
-        // to its ids list. If absent, MV2 default is permissive but MV3 default
-        // blocks — so we always set it explicitly.
+        // Allow our Centrio bridge extension to send cross-extension messages.
         const ec = manifest.externally_connectable || {}
-        const ids = Array.isArray(ec.ids) ? ec.ids : []
+        const ids = Array.isArray(ec.ids) ? [...ec.ids] : []
+        let ecChanged = false
         if (!ids.includes('*')) {
-            manifest.externally_connectable = { ...ec, ids: [...ids, '*'] }
+            ids.push('*')
+            ecChanged = true
+        }
+        if (bridgeId && !ids.includes(bridgeId)) {
+            ids.push(bridgeId)
+            ecChanged = true
+        }
+        if (ecChanged) {
+            manifest.externally_connectable = { ...ec, ids }
             changed = true
         }
 

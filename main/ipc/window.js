@@ -152,7 +152,15 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
 
             const mainWin = _getMainWindow()
             const partition = 'persist:ext-popup'
-            const targetUrl = url
+            let targetUrl = url
+
+            if (targetUrl && targetUrl.startsWith('chrome-extension://')) {
+                // ExtensionNavigationThrottle blocks browser-initiated navigations to chrome-extension://
+                // URLs in Electron 36. We fall back to our custom centrio-ext:// scheme which
+                // serves the same files but bypasses the throttle.
+                targetUrl = targetUrl.replace('chrome-extension://', 'centrio-ext://')
+                log.info(`[ext-popup] strategies failed, using fallback with custom protocol: ${targetUrl}`)
+            }
 
             let x, y
             if (mainWin && !mainWin.isDestroyed()) {

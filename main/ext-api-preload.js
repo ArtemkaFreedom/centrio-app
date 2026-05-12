@@ -86,8 +86,45 @@
 
     // ── Main patch function ───────────────────────────────────────────────────
 
+    function setupRuntimeBridge() {
+        try {
+            if (typeof chrome === 'undefined' || !chrome) window.chrome = {};
+            if (!chrome.runtime) chrome.runtime = {};
+
+            const listeners = [];
+
+            // Monkey-patch onMessage if it exists, or shim it if it doesn't
+            if (chrome.runtime.onMessage && typeof chrome.runtime.onMessage.addListener === 'function') {
+                const orig = chrome.runtime.onMessage.addListener.bind(chrome.runtime.onMessage);
+                chrome.runtime.onMessage.addListener = function(fn) {
+                    if (typeof fn === 'function' && !listeners.includes(fn)) listeners.push(fn);
+                    try { return orig(fn); } catch(e) { return false; }
+                };
+            } else {
+                chrome.runtime.onMessage = {
+                    addListener: function(fn) { if (typeof fn === 'function' && !listeners.includes(fn)) listeners.push(fn); },
+                    removeListener: function(fn) {
+                        const idx = listeners.indexOf(fn);
+                        if (idx !== -1) listeners.splice(idx, 1);
+                    }
+                };
+            }
+
+            // This allows extension scripts in the messenger to receive messages from the popup
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'centrio-ext-message') {
+                    const { msg, extId } = event.data;
+                    listeners.forEach(fn => {
+                        try { fn(msg, { id: extId }, function(){}); } catch(e) {}
+                    });
+                }
+            });
+        } catch(e) {}
+    }
+
     function patchChromeTabs() {
         try {
+            setupRuntimeBridge();
             if (typeof chrome === 'undefined' || !chrome || !chrome.tabs) return false
             if (chrome.tabs.__centrio_patched) return true
 

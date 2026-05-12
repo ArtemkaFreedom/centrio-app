@@ -34,6 +34,12 @@ try {
     contextBridge.exposeInMainWorld('__centrioGetTab', function () {
         return ipcRenderer.invoke('ext:tabs:getActive')
     })
+    contextBridge.exposeInMainWorld('__centrioExtShim', {
+        executeScript: (opts) => ipcRenderer.invoke('ext-shim:executeScript', 'popup', opts),
+        insertCSS:     (opts) => ipcRenderer.invoke('ext-shim:insertCSS',     'popup', opts),
+        tabsSendMessage: (tabId, msg) => ipcRenderer.invoke('ext-shim:tabsSendMessage', 'popup', tabId, msg),
+        getActiveTab:  () => ipcRenderer.invoke('ext:tabs:getActive'),
+    })
     console.error('[centrio-preload] __centrioGetTab exposed OK')
 } catch (e) {
     console.error('[centrio-preload] exposeInMainWorld failed: ' + e.message)
@@ -106,11 +112,56 @@ const mainWorldPatch = `(function () {
             try { chrome.tabs.query = patched; } catch (_2) {}
         }
 
-        if (chrome.tabs.getCurrent) {
-            chrome.tabs.getCurrent = function (cb) {
-                var go = fromRegistry().then(function (tabs) { return tabs[0] || undefined; });
-                if (typeof cb === 'function') go.then(cb).catch(function () { cb(undefined); });
-                else return go;
+        chrome.tabs.getCurrent = function (cb) {
+            var go = fromRegistry().then(function (tabs) { return tabs[0] || undefined; });
+            if (typeof cb === 'function') go.then(cb).catch(function () { cb(undefined); });
+            else return go;
+        };
+
+        chrome.tabs.executeScript = function(tabId, details, cb) {
+            var d = (typeof tabId === 'object') ? tabId : details;
+            var callback = (typeof details === 'function') ? details : cb;
+            return window.__centrioExtShim.executeScript(d)
+                .then(function(r){ if(callback) callback(r); return r; })
+                .catch(function(){ if(callback) callback([]); return []; });
+        };
+
+        chrome.tabs.insertCSS = function(tabId, details, cb) {
+            var d = (typeof tabId === 'object') ? tabId : details;
+            var callback = (typeof details === 'function') ? details : cb;
+            return window.__centrioExtShim.insertCSS(d)
+                .then(function(){ if(callback) callback(); })
+                .catch(function(){ if(callback) callback(); });
+        };
+
+        chrome.tabs.sendMessage = function(tabId, msg, cb) {
+            var tid = (typeof tabId === 'number') ? tabId : 1;
+            var m   = (typeof tabId === 'number') ? msg : tabId;
+            var callback = (typeof msg === 'function') ? msg : cb;
+            return window.__centrioExtShim.tabsSendMessage(tid, m)
+                .then(function(r){ if(callback) callback(r); return r; })
+                .catch(function(){ if(callback) callback(undefined); return undefined; });
+        };
+
+        if (typeof chrome !== 'undefined' && !chrome.scripting) chrome.scripting = {};
+        if (chrome.scripting) {
+            chrome.scripting.executeScript = function(opts, cb) {
+                if (opts && typeof opts.func === 'function') {
+                    opts._funcStr = opts.func.toString();
+                    delete opts.func;
+                }
+                return window.__centrioExtShim.executeScript(opts)
+                    .then(function(r){
+                        var results = (r || []).map(function(val){ return { result: val }; });
+                        if(cb) cb(results);
+                        return results;
+                    })
+                    .catch(function(){ if(cb) cb([]); return []; });
+            };
+            chrome.scripting.insertCSS = function(opts, cb) {
+                return window.__centrioExtShim.insertCSS(opts)
+                    .then(function(){ if(cb) cb(); })
+                    .catch(function(){ if(cb) cb(); });
             };
         }
 

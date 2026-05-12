@@ -8533,3 +8533,28 @@ body.startup-locked #lockScreen {
     border-color: var(--accent);
     color: var(--accent);
 }
+/* Apps popover extension action buttons */
+.apps-popover-action-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s;
+    cursor: pointer;
+}
+
+.apps-popover-action-btn:hover {
+    background: var(--bg-active);
+    color: var(--text-bright);
+}
+
+.apps-popover-action-btn svg {
+    opacity: 0.7;
+}
+
+.apps-popover-action-btn:hover svg {
+    opacity: 1;
+}

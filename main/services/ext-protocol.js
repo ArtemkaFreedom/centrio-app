@@ -61,14 +61,20 @@ function safeJoin(extDir, reqPath) {
 }
 
 function setupExtProtocol() {
-    // Register on persist:ext-popup session — that's where we load popup windows.
-    const sess = session.fromPartition('persist:ext-popup')
-    try {
-        // Avoid re-registration error on hot reload.
-        if (sess.protocol.isProtocolHandled('centrio-ext')) {
-            try { sess.protocol.unhandle('centrio-ext') } catch {}
-        }
-        sess.protocol.handle('centrio-ext', async (request) => {
+    // Register on ALL sessions. ExtensionNavigationThrottle blocks navigations
+    // in any session if the initiator is not an extension.
+    app.on('session-created', (sess) => {
+        registerOnSession(sess)
+    })
+    // Also register on existing sessions (like defaultSession)
+    registerOnSession(session.defaultSession)
+    try { registerOnSession(session.fromPartition('persist:ext-popup')) } catch {}
+
+    function registerOnSession(sess) {
+        if (!sess || !sess.protocol) return
+        try {
+            if (sess.protocol.isProtocolHandled('centrio-ext')) return
+            sess.protocol.handle('centrio-ext', async (request) => {
             try {
                 const u = new URL(request.url)
                 const extId = u.hostname
@@ -92,10 +98,11 @@ function setupExtProtocol() {
                 log.error('[ext-protocol] handler error:', e.message)
                 return new Response('Internal error: ' + e.message, { status: 500 })
             }
-        })
-        log.info('[ext-protocol] centrio-ext:// handler registered on persist:ext-popup')
-    } catch (e) {
-        log.error('[ext-protocol] register failed:', e.message)
+            })
+            log.info(`[ext-protocol] centrio-ext:// registered on session`)
+        } catch (e) {
+            log.warn(`[ext-protocol] session register failed:`, e.message)
+        }
     }
 
     // ── IPC handlers for chrome.* shims ───────────────────────────────────────
@@ -157,13 +164,92 @@ function setupExtProtocol() {
         return true
     })
 
+    // chrome.tabs.executeScript / chrome.scripting.executeScript
+    safeHandle('ext-shim:executeScript', async (_e, extId, opts) => {
+        try {
+            const activeTab = require('../ext-tabs-registry').getActiveTab()
+            if (!activeTab || !activeTab.partition) return []
+
+            const targetSess = session.fromPartition(activeTab.partition)
+            const all = webContents.getAllWebContents()
+            const target = all.find(wc => {
+                try { return wc.session === targetSess && !wc.isDestroyed() && wc.getType() === 'webview' }
+                catch { return false }
+            })
+            if (!target) return []
+
+            let code = opts.code
+            if (opts._funcStr) {
+                code = `(${opts._funcStr})(${JSON.stringify(opts.args || [])})`
+            } else if (opts.func && typeof opts.func === 'function') {
+                code = `(${opts.func.toString()})(${JSON.stringify(opts.args || [])})`
+            } else if (opts.files && opts.files.length > 0) {
+                // Read first file from extension dir
+                const filePath = path.join(EXTENSIONS_DIR, extId, opts.files[0])
+                if (fs.existsSync(filePath)) code = fs.readFileSync(filePath, 'utf8')
+            }
+
+            if (!code) return []
+            const result = await target.executeJavaScript(code, true)
+            return [result]
+        } catch (e) {
+            log.warn(`[ext-shim] executeScript error for ${extId}:`, e.message)
+            return []
+        }
+    })
+
+    // chrome.tabs.insertCSS / chrome.scripting.insertCSS
+    safeHandle('ext-shim:insertCSS', async (_e, extId, opts) => {
+        try {
+            const activeTab = require('../ext-tabs-registry').getActiveTab()
+            if (!activeTab || !activeTab.partition) return
+
+            const targetSess = session.fromPartition(activeTab.partition)
+            const all = webContents.getAllWebContents()
+            const target = all.find(wc => {
+                try { return wc.session === targetSess && !wc.isDestroyed() && wc.getType() === 'webview' }
+                catch { return false }
+            })
+            if (!target) return
+
+            let css = opts.code || opts.css
+            if (!css && opts.files && opts.files.length > 0) {
+                const filePath = path.join(EXTENSIONS_DIR, extId, opts.files[0])
+                if (fs.existsSync(filePath)) css = fs.readFileSync(filePath, 'utf8')
+            }
+            if (css) await target.insertCSS(css)
+        } catch (e) {
+            log.warn(`[ext-shim] insertCSS error for ${extId}:`, e.message)
+        }
+    })
+
+    // chrome.tabs.sendMessage (popup -> content script in messenger)
+    safeHandle('ext-shim:tabsSendMessage', async (_e, extId, tabId, msg) => {
+        try {
+            const activeTab = require('../ext-tabs-registry').getActiveTab()
+            if (!activeTab || !activeTab.partition) return undefined
+
+            const targetSess = session.fromPartition(activeTab.partition)
+            const all = webContents.getAllWebContents()
+            const target = all.find(wc => {
+                try { return wc.session === targetSess && !wc.isDestroyed() && wc.getType() === 'webview' }
+                catch { return false }
+            })
+            if (!target) return undefined
+
+            // Forward to webview.
+            const payload = JSON.stringify({ type: 'centrio-ext-message', msg, extId })
+            return await target.executeJavaScript(
+                `window.postMessage(${payload}, '*')`,
+                true
+            )
+        } catch (e) {
+            log.warn(`[ext-shim] tabsSendMessage error for ${extId}:`, e.message)
+            return undefined
+        }
+    })
+
     // chrome.runtime.sendMessage — forward to extension's real background page.
-    //
-    // We locate any WebContents whose URL is chrome-extension://<extId>/...
-    // (typically the MV2 bg page or MV3 service worker host page that Electron
-    // creates to execute the extension's background scripts), inject a relay
-    // helper once that captures every chrome.runtime.onMessage.addListener call,
-    // and then invoke those listeners directly from the popup via this IPC.
     safeHandle('ext-shim:sendMessage', async (event, extId, msg) => {
         try {
             // Path 1: MV2 background page — direct executeJavaScript relay.

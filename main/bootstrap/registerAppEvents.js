@@ -402,7 +402,7 @@ function registerAppEvents({
         if (relayBrowserWin && relayBrowserWin._centrioIsRelay) return
 
         contents.setWindowOpenHandler(({ url }) => {
-            if (url.startsWith('chrome-extension://')) {
+            if (url.startsWith('chrome-extension://') || url.startsWith('centrio-ext://')) {
                 log.info(`[ext-popup] setWindowOpenHandler → allow ext ${url}`)
                 return { action: 'allow' }
             }
@@ -411,7 +411,7 @@ function registerAppEvents({
 
         contents.on('did-create-window', (win, details) => {
             const url = (details && details.url) || ''
-            if (!url.startsWith('chrome-extension://')) return
+            if (!url.startsWith('chrome-extension://') && !url.startsWith('centrio-ext://')) return
             log.info(`[ext-popup] did-create-window url=${url}`)
             const opts = (details && details.options) || {}
             setupPopupWindow(win, opts.width || 400, opts.height || 600, getMainWindow)

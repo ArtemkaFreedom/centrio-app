@@ -37,6 +37,10 @@ if (!location.protocol.startsWith('centrio-ext')) {
             storageRemove: (area, keys) => ipcRenderer.invoke('ext-shim:storage:remove', extId, area, keys),
             storageClear:  (area)       => ipcRenderer.invoke('ext-shim:storage:clear',  extId, area),
             sendMessage:   (msg)        => ipcRenderer.invoke('ext-shim:sendMessage',    extId, msg),
+            executeScript: (opts)       => ipcRenderer.invoke('ext-shim:executeScript', extId, opts),
+            insertCSS:     (opts)       => ipcRenderer.invoke('ext-shim:insertCSS',     extId, opts),
+            getActiveTab:  ()           => ipcRenderer.invoke('ext:tabs:getActive'),
+            tabsSendMessage: (tabId, msg) => ipcRenderer.invoke('ext-shim:tabsSendMessage', extId, tabId, msg),
         })
 
         // ── Step 3: inject shims into main world ────────────────────────────
@@ -220,15 +224,56 @@ if (!location.protocol.startsWith('centrio-ext')) {
             c.storage.managed = c.storage.managed || (function(){ var a=makeArea('managed'); a.get=function(_,cb){ if(cb) cb({}); return Promise.resolve({}); }; return a; })();
             c.storage.onChanged = c.storage.onChanged || evt();
 
-            // ── chrome.tabs (very minimal — preserved by ext-popup-preload patch) ──
+            // ── chrome.tabs (minimal — preserved by ext-popup-preload patch) ──
             if (!c.tabs) c.tabs = {};
-            if (!c.tabs.query)      c.tabs.query      = function(_q, cb){ if(cb) cb([]); return Promise.resolve([]); };
-            if (!c.tabs.getCurrent) c.tabs.getCurrent = function(cb){ if(cb) cb(undefined); return Promise.resolve(undefined); };
+
+            c.tabs.query = function(qi, cb) {
+                var go = window.__centrioExtShim.getActiveTab().then(function(t){
+                    return t ? [t] : [];
+                });
+                if (typeof cb === 'function') go.then(cb);
+                return go;
+            };
+
+            c.tabs.getCurrent = function(cb) {
+                var go = window.__centrioExtShim.getActiveTab();
+                if (typeof cb === 'function') go.then(cb);
+                return go;
+            };
+
             if (!c.tabs.get)        c.tabs.get        = function(_id, cb){ if(cb) cb(undefined); return Promise.resolve(undefined); };
-            if (!c.tabs.sendMessage)c.tabs.sendMessage= function(){ return Promise.resolve(undefined); };
+
+            c.tabs.sendMessage = function(tabId, msg, cb) {
+                var tid = (typeof tabId === 'number') ? tabId : 1;
+                var m   = (typeof tabId === 'number') ? msg : tabId;
+                var callback = (typeof msg === 'function') ? msg : cb;
+
+                return window.__centrioExtShim.tabsSendMessage(tid, m)
+                    .then(function(r){ if(callback) callback(r); return r; })
+                    .catch(function(){ if(callback) callback(undefined); return undefined; });
+            };
+
             if (!c.tabs.create)     c.tabs.create     = function(opts){ if(opts && opts.url) try{ window.open(opts.url, '_blank'); }catch(_){} return Promise.resolve({}); };
             if (!c.tabs.update)     c.tabs.update     = function(){ return Promise.resolve({}); };
-            if (!c.tabs.executeScript) c.tabs.executeScript = function(_id, _det, cb){ if(cb) cb([]); return Promise.resolve([]); };
+
+            // chrome.tabs.executeScript (MV2)
+            c.tabs.executeScript = function(tabId, details, cb) {
+                var d = (typeof tabId === 'object') ? tabId : details;
+                var callback = (typeof details === 'function') ? details : cb;
+                return window.__centrioExtShim.executeScript(d)
+                    .then(function(r){ if(callback) callback(r); return r; })
+                    .catch(function(){ if(callback) callback([]); return []; });
+            };
+
+            // chrome.tabs.insertCSS (MV2)
+            c.tabs.insertCSS = function(tabId, details, cb) {
+                var d = (typeof tabId === 'object') ? tabId : details;
+                var callback = (typeof details === 'function') ? details : cb;
+                return window.__centrioExtShim.insertCSS(d)
+                    .then(function(){ if(callback) callback(); })
+                    .catch(function(){ if(callback) callback(); });
+            };
+
             c.tabs.onUpdated = c.tabs.onUpdated || evt();
             c.tabs.onActivated = c.tabs.onActivated || evt();
             c.tabs.onRemoved = c.tabs.onRemoved || evt();
@@ -259,10 +304,27 @@ if (!location.protocol.startsWith('centrio-ext')) {
             c.permissions.onAdded   = c.permissions.onAdded   || evt();
             c.permissions.onRemoved = c.permissions.onRemoved || evt();
 
-            // ── chrome.scripting (MV3 stub) ─────────────────────────────────
+            // ── chrome.scripting (MV3) ──────────────────────────────────────
             if (!c.scripting) c.scripting = {};
-            c.scripting.executeScript = function(_opts, cb){ if(cb) cb([]); return Promise.resolve([]); };
-            c.scripting.insertCSS = function(_opts, cb){ if(cb) cb(); return Promise.resolve(); };
+            c.scripting.executeScript = function(opts, cb) {
+                // IPC cannot serialize functions. Stringify them here.
+                if (opts && typeof opts.func === 'function') {
+                    opts._funcStr = opts.func.toString();
+                    delete opts.func;
+                }
+                return window.__centrioExtShim.executeScript(opts)
+                    .then(function(r){
+                        var results = (r || []).map(function(val){ return { result: val }; });
+                        if(cb) cb(results);
+                        return results;
+                    })
+                    .catch(function(){ if(cb) cb([]); return []; });
+            };
+            c.scripting.insertCSS = function(opts, cb) {
+                return window.__centrioExtShim.insertCSS(opts)
+                    .then(function(){ if(cb) cb(); })
+                    .catch(function(){ if(cb) cb(); });
+            };
             c.scripting.removeCSS = function(_opts, cb){ if(cb) cb(); return Promise.resolve(); };
             c.scripting.registerContentScripts = function(_s, cb){ if(cb) cb(); return Promise.resolve(); };
             c.scripting.unregisterContentScripts = function(_f, cb){ if(cb) cb(); return Promise.resolve(); };

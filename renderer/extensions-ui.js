@@ -273,12 +273,47 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
             item.appendChild(img)
             item.appendChild(label)
 
+            // Контейнер для кнопок действий
+            const actions = document.createElement('div')
+            actions.style.cssText = 'display:flex;align-items:center;gap:4px;flex-shrink:0;'
+
+            // Кнопка открытия попапа (если есть)
+            if (meta?.popupPage) {
+                const pBtn = document.createElement('div')
+                pBtn.className = 'apps-popover-action-btn'
+                pBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`
+                pBtn.title = tGet('extensions.openPopup') || 'Открыть попап'
+                pBtn.onclick = (e) => {
+                    e.stopPropagation()
+                    closeAppsPopover()
+                    openExtPopupNative(meta.popupPage)
+                }
+                actions.appendChild(pBtn)
+            }
+
+            // Кнопка открытия настроек (если есть)
+            if (meta?.optionsPage) {
+                const sBtn = document.createElement('div')
+                sBtn.className = 'apps-popover-action-btn'
+                sBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`
+                sBtn.title = tGet('extensions.openSettings') || 'Настройки расширения'
+                sBtn.onclick = (e) => {
+                    e.stopPropagation()
+                    closeAppsPopover()
+                    openExtPopupNative(meta.optionsPage)
+                }
+                actions.appendChild(sBtn)
+            }
+
+            item.appendChild(actions)
+
             item.addEventListener('click', () => {
                 closeAppsPopover()
                 if (meta?.popupPage) {
                     openExtPopupNative(meta.popupPage)
+                } else if (meta?.optionsPage) {
+                    openExtPopupNative(meta.optionsPage)
                 } else {
-                    // Открываем контекст меню расширения
                     const rect = document.getElementById('appsBtn')?.getBoundingClientRect() || {}
                     showExtContextMenu((rect.right || 60) + 4, rect.top || 100, id)
                 }
