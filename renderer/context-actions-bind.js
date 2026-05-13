@@ -248,6 +248,16 @@ function bindContextActionsUi({
         }
     })
 
+    document.getElementById('ctxTranslate')?.addEventListener('click', () => {
+        const params = state.wvContextParams || {}
+        const text = params.selectionText
+        if (!text) return
+
+        hideAllMenus()
+        const url = `https://translate.google.com/?sl=auto&tl=ru&text=${encodeURIComponent(text)}&op=translate`
+        if (typeof invokeIpc === 'function') invokeIpc('open-url', url)
+    })
+
     document.getElementById('ctxDevTools')?.addEventListener('click', () => {
         const m = getMessengerById(state.contextTargetId)
         hideAllMenus()
