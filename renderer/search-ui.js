@@ -49,9 +49,17 @@ function createSearchUiApi({
 
     function renderQuickSearchResults(query) {
         const q = query.toLowerCase().trim()
-        const filtered = q
+
+        // 1. Filter messengers
+        const filteredMsgs = q
             ? state.activeMessengers.filter(m => m.name.toLowerCase().includes(q))
             : state.activeMessengers
+
+        // 2. Filter extensions
+        const { EXTENSION_CATALOG } = require('./extensions-ui')
+        const filteredExts = q
+            ? (EXTENSION_CATALOG || []).filter(e => e.name.toLowerCase().includes(q))
+            : []
 
         quickSearchResults.innerHTML = ''
         if (filtered.length === 0) {
@@ -59,7 +67,8 @@ function createSearchUiApi({
             return
         }
 
-        filtered.forEach((m, idx) => {
+        // Render Messengers
+        filteredMsgs.forEach((m, idx) => {
             const hostname = (() => {
                 try { return new URL(m.url).hostname } catch { return '' }
             })()
@@ -85,6 +94,35 @@ function createSearchUiApi({
 
             quickSearchResults.appendChild(item)
         })
+
+        // Render Extensions
+        if (filteredExts.length > 0) {
+            const header = document.createElement('div')
+            header.style.cssText = 'padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;'
+            header.textContent = tGet('settings.sections.extensions') || 'Расширения'
+            quickSearchResults.appendChild(header)
+
+            filteredExts.forEach(e => {
+                const item = document.createElement('div')
+                item.className = 'quick-search-item'
+                const nameHtml = q ? e.name.replace(new RegExp(`(${q})`, 'gi'), '<mark>$1</mark>') : e.name
+
+                item.innerHTML = `
+                    <img src="${e.icon}" onerror="this.style.display='none'" width="24" height="24" style="border-radius:6px;">
+                    <span class="quick-search-item-name">${nameHtml}</span>
+                `
+
+                item.addEventListener('click', () => {
+                    closeQuickSearch()
+                    document.getElementById('settingsBtn')?.click()
+                    setTimeout(() => {
+                        document.querySelector('.settings-nav-item[data-section="extensions"]')?.click()
+                    }, 150)
+                })
+
+                quickSearchResults.appendChild(item)
+            })
+        }
     }
 
     function bind() {

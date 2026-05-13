@@ -224,6 +224,14 @@ function bindContextActionsUi({
         if (!m || !toggleMessengerVpn) return
         toggleMessengerVpn(m.id)
     })
+
+    document.getElementById('ctxDevTools')?.addEventListener('click', () => {
+        const m = getMessengerById(state.contextTargetId)
+        hideAllMenus()
+        if (!m) return
+        const wv = document.getElementById(`webview-${m.id}`)
+        if (wv) wv.openDevTools()
+    })
 }
 
 module.exports = {

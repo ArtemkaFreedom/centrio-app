@@ -22,6 +22,7 @@ const { protocol, net, ipcMain, session, app, webContents } = require('electron'
 const path = require('path')
 const fs   = require('fs')
 const { pathToFileURL } = require('url')
+const mime = require('mime-types')
 const store = require('./store')
 
 let log
@@ -94,19 +95,19 @@ function setupExtProtocol() {
                     return new Response('Is a directory', { status: 404 })
                 }
 
-                // Rambox style: return a response with relaxed headers.
-                // We use net.fetch to get the file content and its default headers,
-                // then we append CORS and CSP relaxations.
-                const resp = await net.fetch(pathToFileURL(filePath).toString())
-                const headers = new Headers(resp.headers)
+                const content = fs.readFileSync(filePath)
+                const type = mime.lookup(filePath) || 'application/octet-stream'
 
-                headers.set('Access-Control-Allow-Origin', '*')
-                headers.set('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline'; img-src * data: blob:; frame-src *; style-src * 'unsafe-inline';")
-
-                return new Response(resp.body, {
-                    status: resp.status,
-                    statusText: resp.statusText,
-                    headers
+                return new Response(content, {
+                    status: 200,
+                    headers: {
+                        'Content-Type': type,
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                        'Access-Control-Allow-Headers': '*',
+                        'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline'; img-src * data: blob:; frame-src *; style-src * 'unsafe-inline';",
+                        'X-Content-Type-Options': 'nosniff'
+                    }
                 })
             } catch (e) {
                 log.error('[ext-protocol] handler error:', e.message)

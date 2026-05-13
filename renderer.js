@@ -2098,8 +2098,13 @@ function applyTabZoom(level) {
             wv.style.cssText = 'width:100%;height:100%;border:none;display:block;position:absolute;inset:0;'
             container.appendChild(wv)
 
+            // Rewrite URL to centrio-ext:// to bypass Electron 36 navigation throttle
+            const targetUrl = url.startsWith('chrome-extension://')
+                ? url.replace('chrome-extension://', 'centrio-ext://')
+                : url;
+
             // set src AFTER append so partition is locked in
-            wv.src = url
+            wv.src = targetUrl
 
             // Show overlay — full pointer-events so backdrop blocks clicks to underlying app
             overlay.style.display = 'block'
