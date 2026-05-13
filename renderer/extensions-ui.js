@@ -4,13 +4,21 @@
 // ❌ требуют реальных браузерных вкладок — убраны из каталога
 const CATALOG = [
     {
-        id: 'gighmmpiobklfepjocnamgkkbiglidom',
-        name: 'AdBlock',
-        desc: 'Блокировщик рекламы и всплывающих окон',
+            id: 'centrio-builtin-adblock',
+            name: 'AdBlock Plus (Built-in)',
+            desc: 'Встроенный блокировщик рекламы и трекеров. Работает быстро и надежно.',
         category: 'Безопасность',
         color: '#F8321E',
         icon: 'https://www.google.com/s2/favicons?domain=getadblock.com&sz=64'
     },
+        {
+            id: 'gighmmpiobklfepjocnamgkkbiglidom',
+            name: 'AdBlock (Chrome)',
+            desc: 'Классический блокировщик (может работать нестабильно)',
+            category: 'Безопасность',
+            color: '#F8321E',
+            icon: 'https://www.google.com/s2/favicons?domain=getadblock.com&sz=32'
+        },
     {
         id: 'kbfnbcaeplbcioakkpcpgfkobkghlhen',
         name: 'Grammarly',
@@ -58,6 +66,7 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
         const installed = installedIds.has(ext.id)
         const enabled   = installed && !disabledIds.has(ext.id)
         const busy      = busyIds.has(ext.id)
+        const meta      = extMetaMap.get(ext.id)
 
         const card = document.createElement('div')
         card.className = 'ext-card' + (installed ? ' ext-installed' : '')
@@ -73,7 +82,7 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
             </div>
             <div class="ext-card-actions">
                 ${installed ? `
-                    ${(extMetaMap.get(ext.id)?.optionsPage) ? `
+                    ${(meta?.optionsPage && !ext.isBuiltIn) ? `
                         <button class="ext-settings-btn" data-id="${ext.id}" title="${tGet('extensions.openSettings') || 'Настройки'}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                         </button>
@@ -82,7 +91,7 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
                         <input type="checkbox" class="ext-toggle-check" ${enabled ? 'checked' : ''}>
                         <span class="ext-toggle-slider"></span>
                     </label>
-                    <button class="ext-uninstall-btn" title="Удалить">✕</button>
+                    ${ext.isBuiltIn ? '' : `<button class="ext-uninstall-btn" title="Удалить">✕</button>`}
                 ` : `
                     <button class="ext-install-btn ${busy ? 'loading' : ''}" ${busy ? 'disabled' : ''}>
                         ${busy ? '⏳' : '+ Установить'}
@@ -397,4 +406,4 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
     return { openExtensionsSection, renderExtBar, refreshInstalled, getExtInfo, initAppsBtn }
 }
 
-module.exports = { createExtensionsUiApi, EXTENSION_CATALOG: CATALOG }
+module.exports = { createExtensionsUiApi, CATALOG }

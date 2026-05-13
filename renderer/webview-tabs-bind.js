@@ -384,6 +384,15 @@ function createWebviewTabsApi({
 
         webview.addEventListener('dom-ready', () => {
             applyInitialZoom()
+
+            if (messenger.forceDarkMode) {
+                const css = `
+                    html { filter: invert(1) hue-rotate(180deg) !important; }
+                    img, video, canvas, [style*="background-image"] { filter: invert(1) hue-rotate(180deg) !important; }
+                `
+                webview.insertCSS(css)
+            }
+
             // Register this messenger as a Chrome-compatible tab in the main process
             // registry so extension popups can query it via chrome.tabs.query().
             try {

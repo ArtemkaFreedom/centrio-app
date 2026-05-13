@@ -225,6 +225,29 @@ function bindContextActionsUi({
         toggleMessengerVpn(m.id)
     })
 
+    document.getElementById('ctxDarkMode')?.addEventListener('click', () => {
+        const m = getMessengerById(state.contextTargetId)
+        hideAllMenus()
+        if (!m) return
+
+        const wv = document.getElementById(`webview-${m.id}`)
+        if (!wv) return
+
+        const current = m.forceDarkMode || false
+        m.forceDarkMode = !current
+        saveData()
+
+        const css = `
+            html { filter: invert(1) hue-rotate(180deg) !important; }
+            img, video, canvas, [style*="background-image"] { filter: invert(1) hue-rotate(180deg) !important; }
+        `
+        if (m.forceDarkMode) {
+            wv.insertCSS(css).then(id => { wv._darkModeCssId = id })
+        } else {
+            wv.reload() // Easiest way to remove injected CSS without tracking ID perfectly
+        }
+    })
+
     document.getElementById('ctxDevTools')?.addEventListener('click', () => {
         const m = getMessengerById(state.contextTargetId)
         hideAllMenus()

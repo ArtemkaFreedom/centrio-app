@@ -77,7 +77,13 @@ function setupExtProtocol() {
             if (sess.protocol.isProtocolHandled('centrio-ext')) return
             sess.protocol.handle('centrio-ext', async (request) => {
             try {
-                const u = new URL(request.url)
+                // Ensure URL is handled correctly on Windows
+                let requestUrl = request.url;
+                if (requestUrl.startsWith('centrio-ext:///')) {
+                    requestUrl = requestUrl.replace('centrio-ext:///', 'centrio-ext://local/');
+                }
+
+                const u = new URL(requestUrl)
                 const extId = u.hostname
                 if (!extId) return new Response('Bad request', { status: 400 })
                 const extDir = path.join(EXTENSIONS_DIR, extId)
