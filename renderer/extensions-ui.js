@@ -73,6 +73,11 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
             </div>
             <div class="ext-card-actions">
                 ${installed ? `
+                    ${(extMetaMap.get(ext.id)?.optionsPage) ? `
+                        <button class="ext-settings-btn" data-id="${ext.id}" title="${tGet('extensions.openSettings') || 'Настройки'}">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        </button>
+                    ` : ''}
                     <label class="ext-toggle">
                         <input type="checkbox" class="ext-toggle-check" ${enabled ? 'checked' : ''}>
                         <span class="ext-toggle-slider"></span>
@@ -87,6 +92,15 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
         `
 
         if (installed) {
+            const sBtn = card.querySelector('.ext-settings-btn')
+            if (sBtn) {
+                sBtn.onclick = (e) => {
+                    e.stopPropagation()
+                    const meta = extMetaMap.get(ext.id)
+                    if (meta?.optionsPage) openExtPopupNative(meta.optionsPage)
+                }
+            }
+
             const toggle = card.querySelector('.ext-toggle-check')
             toggle?.addEventListener('change', async (e) => {
                 await invokeIpc('ext:toggle', ext.id, e.target.checked)
@@ -276,20 +290,6 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
             // Контейнер для кнопок действий
             const actions = document.createElement('div')
             actions.style.cssText = 'display:flex;align-items:center;gap:4px;flex-shrink:0;'
-
-            // Кнопка открытия попапа (если есть)
-            if (meta?.popupPage) {
-                const pBtn = document.createElement('div')
-                pBtn.className = 'apps-popover-action-btn'
-                pBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`
-                pBtn.title = tGet('extensions.openPopup') || 'Открыть попап'
-                pBtn.onclick = (e) => {
-                    e.stopPropagation()
-                    closeAppsPopover()
-                    openExtPopupNative(meta.popupPage)
-                }
-                actions.appendChild(pBtn)
-            }
 
             // Кнопка открытия настроек (если есть)
             if (meta?.optionsPage) {

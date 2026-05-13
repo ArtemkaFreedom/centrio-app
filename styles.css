@@ -8558,3 +8558,24 @@ body.startup-locked #lockScreen {
 .apps-popover-action-btn:hover svg {
     opacity: 1;
 }
+
+/* Extension settings button in card actions */
+.ext-settings-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ext-settings-btn:hover {
+    background: var(--bg-active);
+    color: var(--accent);
+    border-color: var(--accent);
+}

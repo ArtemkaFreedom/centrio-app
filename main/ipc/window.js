@@ -180,7 +180,8 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
                     nodeIntegration: false,
                     contextIsolation: true,
                     sandbox: false,
-                    webSecurity: true,
+                    webSecurity: false, // Required for many extensions to work when served via custom protocol
+                    allowRunningInsecureContent: true,
                 }
             })
 

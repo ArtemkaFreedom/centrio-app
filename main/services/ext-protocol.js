@@ -93,7 +93,21 @@ function setupExtProtocol() {
                 if (stat.isDirectory()) {
                     return new Response('Is a directory', { status: 404 })
                 }
-                return await net.fetch(pathToFileURL(filePath).toString())
+
+                // Rambox style: return a response with relaxed headers.
+                // We use net.fetch to get the file content and its default headers,
+                // then we append CORS and CSP relaxations.
+                const resp = await net.fetch(pathToFileURL(filePath).toString())
+                const headers = new Headers(resp.headers)
+
+                headers.set('Access-Control-Allow-Origin', '*')
+                headers.set('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline'; img-src * data: blob:; frame-src *; style-src * 'unsafe-inline';")
+
+                return new Response(resp.body, {
+                    status: resp.status,
+                    statusText: resp.statusText,
+                    headers
+                })
             } catch (e) {
                 log.error('[ext-protocol] handler error:', e.message)
                 return new Response('Internal error: ' + e.message, { status: 500 })
