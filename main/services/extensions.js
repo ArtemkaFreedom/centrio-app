@@ -765,6 +765,7 @@ async function loadSavedOnStart() {
     try {
         if (fs.existsSync(path.join(BRIDGE_DIR, 'manifest.json'))) {
             for (const { key, sess } of sessions) {
+                setupSessionPreloads(sess)
                 try {
                     const ext = await sess.loadExtension(BRIDGE_DIR, { allowFileAccess: true })
                     if (!_bridgeId) {
