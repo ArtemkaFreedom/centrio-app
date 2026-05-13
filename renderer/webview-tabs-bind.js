@@ -313,6 +313,15 @@ function createWebviewTabsApi({
                 }
             }
 
+            const translateItem = document.getElementById('ctxTranslate')
+            if (translateItem) {
+                translateItem.style.display = params.selectionText ? 'flex' : 'none'
+                const divider = translateItem.nextElementSibling
+                if (divider?.classList.contains('context-divider')) {
+                    divider.style.display = params.selectionText ? 'block' : 'none'
+                }
+            }
+
             const webviewRect = webview.getBoundingClientRect()
             const localX = Number(params.clientX ?? params.x ?? 0)
             const localY = Number(params.clientY ?? params.y ?? 0)

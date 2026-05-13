@@ -4,37 +4,44 @@
 // ❌ требуют реальных браузерных вкладок — убраны из каталога
 const CATALOG = [
     {
-            id: 'centrio-builtin-adblock',
-            name: 'AdBlock Plus (Built-in)',
-            desc: 'Встроенный блокировщик рекламы и трекеров. Работает быстро и надежно.',
+        id: 'centrio-builtin-adblock',
+        name: 'AdBlock Plus (Built-in)',
+        desc: 'Встроенный блокировщик рекламы и трекеров. Работает нативно и максимально быстро.',
         category: 'Безопасность',
         color: '#F8321E',
-        icon: 'https://www.google.com/s2/favicons?domain=getadblock.com&sz=64'
-    },
-        {
-            id: 'gighmmpiobklfepjocnamgkkbiglidom',
-            name: 'AdBlock (Chrome)',
-            desc: 'Классический блокировщик (может работать нестабильно)',
-            category: 'Безопасность',
-            color: '#F8321E',
-            icon: 'https://www.google.com/s2/favicons?domain=getadblock.com&sz=32'
-        },
-    {
-        id: 'kbfnbcaeplbcioakkpcpgfkobkghlhen',
-        name: 'Grammarly',
-        desc: 'Проверка орфографии и грамматики на английском',
-        category: 'Инструменты',
-        color: '#15C39A',
-        icon: 'https://www.google.com/s2/favicons?domain=grammarly.com&sz=64'
+        icon: 'https://www.google.com/s2/favicons?domain=getadblock.com&sz=64',
+        isBuiltIn: true
     },
     {
-        id: 'aapbdbdomjkkjkaonfhkkikfgjllcleb',
-        name: 'Google Переводчик',
-        desc: 'Перевод выделенного текста на страницах',
+        id: 'centrio-web-translate',
+        name: 'Google Translate',
+        desc: 'Быстрый перевод выделенного текста или всей страницы.',
         category: 'Инструменты',
         color: '#4285F4',
-        icon: 'https://www.google.com/s2/favicons?domain=translate.google.com&sz=64'
+        icon: 'https://www.google.com/s2/favicons?domain=translate.google.com&sz=64',
+        isBuiltIn: true,
+        action: 'open-translate'
     },
+    {
+        id: 'centrio-grammarly-app',
+        name: 'Grammarly Editor',
+        desc: 'Профессиональный редактор для проверки текста.',
+        category: 'Инструменты',
+        color: '#15C39A',
+        icon: 'https://www.google.com/s2/favicons?domain=grammarly.com&sz=64',
+        isBuiltIn: true,
+        url: 'https://app.grammarly.com/'
+    },
+    {
+        id: 'centrio-screen-capture',
+        name: 'Снимок экрана',
+        desc: 'Сделать скриншот активного мессенджера.',
+        category: 'Инструменты',
+        color: '#6366f1',
+        icon: 'https://www.gstatic.com/images/icons/material/system/2x/photo_camera_white_24dp.png',
+        isBuiltIn: true,
+        action: 'capture-screen'
+    }
 ]
 
 function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition, getActiveTabUrl }) {
@@ -318,6 +325,31 @@ function createExtensionsUiApi({ invokeIpc, tGet, requirePro, getActivePartition
 
             item.addEventListener('click', () => {
                 closeAppsPopover()
+                const catEntry = CATALOG.find(e => e.id === id)
+
+                if (catEntry?.url) {
+                    invokeIpc('open-url', catEntry.url)
+                    return
+                }
+
+                if (catEntry?.action === 'open-translate') {
+                    const wv = document.querySelector('webview.active')
+                    const url = wv?.getURL() || ''
+                    invokeIpc('open-url', `https://translate.google.com/?sl=auto&tl=ru&text=${encodeURIComponent(url)}&op=translate`)
+                    return
+                }
+
+                if (catEntry?.action === 'capture-screen') {
+                    const wv = document.querySelector('webview.active')
+                    if (wv) wv.capturePage().then(img => {
+                        const link = document.createElement('a')
+                        link.href = img.toDataURL()
+                        link.download = `screenshot-${Date.now()}.png`
+                        link.click()
+                    })
+                    return
+                }
+
                 if (meta?.popupPage) {
                     openExtPopupNative(meta.popupPage)
                 } else if (meta?.optionsPage) {
