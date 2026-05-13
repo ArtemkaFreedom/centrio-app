@@ -60,6 +60,9 @@ function initApp({
         initUpdater(getMainWindow)
         loadExtensions().catch(e => console.warn('[extensions] startup load error:', e.message))
 
+        // Initial adblock application
+        try { require('../services/adblock').updateAllSessions() } catch(e) {}
+
         // ── Первая проверка через 10–20 сек после старта ─────────
         const delay = Math.floor(Math.random() * 10000) + 10000
         setTimeout(() => {

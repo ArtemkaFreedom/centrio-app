@@ -1527,7 +1527,8 @@ function applyTabZoom(level) {
                 ...messenger,
                 zoomLevel: typeof messenger.zoomLevel === 'number'
                     ? messenger.zoomLevel
-                    : (store.get('tabZoomLevel', 1) || 1)
+                    : (store.get('tabZoomLevel', 1) || 1),
+                forceDarkMode: messenger.forceDarkMode || false
             }
 
             state.activeMessengers.push(normalizedMessenger)
@@ -1734,6 +1735,10 @@ function applyTabZoom(level) {
         const enabled = modes[id] !== false
         const label = document.getElementById('ctxVpnLabel')
         if (label) label.textContent = tGet(enabled ? 'network.vpnCtx' : 'network.vpnCtxDisable')
+
+        const m = state.activeMessengers.find(x => x.id === id)
+        const dmLabel = document.getElementById('ctxDarkModeLabel')
+        if (dmLabel) dmLabel.textContent = m?.forceDarkMode ? 'Отключить тёмную тему' : 'Тёмная тема'
     })
 
     bindContextActionsUi({
@@ -2074,8 +2079,8 @@ function applyTabZoom(level) {
                     extName = extInfo?.name
                     if (!extName) {
                         // fallback: look in CATALOG
-                        const { EXTENSION_CATALOG } = require('./renderer/extensions-ui')
-                        const cat = (EXTENSION_CATALOG || []).find(e => e.id === extId)
+                        const { CATALOG } = require('./renderer/extensions-ui')
+                        const cat = (CATALOG || []).find(e => e.id === extId)
                         extName = cat?.name
                     }
                 }

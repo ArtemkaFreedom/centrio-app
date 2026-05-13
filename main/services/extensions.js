@@ -617,6 +617,16 @@ async function installExtension(id) {
     if (!isPro()) {
         throw new Error('PRO plan required to install extensions')
     }
+
+    if (id === 'centrio-builtin-adblock') {
+        const installed = store.get('extensions.installed', [])
+        if (!installed.includes(id)) {
+            store.set('extensions.installed', [...installed, id])
+        }
+        require('./adblock').updateAllSessions()
+        return { name: 'AdBlock Plus (Built-in)' }
+    }
+
     const extDir = path.join(EXTENSIONS_DIR, id)
 
     if (!fs.existsSync(path.join(extDir, 'manifest.json'))) {
@@ -673,6 +683,11 @@ async function toggleExtension(id, enabled) {
         if (!disabled.includes(id)) store.set('extensions.disabled', [...disabled, id])
     }
 
+    if (id === 'centrio-builtin-adblock') {
+        require('./adblock').updateAllSessions()
+        return
+    }
+
     // Apply changes immediately to all active sessions
     const sessions = getActiveSessions()
     const extDir = path.join(EXTENSIONS_DIR, id)
@@ -704,7 +719,22 @@ function getEnabled() {
 function getInstalledList() {
     const installed = store.get('extensions.installed', [])
     const disabled  = store.get('extensions.disabled',  [])
-    return installed.map(id => {
+
+    const list = []
+
+    // Built-in AdBlock
+    const adblockId = 'centrio-builtin-adblock'
+    list.push({
+        id: adblockId,
+        name: 'AdBlock Plus (Built-in)',
+        version: '1.0.0',
+        enabled: installed.includes(adblockId) && !disabled.includes(adblockId),
+        optionsPage: null,
+        popupPage: null,
+        isBuiltIn: true
+    })
+
+    const userExts = installed.filter(id => id !== adblockId).map(id => {
         const extDir = path.join(EXTENSIONS_DIR, id)
         const manifest = readManifest(extDir)
 
@@ -726,6 +756,8 @@ function getInstalledList() {
             popupPage:   rawPopup   ? base + rawPopup.replace(/^\//, '')   : null,
         }
     })
+
+    return [...list, ...userExts]
 }
 
 async function loadSavedOnStart() {
