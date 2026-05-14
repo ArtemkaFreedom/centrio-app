@@ -455,40 +455,25 @@ module.exports = {
         laterBtn:             'Later',
     },
 
-    webview: {
-        removeConfirm:  'Are you sure you want to remove "{name}"?',
-        removeTitle:    'Remove Messenger',
-        removeBtn:      'Remove',
-        cancelBtn:      'Cancel',
-        removeTabLabel: 'Remove {name}',
-    },
-
     extensions: {
-        adblock: {
-            title: 'AdBlock',
-            desc: 'Blocks ads and trackers in all messengers.'
-        },
-        translate: {
-            title: 'Google Translate',
-            desc: 'Quickly translate selected text via context menu.'
-        },
-        grammarly: {
-            title: 'Grammarly',
-            desc: 'Grammar checking and writing improvement tool.'
-        },
-        screenshot: {
-            title: 'Screen Capture',
-            desc: 'Take screenshots and save images from messengers.'
-        },
-        darkmode: {
-            title: 'Force Dark Mode',
-            desc: 'Forced dark mode for all websites.'
-        },
+        adblock:    { title: 'AdBlock',          desc: 'Block ads and trackers across all services' },
+        translate:  { title: 'Translate',         desc: 'Select text and right-click to translate' },
+        grammarly:  { title: 'Grammarly',         desc: 'Grammar and style checking for text' },
+        screenshot: { title: 'Screenshot',        desc: 'Right-click to capture the current page' },
+        darkmode:   { title: 'Force Dark Mode',   desc: 'Right-click to enable dark theme on any service' },
         uninstallTitle: 'Remove extension?',
         uninstallMsg:   'The extension will be removed. This action cannot be undone.',
         uninstallBtn:   'Remove',
         openPopup:      'Open popup',
         openSettings:   'Extension settings',
         noPages:        'No extension pages',
+    },
+
+    webview: {
+        removeConfirm:  'Are you sure you want to remove "{name}"?',
+        removeTitle:    'Remove Messenger',
+        removeBtn:      'Remove',
+        cancelBtn:      'Cancel',
+        removeTabLabel: 'Remove {name}',
     },
 }

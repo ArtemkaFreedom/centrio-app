@@ -1754,75 +1754,7 @@
                     <div class="settings-group">
                         <div class="settings-group-title" data-i18n="settings.extensionsTitle"></div>
                         <div class="settings-hint" style="margin-bottom:16px" data-i18n="settings.extensionsHint"></div>
-                        <div class="ext-catalog">
-                            <!-- AdBlock -->
-                            <div class="ext-card ext-installed" id="extCardAdblock">
-                                <div class="ext-card-icon" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#ef4444">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                                    </svg>
-                                </div>
-                                <div class="ext-card-info">
-                                    <div class="ext-card-name" data-i18n="settings.extAdblockName"></div>
-                                    <div class="ext-card-desc" data-i18n="settings.extAdblockDesc"></div>
-                                    <span class="ext-card-cat" data-i18n="settings.extBuiltIn"></span>
-                                </div>
-                                <div class="ext-card-actions">
-                                    <label class="toggle-switch">
-                                        <input type="checkbox" id="extAdblockToggle" checked>
-                                        <span class="toggle-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-                            <!-- Translate -->
-                            <div class="ext-card ext-installed">
-                                <div class="ext-card-icon" style="background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.3);color:#3b82f6">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/>
-                                    </svg>
-                                </div>
-                                <div class="ext-card-info">
-                                    <div class="ext-card-name" data-i18n="settings.extTranslateName"></div>
-                                    <div class="ext-card-desc" data-i18n="settings.extTranslateDesc"></div>
-                                    <span class="ext-card-cat" data-i18n="settings.extBuiltIn"></span>
-                                </div>
-                                <div class="ext-card-actions">
-                                    <span class="ext-install-btn" style="cursor:default;opacity:.7" data-i18n="settings.extEnabled"></span>
-                                </div>
-                            </div>
-                            <!-- Force Dark Mode -->
-                            <div class="ext-card ext-installed">
-                                <div class="ext-card-icon" style="background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.3);color:#8b5cf6">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                                    </svg>
-                                </div>
-                                <div class="ext-card-info">
-                                    <div class="ext-card-name" data-i18n="settings.extDarkModeName"></div>
-                                    <div class="ext-card-desc" data-i18n="settings.extDarkModeDesc"></div>
-                                    <span class="ext-card-cat" data-i18n="settings.extBuiltIn"></span>
-                                </div>
-                                <div class="ext-card-actions">
-                                    <span class="ext-install-btn" style="cursor:default;opacity:.7" data-i18n="settings.extEnabled"></span>
-                                </div>
-                            </div>
-                            <!-- Screenshot -->
-                            <div class="ext-card ext-installed">
-                                <div class="ext-card-icon" style="background:rgba(20,184,166,.12);border-color:rgba(20,184,166,.3);color:#14b8a6">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
-                                    </svg>
-                                </div>
-                                <div class="ext-card-info">
-                                    <div class="ext-card-name" data-i18n="settings.extScreenshotName"></div>
-                                    <div class="ext-card-desc" data-i18n="settings.extScreenshotDesc"></div>
-                                    <span class="ext-card-cat" data-i18n="settings.extBuiltIn"></span>
-                                </div>
-                                <div class="ext-card-actions">
-                                    <span class="ext-install-btn" style="cursor:default;opacity:.7" data-i18n="settings.extEnabled"></span>
-                                </div>
-                            </div>
-                        </div>
+                        <div id="extensionsCatalog" class="ext-catalog"></div>
                     </div>
                 </div>
 

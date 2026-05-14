@@ -428,6 +428,14 @@ module.exports = {
         laterBtn:             '稍后',
     },
 
+    extensions: {
+        adblock:    { title: 'AdBlock',    desc: '拦截所有服务中的广告和追踪器' },
+        translate:  { title: '翻译',        desc: '选中文字后右键点击翻译' },
+        grammarly:  { title: 'Grammarly', desc: '文字语法和风格检查' },
+        screenshot: { title: '截图',        desc: '右键截取当前页面' },
+        darkmode:   { title: '深色模式',    desc: '右键为任意服务启用深色主题' }
+    },
+
     webview: {
         removeConfirm:  '确定要删除"{name}"吗？',
         removeTitle:    '删除应用',

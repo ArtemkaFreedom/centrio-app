@@ -428,6 +428,14 @@ module.exports = {
         laterBtn:             'Più tardi',
     },
 
+    extensions: {
+        adblock:    { title: 'AdBlock',              desc: 'Blocca annunci e tracker in tutti i servizi' },
+        translate:  { title: 'Traduttore',           desc: 'Seleziona testo e fai clic destro per tradurre' },
+        grammarly:  { title: 'Grammarly',            desc: 'Controllo grammatica e stile del testo' },
+        screenshot: { title: 'Screenshot',           desc: 'Clic destro per catturare la pagina' },
+        darkmode:   { title: 'Modalita scura',       desc: 'Clic destro per attivare il tema scuro' }
+    },
+
     webview: {
         removeConfirm:  'Vuoi davvero rimuovere "{name}"?',
         removeTitle:    'Rimuovi messenger',

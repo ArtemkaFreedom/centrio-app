@@ -428,6 +428,14 @@ module.exports = {
         laterBtn:             'Später',
     },
 
+    extensions: {
+        adblock:    { title: 'AdBlock',              desc: 'Werbung und Tracker in allen Diensten blockieren' },
+        translate:  { title: 'Ubersetzer',           desc: 'Text markieren und Rechtsklick zum Uebersetzen' },
+        grammarly:  { title: 'Grammarly',            desc: 'Grammatik- und Stilpruefung fuer Texte' },
+        screenshot: { title: 'Screenshot',           desc: 'Rechtsklick zum Aufnehmen der aktuellen Seite' },
+        darkmode:   { title: 'Dark Mode erzwingen',  desc: 'Rechtsklick zum Aktivieren des dunklen Themes' }
+    },
+
     webview: {
         removeConfirm:  'Möchten Sie "{name}" wirklich entfernen?',
         removeTitle:    'Messenger entfernen',
