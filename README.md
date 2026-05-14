@@ -28,6 +28,12 @@
 
   <br />
 
+  | 🇷🇺 | 🇬🇧 | 🇨🇳 | 🇫🇷 | 🇮🇹 |
+  |:---:|:---:|:---:|:---:|:---:|
+  | Все мессенджеры в одном окне | All your messengers in one window | 所有软件一个窗口 | Tous vos messagers en une fenêtre | Tutti i messenger in una finestra |
+
+  <br />
+
   <img src="https://centrio.me/og-image.png" alt="Centrio App Preview" width="720" style="border-radius:12px" />
 
 </div>
