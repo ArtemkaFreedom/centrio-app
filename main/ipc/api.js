@@ -153,6 +153,11 @@ function registerApiIpc() {
         tracker.addNotif(count)
         return { success: true }
     })
+
+    ipcMain.on('update-adblock-state', () => {
+        const { updateAllSessions } = require('../services/adblock')
+        updateAllSessions()
+    })
 }
 
 module.exports = registerApiIpc
