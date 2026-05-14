@@ -402,35 +402,10 @@ function createWebviewTabsApi({
                 webview.insertCSS(css)
             }
 
-            // Register this messenger as a Chrome-compatible tab in the main process
-            // registry so extension popups can query it via chrome.tabs.query().
-            try {
-                const url = webview.getURL?.() || messenger.url
-                invokeIpc('ext:tabs:register', messenger.id, `persist:${messenger.id}`, url, messenger.name)
-                    .catch(() => {})
-            } catch {}
         })
 
         webview.addEventListener('did-finish-load', applyInitialZoom)
 
-        // Keep tab registry up to date as the user navigates within a messenger.
-        webview.addEventListener('did-navigate', (e) => {
-            if (e.url && !e.url.startsWith('about:')) {
-                invokeIpc('ext:tabs:update', messenger.id, { url: e.url, status: 'complete' }).catch(() => {})
-            }
-        })
-
-        webview.addEventListener('did-navigate-in-page', (e) => {
-            if (e.url && !e.url.startsWith('about:')) {
-                invokeIpc('ext:tabs:update', messenger.id, { url: e.url, status: 'complete' }).catch(() => {})
-            }
-        })
-
-        webview.addEventListener('page-title-updated', (e) => {
-            if (e.title) {
-                invokeIpc('ext:tabs:update', messenger.id, { title: e.title }).catch(() => {})
-            }
-        })
 
         webview.addEventListener('new-window', (e) => {
             e.preventDefault()

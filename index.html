@@ -340,14 +340,6 @@
                 </svg>
                 <span id="appNotifBadge" class="sidebar-notif-badge" style="display:none;"></span>
             </button>
-            <button id="appsBtn" class="activity-btn" title="Расширения">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
-                    <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
-                    <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
-                    <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
-                </svg>
-            </button>
             <button id="settingsBtn" class="activity-btn" data-i18n-title="settings.title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" stroke-width="1.8"/>
@@ -359,17 +351,6 @@
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/>
                 </svg>
-            </button>
-        </div>
-    </div>
-    <!-- Apps popover (installed extensions panel) -->
-    <div id="appsPopover" style="display:none;position:fixed;left:60px;bottom:80px;z-index:9980;width:220px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);overflow:hidden;flex-direction:column;">
-        <div style="padding:10px 14px 6px;font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;">Расширения</div>
-        <div id="appsPopoverList" style="overflow-y:auto;max-height:320px;padding:0 4px 4px;"></div>
-        <div style="border-top:1px solid var(--border);padding:6px 8px;">
-            <button id="appsPopoverInstallBtn" style="width:100%;background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;text-align:left;padding:4px 6px;border-radius:var(--radius);display:flex;align-items:center;gap:6px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                Установить расширения
             </button>
         </div>
     </div>
@@ -487,17 +468,6 @@
     </div>
 </div>
 
-<!-- Extension popup overlay (webview inside main window so chrome.tabs works) -->
-<div id="extPopupOverlay" style="display:none;position:fixed;inset:0;z-index:9990;">
-    <div id="extPopupBackdrop" style="position:absolute;inset:0;" onclick="window._closeExtPopup && window._closeExtPopup()"></div>
-    <div id="extPopupPanel" style="position:absolute;bottom:36px;right:12px;display:flex;flex-direction:column;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-lg);">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg-tertiary);-webkit-app-region:no-drag;flex-shrink:0;position:relative;z-index:2;">
-            <span id="extPopupTitle" style="font-size:12px;font-weight:600;color:var(--text-primary)">Расширение</span>
-            <button onclick="window._closeExtPopup && window._closeExtPopup()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px">✕</button>
-        </div>
-        <div id="extPopupWebviewContainer" style="flex:1;width:100%;min-height:0;position:relative;overflow:hidden;"></div>
-    </div>
-</div>
 
 <!-- Custom color picker -->
 <div id="colorPickerModal" class="color-picker-modal" style="display:none">
@@ -1323,6 +1293,20 @@
                                     <div class="tp-content"></div>
                                 </div>
                                 <span data-i18n="settings.themeMidnight"></span>
+                            </div>
+                            <div class="theme-item" data-theme="pistachio">
+                                <div class="theme-preview pistachio-preview">
+                                    <div class="tp-sidebar"></div>
+                                    <div class="tp-content"></div>
+                                </div>
+                                <span>Pistachio</span>
+                            </div>
+                            <div class="theme-item" data-theme="pink">
+                                <div class="theme-preview pink-preview">
+                                    <div class="tp-sidebar"></div>
+                                    <div class="tp-content"></div>
+                                </div>
+                                <span>Pastel Pink</span>
                             </div>
                             <div class="theme-item" data-theme="light">
                                 <div class="theme-preview light-preview">

@@ -137,7 +137,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
     const conf = (status.configs || []).find(c => c.id === id)
     if (!conf) return
     pings[id] = 'pending'
-    // Обновить бейдж сразу (показать "пингуем")
+    // Обновить бейдж сразу (показать "pinging")
     const row = panel.querySelector(`.vpn-config-item[data-id="${id}"]`)
     if (row) {
       const existing = row.querySelector('[class^="vpn-ping"]')
@@ -233,7 +233,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
                 </div>
                 <div class="vpn-config-right">
                   ${pingBadge(c.id)}
-                  <button class="vpn-cfg-repingbtn" data-id="${esc(c.id)}" title="Проверить пинг" style="background:none;border:none;color:rgba(255,255,255,0.25);cursor:pointer;padding:2px 5px;font-size:13px;line-height:1;border-radius:4px;transition:color .15s" onmouseover="this.style.color='rgba(255,255,255,0.65)'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">↻</button>
+                  <button class="vpn-cfg-repingbtn" data-id="${esc(c.id)}" title="${tGet('network.vpnTest') || 'Test'}" style="background:none;border:none;color:rgba(255,255,255,0.25);cursor:pointer;padding:2px 5px;font-size:13px;line-height:1;border-radius:4px;transition:color .15s" onmouseover="this.style.color='rgba(255,255,255,0.65)'" onmouseout="this.style.color='rgba(255,255,255,0.25)'">↻</button>
                   <button class="vpn-cfg-delete" data-id="${esc(c.id)}" title="${esc(tGet('network.vpnDeleteBtn'))}">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -345,7 +345,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
   function startPings (configs) {
     if (!configs || !configs.length) return
     for (const c of configs) {
-      if (pings[c.id] !== undefined) continue   // уже пингуем/пинговали
+      if (pings[c.id] !== undefined) continue   // уже pinging/пинговали
       pings[c.id] = 'pending'
       invokeIpc('vpn-ping', c.link).then(res => {
         pings[c.id] = (res && res.ms !== undefined) ? res.ms : null

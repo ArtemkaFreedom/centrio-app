@@ -5,8 +5,8 @@ const popularMessengers = [
     { name: 'VK',               url: 'https://vk.com/im',                   icon: 'assets/logomessenger/vk.png',            color: '#0077FF' },
     { name: 'MAX',              url: 'https://web.max.ru/',                 icon: 'assets/logomessenger/max.png',           color: '#FF5C00' },
     { name: 'Mail.ru',          url: 'https://mail.ru',                     icon: 'assets/logomessenger/mailru.png',        color: '#005FF9' },
-    { name: 'Яндекс Почта',    url: 'https://mail.yandex.ru',              icon: 'assets/logomessenger/yandex.png',        color: '#FC3F1D' },
-    { name: 'Рамблер',         url: 'https://mail.rambler.ru',             icon: 'assets/logomessenger/rambler.png',       color: '#ED1C24' },
+    { name: 'Yandex Mail',      url: 'https://mail.yandex.ru',              icon: 'assets/logomessenger/yandex.png',        color: '#FC3F1D' },
+    { name: 'Rambler',          url: 'https://mail.rambler.ru',             icon: 'assets/logomessenger/rambler.png',       color: '#ED1C24' },
     { name: 'Bitrix24',         url: 'https://www.bitrix24.ru',             icon: 'assets/logomessenger/bitrix.png',        color: '#EA4335' },
     // ── Мессенджеры ───────────────────────────────────────────────────
     { name: 'Discord',          url: 'https://discord.com/app',             icon: 'assets/logomessenger/discord.png',       color: '#5865F2' },

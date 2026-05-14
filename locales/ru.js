@@ -65,11 +65,8 @@ module.exports = {
             shortcuts: 'Горячие клавиши',
             system: 'Система',
             security: 'Безопасность',
-            network: 'Сеть',
-            extensions: 'Расширения'
+            network: 'Сеть'
         },
-        extensionsTitle: 'Каталог расширений',
-        extensionsHint: 'Расширения Chrome работают прямо внутри мессенджеров. PRO-функция.',
         language: 'Язык интерфейса',
         langHint: 'Применяется мгновенно',
         closeLabel: 'При нажатии кнопки закрытия',
@@ -221,7 +218,12 @@ module.exports = {
         empty: 'Ничего не найдено',
         findPlaceholder: 'Поиск на странице...',
         findInPage: 'Поиск на странице',
-        notFound: 'Не найдено'
+        notFound: 'Не найдено',
+        commandsTitle:   'Команды',
+        commandReload:   'Перезагрузить все вкладки',
+        commandSettings: 'Открыть настройки',
+        commandMute:     'Выключить звук везде',
+        commandUnmute:   'Включить звук везде'
     },
 
     welcome: {
@@ -266,9 +268,13 @@ module.exports = {
         statusOnline: 'В сети',
         statusBusy: 'Занят',
         appNotif: 'Уведомления',
-        appNotifTitle: 'Уведомления',
+        appNotifTitle: 'Центр уведомлений',
         markAllRead: 'Прочитать все',
-        noNotifs: 'Нет новых уведомлений'
+        noNotifs: 'Новых уведомлений нет',
+        dismiss:       'Скрыть навсегда',
+        justNow:       'только что',
+        minAgo:        '{n} мин назад',
+        hAgo:          '{n} ч назад'
     },
 
     system: {
@@ -309,13 +315,23 @@ module.exports = {
     },
 
     updater: {
+        title:          'Обновление',
+        close:          'Закрыть',
+        newAvailable:   '🔔 Новая версия доступна',
+        newDesc:        'Доступна новая версия {v}. Обновление скачивается автоматически.',
         checking: 'Проверка обновлений',
         available: 'Доступно обновление',
         notAvailable: 'Обновлений нет',
         downloading: 'Загрузка обновления',
+        downloadingTitle: '⬇ Скачивание обновления',
+        downloadingProgress: 'Скачивание: {n}%',
         downloaded: 'Обновление загружено',
+        downloadedTitle: '✓ Обновление готово',
+        downloadedDesc: 'Версия {v} скачана и готова к установке.',
         installRestart: 'Установить и перезапустить',
-        error: 'Ошибка обновления'
+        error: 'Ошибка обновления',
+        errorTitle:     '⚠ Ошибка обновления',
+        errorDesc:      'Не удалось скачать обновление.'
     },
 
     protocol: {
@@ -325,7 +341,7 @@ module.exports = {
     window: {
         minimize: 'Свернуть',
         maximize: 'Развернуть',
-        close: 'Закрыть'
+        close:    'Закрыть'
     },
 
     lock: {
@@ -381,11 +397,9 @@ module.exports = {
         loginYandex: 'Войти через Яндекс',
         syncJustNow:    '< 1 мин назад',
         syncMinAgo:     '{n} мин назад',
-        // Статистика (локальная)
         statMessengers: 'Мессенджеров',
         statFolders:    'Папок',
         statLastSync:   'Синхронизировано',
-        // Тарифы
         plansSection:        'Тарифы',
         planFree:            'Базовый',
         planFreePrice:       '0 ₽',
@@ -421,8 +435,6 @@ module.exports = {
         soundDesc: 'Индивидуальные звуки уведомлений для каждого мессенджера доступны на плане Pro.',
         customMessengerTitle: 'Свой мессенджер — только в Pro',
         customMessengerDesc: 'Добавление любого сайта как мессенджера доступно на плане Pro. Обновитесь для неограниченных возможностей.',
-        extensionsTitle: 'Расширения — только в Pro',
-        extensionsDesc: 'Используйте расширения Chrome прямо внутри мессенджеров для повышения продуктивности.',
         upgradeBtn: 'Перейти на Pro',
         laterBtn: 'Позже'
     },
@@ -433,14 +445,5 @@ module.exports = {
         removeBtn: 'Удалить',
         cancelBtn: 'Отмена',
         removeTabLabel: 'Удалить {name}'
-    },
-
-    extensions: {
-        uninstallTitle: 'Удалить расширение?',
-        uninstallMsg:   'Расширение будет удалено. Это действие необратимо.',
-        uninstallBtn:   'Удалить',
-        openPopup:      'Открыть попап',
-        openSettings:   'Настройки расширения',
-        noPages:        'Нет страниц расширения',
-    },
+    }
 }

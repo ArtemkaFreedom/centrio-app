@@ -92,11 +92,11 @@ function createCloudUiApi({
             const now  = new Date()
             const diff = now - d
             if (diff < 60_000) {
-                return tGet('cloud.syncJustNow') || '< 1 мин назад'
+                return tGet('cloud.syncJustNow') || '< 1 min ago'
             }
             if (diff < 3_600_000) {
                 const mins = Math.floor(diff / 60_000)
-                const tpl  = tGet('cloud.syncMinAgo') || '{n} мин назад'
+                const tpl  = tGet('cloud.syncMinAgo') || '{n} min ago'
                 return tpl.replace('{n}', mins)
             }
             const isToday = d.toDateString() === now.toDateString()

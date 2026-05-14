@@ -262,9 +262,6 @@ function createMessengersApi({
                 e.preventDefault()
                 return
             }
-            // Extension popups — не блокируем, пусть Electron создаёт нативно
-            // через setWindowOpenHandler({action:'allow'}) (registerAppEvents.js).
-            if (url.startsWith('chrome-extension://')) return
             e.preventDefault()
             ipcRenderer.send('open-url', url)
         })
@@ -292,10 +289,6 @@ function createMessengersApi({
 
         tabsContent.appendChild(webview)
         tabsContent.style.pointerEvents = 'auto'
-        // Delayed to avoid race conditions during initial messenger loading
-        setTimeout(() => {
-            invokeIpc('ext:apply-to-session', `persist:${messenger.id}`).catch(() => {})
-        }, 800)
     }
 
     function addMessenger(messenger) {

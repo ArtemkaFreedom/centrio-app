@@ -32,7 +32,6 @@ const { createSettingsUiApi } = require('./renderer/settings-ui')
 const { createChangeIconUiApi } = require('./renderer/change-icon-ui')
 const { createMessengerSoundUiApi } = require('./renderer/messenger-sound-ui')
 const { createSidebarDndApi } = require('./renderer/sidebar-dnd-bind')
-const { createExtensionsUiApi } = require('./renderer/extensions-ui')
 const { createWebviewNotifyApi } = require('./renderer/webview-notify')
 const { createWebviewTabsApi } = require('./renderer/webview-tabs-bind')
 
@@ -1077,9 +1076,6 @@ function switchTab(id) {
         applyZoomWhenReady(activeWebview, state.tabZoomLevel)
     }
 
-    // Notify main-process tab registry so chrome.tabs.query returns this tab
-    // as the active one for extension popups.
-    invokeIpc('ext:tabs:activate', id).catch(() => {})
 
     updateZoomStatus()
 }
@@ -1097,7 +1093,8 @@ function switchTab(id) {
         findCount,
         tGet,
         switchTab,
-        isMessengerMuted
+        isMessengerMuted,
+        updateMuteAllBtn: () => updateMuteAllBtn()
     })
 
     const {
@@ -1333,27 +1330,6 @@ function applyTabZoom(level) {
     // ==============================
     // SIDEBAR DRAG-N-DROP API
     // ==============================
-    // ==============================
-    // EXTENSIONS UI API
-    // ==============================
-    const extensionsUiApi = createExtensionsUiApi({
-        invokeIpc,
-        tGet,
-        requirePro,
-        // Возвращает partition активного мессенджера (где расширение загружено
-        // и где chrome.tabs API видит вебью). Fallback — persist:ext-popup.
-        getActivePartition: () => state.activeTabId ? `persist:${state.activeTabId}` : 'persist:ext-popup',
-        // Возвращает текущий URL вебью активного мессенджера.
-        // Передаётся в popup-окно расширения как __ctab_url, чтобы preload
-        // мог вернуть синтетический таб если chrome.tabs.query вернёт пусто.
-        getActiveTabUrl: () => {
-            if (!state.activeTabId) return ''
-            try {
-                const wv = document.getElementById(`webview-${state.activeTabId}`)
-                return (wv?.getURL?.() || wv?.src || '').split('?')[0]
-            } catch { return '' }
-        }
-    })
 
     const sidebarDndApi = createSidebarDndApi({
         state,
@@ -1580,8 +1556,7 @@ function applyTabZoom(level) {
         setActivePinBlock,
         openPinDisableModal,
         updateLockBtn,
-        requirePro,
-        openExtensionsSection: extensionsUiApi.openExtensionsSection
+        requirePro
     })
 
     bindLockUi({
@@ -2035,88 +2010,7 @@ function applyTabZoom(level) {
     updateCloudBtn()
     updateLockBtn()
 
-    // Init extensions: refresh meta + init appsBtn sidebar popover
-    extensionsUiApi.refreshInstalled().then(() => extensionsUiApi.renderExtBar()).catch(() => {})
-    extensionsUiApi.initAppsBtn({
-        openSettingsSection: (section) => {
-            // Открываем настройки на нужной секции
-            document.getElementById('settingsBtn')?.click()
-            setTimeout(() => {
-                const navItem = document.querySelector(`.settings-nav-item[data-section="${section}"]`)
-                navItem?.click()
-            }, 120)
-        }
-    })
 
-    // ── Extension popup overlay ──────────────────────────────────────────
-    window._closeExtPopup = function () {
-        const overlay   = document.getElementById('extPopupOverlay')
-        const container = document.getElementById('extPopupWebviewContainer')
-        if (overlay)   overlay.style.display = 'none'
-        if (container) container.innerHTML = ''
-    }
-
-    ipcRenderer.on('ext:show-popup', (url, opts = {}) => {
-        try {
-            const overlay    = document.getElementById('extPopupOverlay')
-            const panel      = document.getElementById('extPopupPanel')
-            const container  = document.getElementById('extPopupWebviewContainer')
-            const titleEl    = document.getElementById('extPopupTitle')
-            if (!overlay || !container) return
-
-            // size
-            const w = opts.width  || 380
-            const h = opts.height || 560
-            panel.style.width  = w + 'px'
-            panel.style.height = (h + 36) + 'px'
-
-            // title: resolve extension name from meta map, fallback to hostname
-            try {
-                let extName = opts.name || null
-                if (!extName && url.startsWith('chrome-extension://')) {
-                    const extId = url.split('/')[2]
-                    const extInfo = extensionsUiApi?.getExtInfo?.(extId)
-                    extName = extInfo?.name
-                    if (!extName) {
-                        // fallback: look in CATALOG
-                        const { CATALOG } = require('./renderer/extensions-ui')
-                        const cat = (CATALOG || []).find(e => e.id === extId)
-                        extName = cat?.name
-                    }
-                }
-                if (!extName) {
-                    const u = new URL(url)
-                    extName = u.hostname
-                }
-                if (titleEl) titleEl.textContent = extName || 'Расширение'
-            } catch { if (titleEl) titleEl.textContent = 'Расширение' }
-
-            // destroy previous webview to avoid partition conflicts
-            container.innerHTML = ''
-
-            // create webview — partition must be set BEFORE first navigation
-            const wv = document.createElement('webview')
-            // Use active messenger partition where extension IS loaded, fallback to popup partition
-            const partition = state.activeTabId ? `persist:${state.activeTabId}` : 'persist:ext-popup'
-            wv.setAttribute('partition', partition)
-            wv.setAttribute('allowpopups', 'true')
-            wv.style.cssText = 'width:100%;height:100%;border:none;display:block;position:absolute;inset:0;'
-            container.appendChild(wv)
-
-            // Rewrite URL to centrio-ext:// to bypass Electron 36 navigation throttle
-            const targetUrl = url.startsWith('chrome-extension://')
-                ? url.replace('chrome-extension://', 'centrio-ext://')
-                : url;
-
-            // set src AFTER append so partition is locked in
-            wv.src = targetUrl
-
-            // Show overlay — full pointer-events so backdrop blocks clicks to underlying app
-            overlay.style.display = 'block'
-        } catch (e) {
-            console.error('[ext:show-popup]', e)
-        }
-    })
 
     // Close popup on Escape
     document.addEventListener('keydown', (e) => {

@@ -34,7 +34,6 @@
     "electron-log": "^5.4.3",
     "electron-store": "^10.0.1",
     "electron-updater": "^6.8.3",
-    "mime-types": "^3.0.2",
     "sound-play": "^1.1.0"
   },
   "build": {

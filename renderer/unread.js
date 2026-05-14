@@ -100,12 +100,12 @@ function createUnreadApi({
         const iconMuted  = muteToggle.querySelector('.mute-icon-muted')
         if (state.globalMuteAll) {
             muteToggle.classList.add('muted')
-            muteToggle.title = 'Включить уведомления'
+            muteToggle.title = tGet('notifications.unmute') || 'Unmute'
             if (iconNormal) iconNormal.style.display = 'none'
             if (iconMuted)  iconMuted.style.display  = 'block'
         } else {
             muteToggle.classList.remove('muted')
-            muteToggle.title = 'Отключить уведомления'
+            muteToggle.title = tGet('notifications.mute') || 'Mute'
             if (iconNormal) iconNormal.style.display = 'block'
             if (iconMuted)  iconMuted.style.display  = 'none'
         }
@@ -164,7 +164,9 @@ function createUnreadApi({
             }, 0)
 
             const settings = store.get('settings', {})
-            ipcRenderer.send('update-badge', settings.trayBadge === false ? 0 : totalUnread)
+            const count = settings.trayBadge === false ? 0 : totalUnread
+            ipcRenderer.send('update-badge', count)
+            ipcRenderer.send('tray:update-menu', count)
             updateStatusBar()
         }, 250)
     }

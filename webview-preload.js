@@ -201,10 +201,16 @@ function startObserver() {
 function bindContextMenuForwarding() {
     // Первый ПКМ — показываем браузерное меню.
     // Второй ПКМ в течение 600 мс — показываем наше кастомное меню.
+    // ИЛИ Ctrl + ПКМ — сразу показываем браузерное меню (всегда).
     let lastRightClickTime = 0
     const DOUBLE_CLICK_THRESHOLD = 600  // мс
 
     document.addEventListener('contextmenu', (e) => {
+        // Если зажат Ctrl — всегда показываем нативное браузерное меню
+        if (e.ctrlKey) {
+            return
+        }
+
         const now = Date.now()
         const timeSinceLast = now - lastRightClickTime
         lastRightClickTime = now

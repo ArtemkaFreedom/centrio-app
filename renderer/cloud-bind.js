@@ -79,7 +79,7 @@ function bindCloudUi({
     })
 
     document.getElementById('oauthYandexBtn').addEventListener('click', () => {
-        handleSystemOAuth(() => cloudApi.oauthYandex(), 'Яндекс')
+        handleSystemOAuth(() => cloudApi.oauthYandex(), 'Yandex')
     })
 
     document.getElementById('cloudLoginBtn').addEventListener('click', async () => {
