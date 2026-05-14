@@ -99,7 +99,8 @@ function createSettingsUiApi({
             density: document.querySelector('.density-item.active')?.dataset.density || currentSettings.density || 'comfortable',
             sidebarPosition: document.querySelector('.position-item.active')?.dataset.position || currentSettings.sidebarPosition || 'left',
             downloadDir: currentSettings.downloadDir || '',
-            askDownload: document.getElementById('settingAskDownload')?.checked ?? (currentSettings.askDownload ?? true)
+            askDownload: document.getElementById('settingAskDownload')?.checked ?? (currentSettings.askDownload ?? true),
+            adblockEnabled: document.getElementById('extAdblockToggle')?.checked ?? (currentSettings.adblockEnabled !== false)
         }
     }
 
@@ -132,6 +133,9 @@ function createSettingsUiApi({
         if (settingTrayBadge) settingTrayBadge.checked = settings.trayBadge !== false
         if (settingFoldersEnabled) settingFoldersEnabled.checked = settings.foldersEnabled !== false
         if (settingFolderLabel) settingFolderLabel.checked = settings.folderLabel !== false
+
+        const extAdblockToggle = document.getElementById('extAdblockToggle')
+        if (extAdblockToggle) extAdblockToggle.checked = settings.adblockEnabled !== false
 
         document.querySelectorAll('.theme-item').forEach((item) => {
             item.classList.toggle('active', item.dataset.theme === (settings.theme || 'dark'))
