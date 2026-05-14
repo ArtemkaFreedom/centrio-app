@@ -8,7 +8,8 @@ function createSearchUiApi({
     findCount,
     tGet,
     switchTab,
-    isMessengerMuted
+    isMessengerMuted,
+    updateMuteAllBtn
 }) {
     function openFindBar() {
         findBar.classList.add('show')
@@ -61,14 +62,8 @@ function createSearchUiApi({
             ? state.activeMessengers.filter(m => m.name.toLowerCase().includes(q) || (m.url && m.url.toLowerCase().includes(q)))
             : state.activeMessengers.slice(0, 5) // Show top 5 when empty
 
-        // 2. Filter extensions
-        const { CATALOG } = require('./extensions-ui')
-        const filteredExts = q
-            ? (CATALOG || []).filter(e => e.name.toLowerCase().includes(q))
-            : []
-
         quickSearchResults.innerHTML = ''
-        if (filteredMsgs.length === 0 && filteredExts.length === 0) {
+        if (filteredMsgs.length === 0) {
             quickSearchResults.innerHTML = `<div class="quick-search-empty">${tGet('search.empty')}</div>`
             return
         }
@@ -100,43 +95,14 @@ function createSearchUiApi({
 
             quickSearchResults.appendChild(item)
         })
-
-        // Render Extensions
-        if (filteredExts.length > 0) {
-            const header = document.createElement('div')
-            header.style.cssText = 'padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;border-top:1px solid var(--border);margin-top:6px;'
-            header.textContent = tGet('settings.sections.extensions') || 'Расширения'
-            quickSearchResults.appendChild(header)
-
-            filteredExts.forEach(e => {
-                const item = document.createElement('div')
-                item.className = 'quick-search-item'
-                const nameHtml = q ? e.name.replace(new RegExp(`(${q})`, 'gi'), '<mark>$1</mark>') : e.name
-
-                item.innerHTML = `
-                    <img src="${e.icon}" onerror="this.style.display='none'" width="24" height="24" style="border-radius:6px;">
-                    <span class="quick-search-item-name">${nameHtml}</span>
-                `
-
-                item.addEventListener('click', () => {
-                    closeQuickSearch()
-                    document.getElementById('settingsBtn')?.click()
-                    setTimeout(() => {
-                        document.querySelector('.settings-nav-item[data-section="extensions"]')?.click()
-                    }, 150)
-                })
-
-                quickSearchResults.appendChild(item)
-            })
-        }
     }
 
     function renderCommands(q) {
         const commands = [
-            { cmd: '/reload', desc: 'Перезагрузить все вкладки', action: () => document.getElementById('ctxSidebarReloadAll')?.click() },
-            { cmd: '/settings', desc: 'Открыть настройки', action: () => document.getElementById('settingsBtn')?.click() },
-            { cmd: '/mute', desc: 'Выключить звук везде', action: () => { state.globalMuteAll = true; unreadApi?.updateMuteAllBtn(); } },
-            { cmd: '/unmute', desc: 'Включить звук везде', action: () => { state.globalMuteAll = false; unreadApi?.updateMuteAllBtn(); } },
+            { cmd: '/reload', desc: tGet('search.commandReload'), action: () => document.getElementById('ctxSidebarReloadAll')?.click() },
+            { cmd: '/settings', desc: tGet('search.commandSettings'), action: () => document.getElementById('settingsBtn')?.click() },
+            { cmd: '/mute', desc: tGet('search.commandMute'), action: () => { state.globalMuteAll = true; if (typeof updateMuteAllBtn === 'function') updateMuteAllBtn(); } },
+            { cmd: '/unmute', desc: tGet('search.commandUnmute'), action: () => { state.globalMuteAll = false; if (typeof updateMuteAllBtn === 'function') updateMuteAllBtn(); } },
         ]
 
         const filtered = commands.filter(c => c.cmd.includes(q))
@@ -144,7 +110,7 @@ function createSearchUiApi({
 
         const header = document.createElement('div')
         header.style.cssText = 'padding:10px 12px 4px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;'
-        header.textContent = 'Команды'
+        header.textContent = tGet('search.commandsTitle')
         quickSearchResults.appendChild(header)
 
         filtered.forEach((c, idx) => {

@@ -53,11 +53,11 @@ function bindAppNotifUi({
             const now = new Date()
             const diffMs = now - d
             const diffMins = Math.floor(diffMs / 60000)
-            if (diffMins < 1) return 'только что'
-            if (diffMins < 60) return `${diffMins} мин назад`
+            if (diffMins < 1) return tGet('notifications.justNow') || 'just now'
+            if (diffMins < 60) return (tGet('notifications.minAgo') || '{n} min ago').replace('{n}', diffMins)
             const diffH = Math.floor(diffMins / 60)
-            if (diffH < 24) return `${diffH} ч назад`
-            return d.toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+            if (diffH < 24) return (tGet('notifications.hAgo') || '{n} h ago').replace('{n}', diffH)
+            return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
         } catch { return '' }
     }
 
@@ -91,7 +91,7 @@ function bindAppNotifUi({
 
             return `
                 <div class="app-notif-item ${n.isRead ? '' : 'unread'}" data-id="${escapeHtml(n.id)}">
-                    <button class="app-notif-dismiss" data-dismiss-id="${escapeHtml(n.id)}" title="Скрыть навсегда">✕</button>
+                    <button class="app-notif-dismiss" data-dismiss-id="${escapeHtml(n.id)}" title="${tGet('notifications.dismiss') || 'Dismiss'}">✕</button>
                     ${imgHtml}
                     <div class="app-notif-item-title">${escapeHtml(n.title)}</div>
                     <div class="app-notif-item-body">${escapeHtml(n.body)}</div>
@@ -145,12 +145,12 @@ function bindAppNotifUi({
         const iconMuted  = muteToggle.querySelector('.mute-icon-muted')
         if (muted) {
             muteToggle.classList.add('muted')
-            muteToggle.title = 'Включить уведомления'
+            muteToggle.title = tGet('notifications.unmute') || 'Unmute'
             if (iconNormal) iconNormal.style.display = 'none'
             if (iconMuted)  iconMuted.style.display  = 'block'
         } else {
             muteToggle.classList.remove('muted')
-            muteToggle.title = 'Отключить уведомления'
+            muteToggle.title = tGet('notifications.mute') || 'Mute'
             if (iconNormal) iconNormal.style.display = 'block'
             if (iconMuted)  iconMuted.style.display  = 'none'
         }

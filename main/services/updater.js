@@ -65,7 +65,7 @@ function initUpdater(getMainWindow) {
         sendUpdateStatus(getMainWindow, {
             status: 'checking',
             label: t('updater.checking'),
-            message: 'Проверяем обновления...'
+            message: 'Checking for updates...'
         })
     })
 
@@ -84,7 +84,7 @@ function initUpdater(getMainWindow) {
         sendUpdateStatus(getMainWindow, {
             status: 'not-available',
             label: t('updater.notAvailable'),
-            message: 'Обновлений нет.'
+            message: 'No updates found.'
         })
     })
 
@@ -124,7 +124,7 @@ function initUpdater(getMainWindow) {
             status: 'error',
             error: err?.message || String(err),
             label: t('updater.error'),
-            message: 'Не удалось проверить или скачать обновление.'
+            message: 'Failed to check or download update.'
         })
     })
 }

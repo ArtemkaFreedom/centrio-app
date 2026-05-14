@@ -66,10 +66,7 @@ module.exports = {
             system:        'Sistema',
             security:      'Sicurezza',
             network:       'Rete',
-            extensions:    'Estensioni',
         },
-        extensionsTitle:  'Catalogo estensioni',
-        extensionsHint:   'Le estensioni di Chrome funzionano direttamente nei messenger. Funzione PRO.',
         language:         'Lingua interfaccia',
         langHint:         'Richiede riavvio',
         closeLabel:       'Al clic su chiudi',
@@ -413,8 +410,6 @@ module.exports = {
         soundDesc:            'I suoni di notifica per messenger sono disponibili nel piano Pro.',
         customMessengerTitle: 'Messenger personalizzato — solo in Pro',
         customMessengerDesc:  'L\'aggiunta di siti web come messenger è disponibile nel piano Pro.',
-        extensionsTitle:      'Estensioni — solo in Pro',
-        extensionsDesc:       'Usa le estensioni di Chrome direttamente nei tuoi messenger per aumentare la produttività.',
         upgradeBtn:           'Passa a Pro',
         laterBtn:             'Più tardi',
     },
@@ -427,12 +422,4 @@ module.exports = {
         removeTabLabel: 'Rimuovi {name}',
     },
 
-    extensions: {
-        uninstallTitle: 'Rimuovere l\'estensione?',
-        uninstallMsg:   'L\'estensione verrà rimossa. Questa azione è irreversibile.',
-        uninstallBtn:   'Rimuovi',
-        openPopup:      'Apri popup',
-        openSettings:   'Impostazioni estensione',
-        noPages:        'Nessuna pagina estensione',
-    },
 }

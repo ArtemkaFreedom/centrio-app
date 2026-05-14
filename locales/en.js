@@ -222,6 +222,11 @@ module.exports = {
         findPlaceholder: 'Find on page...',
         findInPage:      'Find on page',
         notFound:        'Not found',
+        commandsTitle:   'Commands',
+        commandReload:   'Reload all tabs',
+        commandSettings: 'Open settings',
+        commandMute:     'Mute all sounds',
+        commandUnmute:   'Unmute all sounds',
     },
 
     welcome: {
@@ -269,6 +274,10 @@ module.exports = {
         appNotifTitle: 'Notifications',
         markAllRead:   'Mark all read',
         noNotifs:      'No new notifications',
+        dismiss:       'Dismiss',
+        justNow:       'just now',
+        minAgo:        '{n} min ago',
+        hAgo:          '{n} h ago',
     },
 
     system: {
@@ -309,13 +318,23 @@ module.exports = {
     },
 
     updater: {
+        title:          'Update',
+        close:          'Close',
+        newAvailable:   '🔔 New version available',
+        newDesc:        'Version {v} is available. Downloading automatically.',
         checking:       'Checking for updates',
         available:      'Update available',
         notAvailable:   'No updates',
         downloading:    'Downloading update',
+        downloadingTitle: '⬇ Downloading update',
+        downloadingProgress: 'Downloading: {n}%',
         downloaded:     'Update downloaded',
+        downloadedTitle: '✓ Update ready',
+        downloadedDesc: 'Version {v} downloaded and ready to install.',
         installRestart: 'Install and restart',
         error:          'Update error',
+        errorTitle:     '⚠ Update error',
+        errorDesc:      'Failed to download update.',
     },
 
     protocol: {

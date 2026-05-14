@@ -350,7 +350,7 @@ function bindSettingsUi({
     if (checkUpdatesBtn) {
         checkUpdatesBtn.addEventListener('click', async () => {
             checkUpdatesBtn.disabled = true
-            checkUpdatesBtn.textContent = tGet('settings.checkUpdatesChecking') || 'Проверяем...'
+            checkUpdatesBtn.textContent = tGet('settings.checkUpdatesChecking') || 'Checking...'
             try {
                 await ipcRenderer.invoke('check-for-updates')
             } catch (e) {
@@ -358,7 +358,7 @@ function bindSettingsUi({
             } finally {
                 setTimeout(() => {
                     checkUpdatesBtn.disabled = false
-                    checkUpdatesBtn.textContent = tGet('settings.checkUpdatesBtn') || 'Проверить обновления'
+                    checkUpdatesBtn.textContent = tGet('settings.checkUpdatesBtn') || 'Check for updates'
                 }, 3000)
             }
         })
@@ -368,27 +368,23 @@ function bindSettingsUi({
         resetAllBtn.addEventListener('click', async () => {
             if (!confirm(tGet('settings.resetConfirm'))) return
 
-            const keysToDelete = [
-                'menuCollapsed',
-                'appZoomLevel',
-                'tabZoomLevel',
-                'settings',
-                'messengers',
-                'folders',
-                'mutedMessengers',
-                'globalMuteAll',
-                'security',
-                'pinEnabled',
-                'pinHash',
-                'lockOnStartup'
-            ]
-
-            for (const key of keysToDelete) {
-                try {
-                    await store.delete(key)
-                } catch (error) {
-                    console.error(`Failed to delete key "${key}"`, error)
+            try {
+                if (window.electronAPI?.invoke) {
+                    // Используем API главного процесса для полной очистки хранилища
+                    await window.electronAPI.invoke('store:clear-all')
+                } else {
+                    // Fallback если спец-метод недоступен
+                    const keysToDelete = [
+                        'menuCollapsed', 'appZoomLevel', 'tabZoomLevel', 'settings',
+                        'messengers', 'folders', 'mutedMessengers', 'globalMuteAll',
+                        'security', 'pinEnabled', 'pinHash', 'lockOnStartup', 'cloud'
+                    ]
+                    for (const key of keysToDelete) {
+                        await store.delete(key)
+                    }
                 }
+            } catch (error) {
+                console.error('Failed to reset settings:', error)
             }
 
             ipcRenderer.send('quit-app', true)

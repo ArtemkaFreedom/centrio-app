@@ -1,7 +1,5 @@
 const { registerShortcuts } = require('../services/shortcuts')
 const { initUpdater, checkForUpdates } = require('../services/updater')
-const { loadSavedOnStart: loadExtensions } = require('../services/extensions')
-const { setupExtProtocol } = require('../services/ext-protocol')
 const { APP_PROTOCOL } = require('../config/constants')
 const tracker        = require('../services/tracker')
 const visitorTracker = require('../services/visitor-tracker')
@@ -32,10 +30,6 @@ function initApp({
     registerProtocol()
 
     app.whenReady().then(() => {
-        // Register centrio-ext:// protocol BEFORE loading extensions, so any
-        // popup opened during early startup can resolve its assets.
-        setupExtProtocol()
-
         createWindow()
         createTray()
 
@@ -58,7 +52,6 @@ function initApp({
         visitorTracker.start()
 
         initUpdater(getMainWindow)
-        loadExtensions().catch(e => console.warn('[extensions] startup load error:', e.message))
 
         // Initial adblock application
         try { require('../services/adblock').updateAllSessions() } catch(e) {}

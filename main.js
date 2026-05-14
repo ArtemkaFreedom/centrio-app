@@ -4,24 +4,6 @@ const fs = require('fs')
 const path = require('path')
 const { app, ipcMain, BrowserWindow, protocol } = require('electron')
 
-// ── Custom protocol for extension popups ─────────────────────────────────────
-// Electron's ExtensionNavigationThrottle blocks ALL navigations to chrome-extension://
-// unless the initiator is itself an extension. We bypass this by serving the
-// extension's own files under a custom `centrio-ext://` scheme — the throttle
-// only filters chrome-extension:// requests. Shims for chrome.* APIs are injected
-// via session preload (see main/ext-shim-preload.js).
-// MUST be called before app.whenReady().
-protocol.registerSchemesAsPrivileged([
-    { scheme: 'centrio-ext', privileges: {
-        standard: true,
-        secure: true,
-        supportFetchAPI: true,
-        corsEnabled: true,
-        stream: true,
-        codeCache: true,
-        allowServiceWorkers: true,
-    }}
-])
 
 // ── GPU / compositing fixes (must run before app.whenReady) ──────────────────
 // Electron 36.9+ on Windows: CalculateNativeWinOcclusion can incorrectly mark
@@ -115,6 +97,16 @@ safeHandle('store:set', async (_event, key, value) => {
         return { success: true }
     } catch (error) {
         console.error(`store:set error for key "${key}"`, error)
+        return { success: false, error: error.message }
+    }
+})
+
+safeHandle('store:clear-all', async () => {
+    try {
+        store.clear()
+        return { success: true }
+    } catch (error) {
+        console.error('store:clear-all error:', error)
         return { success: false, error: error.message }
     }
 })

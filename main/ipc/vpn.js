@@ -81,7 +81,7 @@ function registerVpnIpc ({ getMainWindow }) {
             if (link.startsWith('http://') || link.startsWith('https://')) {
                 const items = await vpn.fetchSubscription(link)
                 if (!items || items.length === 0) {
-                    return { success: false, error: 'Конфигурации не найдены в подписке' }
+                    return { success: false, error: 'Configurations not found in subscription' }
                 }
                 for (const item of items) vpn.saveConfig(item.parsed.name, item.link)
 
@@ -125,7 +125,7 @@ function registerVpnIpc ({ getMainWindow }) {
             if (link.startsWith('http://') || link.startsWith('https://')) {
                 const items = await vpn.fetchSubscription(link)
                 if (!items || items.length === 0) {
-                    return { success: false, error: 'Конфигурации не найдены в подписке' }
+                    return { success: false, error: 'Configurations not found in subscription' }
                 }
                 for (const item of items) vpn.saveConfig(item.parsed.name, item.link)
 

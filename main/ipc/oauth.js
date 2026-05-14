@@ -75,7 +75,7 @@ function registerOAuthIpc({ getMainWindow }) {
             const apiSvc = require('../services/api')
             const result = await apiSvc.me(accessToken)
             const user = result?.data?.user
-            if (!user) throw new Error('Не удалось получить данные пользователя')
+            if (!user) throw new Error('Failed to get user data')
 
             return { user, accessToken, refreshToken }
         })
@@ -91,7 +91,7 @@ function registerOAuthIpc({ getMainWindow }) {
             const apiSvc = require('../services/api')
             const result = await apiSvc.me(accessToken)
             const user = result?.data?.user
-            if (!user) throw new Error('Не удалось получить данные пользователя')
+            if (!user) throw new Error('Failed to get user data')
 
             return { user, accessToken, refreshToken }
         })

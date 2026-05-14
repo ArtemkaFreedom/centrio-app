@@ -20,8 +20,8 @@ const AD_PATTERNS = [
     '*://*.adservice.google.com/*',
     '*://*.ads-twitter.com/*',
     '*://*.analytics.twitter.com/*',
-    '*://*.ads.linkedin.com/*',
-    '*://*.ads.youtube.com/*',
+    '*://*.ads-linkedin.com/*',
+    '*://*.ads-youtube.com/*',
     '*://*.advertising.com/*',
     '*://*.adnxs.com/*',
     '*://*.carbonads.net/*',
@@ -32,12 +32,10 @@ const AD_PATTERNS = [
     '*://*.mc.yandex.ru/*',
 ]
 
-const AD_BLOCK_EXT_ID = 'centrio-builtin-adblock'
-
 function isEnabled() {
-    const installed = store.get('extensions.installed', [])
-    const disabled  = store.get('extensions.disabled', [])
-    return installed.includes(AD_BLOCK_EXT_ID) && !disabled.includes(AD_BLOCK_EXT_ID)
+    // AdBlock status is now controlled via settings.adblockEnabled
+    const settings = store.get('settings', {})
+    return settings.adblockEnabled !== false
 }
 
 function applyToSession(sess) {
@@ -55,7 +53,6 @@ function applyToSession(sess) {
 }
 
 function updateAllSessions() {
-    const enabled = isEnabled()
     const { session: electronSession } = require('electron')
 
     // Default session
@@ -69,16 +66,9 @@ function updateAllSessions() {
             applyToSession(sess)
         } catch(e) {}
     }
-
-    // Popup session
-    try {
-        const sess = electronSession.fromPartition('persist:ext-popup')
-        applyToSession(sess)
-    } catch(e) {}
 }
 
 module.exports = {
-    AD_BLOCK_EXT_ID,
     isEnabled,
     applyToSession,
     updateAllSessions

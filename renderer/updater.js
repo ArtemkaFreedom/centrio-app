@@ -47,7 +47,7 @@ function showUpdateBanner(message, type = 'info', button = null) {
     header.appendChild(closeBtn)
     toast.appendChild(header)
 
-    /* ── Action button (e.g. "Установить") ─── */
+    /* ── Action button (e.g. "Install") ─── */
     if (button) {
         const actions = document.createElement('div')
         actions.className = 'update-toast-actions'
