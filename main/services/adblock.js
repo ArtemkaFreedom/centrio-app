@@ -33,9 +33,9 @@ const AD_PATTERNS = [
 ]
 
 function isEnabled() {
-    // AdBlock status is now controlled via settings.adblockEnabled
-    const settings = store.get('settings', {})
-    return settings.adblockEnabled !== false
+    // AdBlock status is controlled via extensionsState.adblock
+    const state = store.get('extensionsState', {})
+    return state.adblock !== false
 }
 
 function applyToSession(sess) {

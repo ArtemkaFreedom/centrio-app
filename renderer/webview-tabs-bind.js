@@ -315,10 +315,12 @@ function createWebviewTabsApi({
 
             const translateItem = document.getElementById('ctxTranslate')
             if (translateItem) {
-                translateItem.style.display = params.selectionText ? 'flex' : 'none'
+                const extState = store.get('extensionsState', {})
+                const canTranslate = params.selectionText && extState.translate !== false
+                translateItem.style.display = canTranslate ? 'flex' : 'none'
                 const divider = translateItem.nextElementSibling
                 if (divider?.classList.contains('context-divider')) {
-                    divider.style.display = params.selectionText ? 'block' : 'none'
+                    divider.style.display = canTranslate ? 'block' : 'none'
                 }
             }
 
@@ -380,6 +382,11 @@ function createWebviewTabsApi({
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         )
         webview.setAttribute('preload', preloadPath)
+
+        const extState = store.get('extensionsState', {})
+        if (extState.grammarly !== false) {
+            webview.setAttribute('spellcheck', 'true')
+        }
 
         const applyInitialZoom = () => {
             const zoomLevel = typeof messenger.zoomLevel === 'number'

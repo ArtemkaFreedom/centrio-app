@@ -464,6 +464,26 @@ module.exports = {
     },
 
     extensions: {
+        adblock: {
+            title: 'AdBlock',
+            desc: 'Blocks ads and trackers in all messengers.'
+        },
+        translate: {
+            title: 'Google Translate',
+            desc: 'Quickly translate selected text via context menu.'
+        },
+        grammarly: {
+            title: 'Grammarly',
+            desc: 'Grammar checking and writing improvement tool.'
+        },
+        screenshot: {
+            title: 'Screen Capture',
+            desc: 'Take screenshots and save images from messengers.'
+        },
+        darkmode: {
+            title: 'Force Dark Mode',
+            desc: 'Forced dark mode for all websites.'
+        },
         uninstallTitle: 'Remove extension?',
         uninstallMsg:   'The extension will be removed. This action cannot be undone.',
         uninstallBtn:   'Remove',

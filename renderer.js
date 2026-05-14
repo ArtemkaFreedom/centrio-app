@@ -29,6 +29,7 @@ const { createFoldersUiApi } = require('./renderer/folders-ui')
 const { createSearchUiApi } = require('./renderer/search-ui')
 const { createAddModalUiApi } = require('./renderer/add-modal-ui')
 const { createSettingsUiApi } = require('./renderer/settings-ui')
+const { createExtensionsUiApi } = require('./renderer/extensions-ui')
 const { createChangeIconUiApi } = require('./renderer/change-icon-ui')
 const { createMessengerSoundUiApi } = require('./renderer/messenger-sound-ui')
 const { createSidebarDndApi } = require('./renderer/sidebar-dnd-bind')
@@ -1392,6 +1393,43 @@ function applyTabZoom(level) {
     openSettingsRef = openSettings
 
     // ==============================
+    // EXTENSIONS API
+    // ==============================
+    function onExtensionToggle(extId, isEnabled) {
+        if (extId === 'screenshot') {
+            const btn = document.getElementById('screenshotBtn')
+            if (btn) btn.style.display = isEnabled ? 'flex' : 'none'
+        }
+        if (extId === 'adblock') {
+            ipcRenderer.send('update-adblock-state') // If we have a dedicated IPC
+            // or just rely on store change if the main process watches it
+        }
+        // Force refresh context menus if needed
+    }
+
+    const extensionsUiApi = createExtensionsUiApi({
+        store,
+        tGet,
+        requirePro,
+        onExtensionToggle
+    })
+
+    const { openExtensionsSection } = extensionsUiApi
+
+    // Screenshot button action
+    document.getElementById('screenshotBtn')?.addEventListener('click', async () => {
+        const result = await invokeIpc('screenshot:capture', state.activeTabId)
+        console.log('[screenshot] Capture result:', result)
+    })
+
+    // Initial screenshot button state
+    const initialExtState = store.get('extensionsState', {})
+    if (initialExtState.screenshot !== false) {
+        const btn = document.getElementById('screenshotBtn')
+        if (btn) btn.style.display = 'flex'
+    }
+
+    // ==============================
     // CHANGE ICON UI API
     // ==============================
     const changeIconUiApi = createChangeIconUiApi({
@@ -1556,7 +1594,8 @@ function applyTabZoom(level) {
         setActivePinBlock,
         openPinDisableModal,
         updateLockBtn,
-        requirePro
+        requirePro,
+        openExtensionsSection
     })
 
     bindLockUi({
@@ -1713,7 +1752,15 @@ function applyTabZoom(level) {
 
         const m = state.activeMessengers.find(x => x.id === id)
         const dmLabel = document.getElementById('ctxDarkModeLabel')
-        if (dmLabel) dmLabel.textContent = m?.forceDarkMode ? 'Отключить тёмную тему' : 'Тёмная тема'
+        const dmItem = document.getElementById('ctxDarkMode')
+        const extState = store.get('extensionsState', {})
+
+        if (dmItem) {
+            dmItem.style.display = extState.darkmode !== false ? 'flex' : 'none'
+        }
+        if (dmLabel) {
+            dmLabel.textContent = m?.forceDarkMode ? 'Отключить тёмную тему' : 'Тёмная тема'
+        }
     })
 
     bindContextActionsUi({
