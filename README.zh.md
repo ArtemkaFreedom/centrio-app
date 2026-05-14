@@ -30,9 +30,6 @@
     <a href="README.md">English</a> · <a href="README.ru.md">Русский</a> · <b>中文</b> · <a href="README.fr.md">Français</a> · <a href="README.it.md">Italiano</a>
   </p>
 
-  <br />
-
-  <img src="https://centrio.me/og-image.png" alt="Centrio App" width="720" />
 
 </div>
 
