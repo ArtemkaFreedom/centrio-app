@@ -26,6 +26,10 @@
     <a href="mailto:support@centrio.me">💬 Support</a>
   </p>
 
+  <p>
+    <b>English</b> · <a href="README.ru.md">Русский</a> · <a href="README.zh.md">中文</a> · <a href="README.fr.md">Français</a> · <a href="README.it.md">Italiano</a>
+  </p>
+
   <br />
 
   | 🇷🇺 | 🇬🇧 | 🇨🇳 | 🇫🇷 | 🇮🇹 |
