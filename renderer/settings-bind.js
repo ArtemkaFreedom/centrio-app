@@ -58,9 +58,15 @@ function bindSettingsUi({
         applySettingsBtn.addEventListener('click', async () => {
             const previousSettings = store.get('settings', {}) || {}
             const settings = collectSettings()
-            const oldLang = previousSettings.language || 'ru'
+            const oldLang = (previousSettings.language || 'ru').trim()
+            const newLang = (settings.language || 'ru').trim()
 
-            await (store.set('settings', settings) || Promise.resolve())
+            // Используем setAsync чтобы гарантировать запись в main-процесс до reload
+            if (store.setAsync) {
+                await store.setAsync('settings', settings)
+            } else {
+                await (store.set('settings', settings) || Promise.resolve())
+            }
             applySettings(settings)
 
             const autoLaunch = document.getElementById('settingAutoLaunch')
@@ -69,7 +75,7 @@ function bindSettingsUi({
             ipcRenderer.send('set-download-dir', settings.downloadDir || '')
             ipcRenderer.send('set-ask-download', settings.askDownload ?? true)
 
-            if (settings.language !== oldLang) {
+            if (newLang !== oldLang) {
                 // Перезагружаем рендерер — быстрее и надёжнее чем app.relaunch(),
                 // настройки уже сохранены в store, initI18n подхватит новый язык.
                 window.location.reload()

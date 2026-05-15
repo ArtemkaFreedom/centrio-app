@@ -408,6 +408,21 @@ function bindKeyboardForwarding() {
             shortcut = 'ctrl+search'
         } else if (!e.shiftKey && e.code === 'Comma') {
             shortcut = 'ctrl+comma'
+        } else if (!e.shiftKey && (e.code === 'Equal' || e.code === 'NumpadAdd')) {
+            shortcut = 'ctrl+='
+            e.preventDefault()
+        } else if (!e.shiftKey && (e.code === 'Minus' || e.code === 'NumpadSubtract')) {
+            shortcut = 'ctrl+-'
+            e.preventDefault()
+        } else if (!e.shiftKey && e.code === 'Digit0') {
+            shortcut = 'ctrl+0'
+            e.preventDefault()
+        } else if (e.shiftKey && (e.code === 'Equal' || e.code === 'NumpadAdd')) {
+            shortcut = 'ctrl+shift+='
+            e.preventDefault()
+        } else if (e.shiftKey && (e.code === 'Minus' || e.code === 'NumpadSubtract')) {
+            shortcut = 'ctrl+shift+-'
+            e.preventDefault()
         }
 
         if (shortcut) {

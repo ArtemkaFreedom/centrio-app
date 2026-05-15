@@ -390,13 +390,13 @@
 
 /* ===== ТЕМА: LIGHT (светлая) ===== */
 [data-theme="light"] {
-    --bg-primary:      #f5f5f7;
+    --bg-primary:      #f4f4f6;
     --bg-secondary:    #ffffff;
-    --bg-tertiary:     #ebebed;
-    --bg-active:       #e0e0e8;
-    --bg-hover:        #f0f0f2;
-    --border:          #d1d1d6;
-    --border-light:    #e2e2e7;
+    --bg-tertiary:     #e9e9ed;
+    --bg-active:       #dcdce8;
+    --bg-hover:        #eeeef2;
+    --border:          #e0e0e6;
+    --border-light:    #eaeaef;
     --accent:          #6366f1;
     --accent-hover:    #818cf8;
     --accent-dim:      rgba(99,102,241,0.12);
@@ -409,17 +409,17 @@
     --danger-dim:      rgba(239,68,68,0.1);
     --success:         #22c55e;
     --warning:         #f59e0b;
-    --statusbar-bg:    #e8e8ea;
-    --titlebar-bg:     #f0f0f2;
-    --sidebar-bg:      #f0f0f2;
+    --statusbar-bg:    #e8e8ed;
+    --titlebar-bg:     #ececf0;
+    --sidebar-bg:      #e6e6eb;
     --tab-active:      #ffffff;
-    --tab-inactive:    #ebebed;
-    --shadow-sm:       0 1px 4px rgba(0,0,0,0.08);
-    --shadow-md:       0 4px 16px rgba(0,0,0,0.1);
-    --shadow-lg:       0 8px 32px rgba(0,0,0,0.14);
-    --shadow-glow:     0 0 16px rgba(99,102,241,0.12);
-    --glass-bg:        rgba(255,255,255,0.8);
-    --glass-border:    rgba(0,0,0,0.08);
+    --tab-inactive:    #e9e9ed;
+    --shadow-sm:       0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md:       0 4px 16px rgba(0,0,0,0.08);
+    --shadow-lg:       0 8px 32px rgba(0,0,0,0.12);
+    --shadow-glow:     0 0 16px rgba(99,102,241,0.14);
+    --glass-bg:        rgba(255,255,255,0.85);
+    --glass-border:    rgba(0,0,0,0.07);
 }
 
 [data-theme="light"] body {
@@ -430,11 +430,13 @@
 [data-theme="light"] .titlebar {
     background: var(--titlebar-bg);
     border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 var(--border);
 }
 
 [data-theme="light"] .activity-bar {
     background: var(--sidebar-bg);
     border-right: 1px solid var(--border);
+    box-shadow: none;
 }
 
 [data-theme="light"] .window-btn {
@@ -446,17 +448,45 @@
     color: #1c1c1e;
 }
 
+/* Светлая тема: меню */
+[data-theme="light"] .menu-dropdown {
+    background: #ffffff;
+    border-color: var(--border);
+    color: #1c1c1e;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+[data-theme="light"] .menu-drop-item { color: #1c1c1e; }
+[data-theme="light"] .menu-drop-divider { background: var(--border); }
+
+/* Светлая тема: контекстное меню */
+[data-theme="light"] .context-menu {
+    background: #ffffff;
+    border-color: var(--border);
+    color: #1c1c1e;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+[data-theme="light"] .context-item { color: #1c1c1e; }
+[data-theme="light"] .context-item:hover { background: var(--accent); color: #fff; }
+[data-theme="light"] .context-divider { background: var(--border); }
+
+/* Светлая тема: быстрый поиск */
+[data-theme="light"] .quick-search-box {
+    background: #ffffff;
+    border-color: var(--border);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+}
+
 /* Светлая тема: настройки */
 [data-theme="light"] .settings-panel {
-    background: #f0f0f2;
-    border-right: 1px solid #d1d1d6;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
 }
 [data-theme="light"] .settings-content {
-    background: #f5f5f7;
+    background: var(--bg-primary);
 }
 [data-theme="light"] .settings-group {
     background: #ffffff;
-    border: 1px solid #e2e2e7;
+    border: 1px solid var(--border-light);
 }
 [data-theme="light"] .settings-group-title {
     color: #636366;
@@ -472,15 +502,15 @@
 [data-theme="light"] input[type="text"],
 [data-theme="light"] input[type="number"],
 [data-theme="light"] select {
-    background: #f5f5f7;
-    border-color: #d1d1d6;
+    background: var(--bg-primary);
+    border-color: var(--border);
     color: #1c1c1e;
 }
 [data-theme="light"] .settings-nav-item {
     color: #636366;
 }
 [data-theme="light"] .settings-nav-item:hover {
-    background: rgba(0,0,0,0.05);
+    background: rgba(0,0,0,0.04);
     color: #1c1c1e;
 }
 [data-theme="light"] .settings-nav-item.active {
@@ -499,10 +529,32 @@
     color: #1c1c1e;
 }
 [data-theme="light"] .modal-header {
-    border-bottom-color: #e2e2e7;
+    border-bottom-color: var(--border-light);
 }
 [data-theme="light"] .modal-close {
     color: #636366;
+}
+
+/* Светлая тема: statusbar */
+[data-theme="light"] .statusbar {
+    background: var(--statusbar-bg);
+    border-top-color: var(--border);
+}
+
+/* Светлая тема: папки panel */
+[data-theme="light"] .folder-panel.open {
+    box-shadow: 4px 0 16px rgba(0,0,0,0.08);
+}
+
+/* Светлая тема: activity-divider — менее заметна */
+[data-theme="light"] .activity-divider {
+    background: var(--border);
+    opacity: 0.7;
+}
+
+/* Светлая тема: status-divider */
+[data-theme="light"] .status-divider {
+    background: var(--border);
 }
 
 /* ===== АНИМАЦИИ ===== */

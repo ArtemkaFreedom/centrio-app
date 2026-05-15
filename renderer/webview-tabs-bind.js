@@ -13,6 +13,7 @@ function createWebviewTabsApi({
     openSettings,
     getActiveWebview,
     applyTabZoom,
+    applyAppZoom,
     switchTab,
     removeMessenger,
     watchWebview,
@@ -283,6 +284,31 @@ function createWebviewTabsApi({
 
                 if (shortcut === 'ctrl+comma') {
                     if (typeof openSettings === 'function') openSettings()
+                    return
+                }
+
+                if (shortcut === 'ctrl+=') {
+                    if (typeof applyTabZoom === 'function') applyTabZoom(state.tabZoomLevel + 0.25)
+                    return
+                }
+
+                if (shortcut === 'ctrl+-') {
+                    if (typeof applyTabZoom === 'function') applyTabZoom(state.tabZoomLevel - 0.25)
+                    return
+                }
+
+                if (shortcut === 'ctrl+0') {
+                    if (typeof applyTabZoom === 'function') applyTabZoom(1.0)
+                    return
+                }
+
+                if (shortcut === 'ctrl+shift+=') {
+                    if (typeof applyAppZoom === 'function') applyAppZoom(state.appZoomLevel + 1)
+                    return
+                }
+
+                if (shortcut === 'ctrl+shift+-') {
+                    if (typeof applyAppZoom === 'function') applyAppZoom(state.appZoomLevel - 1)
                     return
                 }
 

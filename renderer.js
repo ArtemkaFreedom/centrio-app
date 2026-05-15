@@ -1178,6 +1178,7 @@ function applyTabZoom(level) {
         openSettings: () => { if (typeof openSettingsRef === 'function') openSettingsRef() },
         getActiveWebview,
         applyTabZoom,
+        applyAppZoom,
         switchTab,
         removeMessenger,
         watchWebview
