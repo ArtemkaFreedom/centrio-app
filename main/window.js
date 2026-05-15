@@ -200,6 +200,10 @@ function bindWindowEvents(win) {
         safeSendToWindow(getMainWindow, IPC_CHANNELS.APP_HIDDEN)
     })
 
+    win.on('minimize', () => {
+        safeSendToWindow(getMainWindow, IPC_CHANNELS.APP_HIDDEN)
+    })
+
     win.on('closed', () => {
         if (mainWindow === win) {
             mainWindow = null

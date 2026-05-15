@@ -460,10 +460,7 @@ function createWebviewTabsApi({
 
         document.getElementById('wvTranslate')?.addEventListener('click', () => {
             const text = (state.wvContextParams || {}).selectionText || ''
-            if (text) {
-                const url = `https://translate.google.com/?sl=auto&tl=auto&text=${encodeURIComponent(text)}&op=translate`
-                ipcRenderer.send('open-url', url)
-            }
+            if (text) ipcRenderer.send('open-translate-window', text)
             hideWebviewContextMenu()
         })
 

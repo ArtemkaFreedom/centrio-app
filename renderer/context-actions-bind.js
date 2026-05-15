@@ -12,7 +12,8 @@ function bindContextActionsUi({
     getMessengerById,
     getFolderById,
     requirePro,
-    tGet
+    tGet,
+    ipcRenderer
 }) {
     document.getElementById('ctxSidebarNewFolder')?.addEventListener('click', () => {
         if (requirePro && !requirePro('folders')) return
@@ -254,8 +255,7 @@ function bindContextActionsUi({
         if (!text) return
 
         hideAllMenus()
-        const url = `https://translate.google.com/?sl=auto&tl=ru&text=${encodeURIComponent(text)}&op=translate`
-        if (typeof invokeIpc === 'function') invokeIpc('open-url', url)
+        ipcRenderer.send('open-translate-window', text)
     })
 
     document.getElementById('ctxDevTools')?.addEventListener('click', () => {

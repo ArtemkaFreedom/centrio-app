@@ -369,6 +369,7 @@ async function bootstrap() {
         ['folders', []],
         ['mutedMessengers', {}],
         ['globalMuteAll', false],
+        ['extensionsState', {}],
         // Cloud auth — must be hydrated so tokens survive restart
         ['cloud.accessToken', null],
         ['cloud.refreshToken', null],
@@ -1791,7 +1792,8 @@ function applyTabZoom(level) {
         getMessengerById: (id) => state.activeMessengers.find(m => m.id === id),
         getFolderById: (id) => state.folders.find(f => f.id === id),
         requirePro,
-        tGet
+        tGet,
+        ipcRenderer
     })
 
     bindSidebarShellUi({

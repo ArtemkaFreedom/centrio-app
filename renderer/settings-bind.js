@@ -60,7 +60,7 @@ function bindSettingsUi({
             const settings = collectSettings()
             const oldLang = previousSettings.language || 'ru'
 
-            await store.setAsync?.('settings', settings) || store.set('settings', settings)
+            await (store.set('settings', settings) || Promise.resolve())
             applySettings(settings)
 
             const autoLaunch = document.getElementById('settingAutoLaunch')
@@ -388,6 +388,14 @@ function bindSettingsUi({
             }
 
             ipcRenderer.send('quit-app', true)
+        })
+    }
+
+    const settingLockOnHide = document.getElementById('settingLockOnHide')
+    if (settingLockOnHide) {
+        settingLockOnHide.addEventListener('change', (e) => {
+            const sec = store.get('security', {}) || {}
+            store.set('security', { ...sec, lockOnHide: e.target.checked })
         })
     }
 

@@ -155,6 +155,39 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
         }
     })
 
+    safeOn('open-translate-window', (_event, text) => {
+        try {
+            const url = `https://translate.google.com/?sl=auto&tl=ru&text=${encodeURIComponent(text || '')}&op=translate`
+            const mainWin = _getMainWindow()
+            let x, y
+            if (mainWin && !mainWin.isDestroyed()) {
+                const [mx, my] = mainWin.getPosition()
+                const [mw, mh] = mainWin.getSize()
+                x = mx + Math.floor((mw - 800) / 2)
+                y = my + Math.floor((mh - 600) / 2)
+            }
+            const popup = new BrowserWindow({
+                width: 800, height: 600, x, y,
+                title: 'Translate',
+                resizable: true, minimizable: true, maximizable: true,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    partition: 'persist:translate'
+                }
+            })
+            popup.setMenuBarVisibility(false)
+            popup.webContents.setWindowOpenHandler(({ url: newUrl }) => {
+                if (newUrl.startsWith('https://translate.google')) return { action: 'allow' }
+                shell.openExternal(newUrl).catch(() => {})
+                return { action: 'deny' }
+            })
+            popup.loadURL(url).catch(e => log.error('[translate] loadURL failed:', e.message))
+        } catch (e) {
+            log.error('[translate] error:', e.message)
+        }
+    })
+
     safeHandle('get-window-visibility-state', (event) => {
         const win = BrowserWindow.fromWebContents(event.sender) || getMainWindow()
 
