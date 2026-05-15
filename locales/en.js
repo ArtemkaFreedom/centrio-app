@@ -450,11 +450,9 @@ module.exports = {
         customMessengerTitle: 'Custom Messenger — Pro Only',
         customMessengerDesc:  'Adding any website as a messenger is available on the Pro plan.',
         extensionsTitle:      'Extensions — Pro Only',
-        extensionsDesc:       'Use Chrome extensions directly inside your messengers to boost productivity.',
+        extensionsDesc:       'Built-in tools are available on the Pro plan.',
         upgradeBtn:           'Upgrade to Pro',
-        laterBtn:             'Later',
-        extensionsTitle: 'Extensions — Pro only',
-        extensionsDesc: 'Built-in tools are available on the Pro plan.'
+        laterBtn:             'Later'
     },
 
     extensions: {

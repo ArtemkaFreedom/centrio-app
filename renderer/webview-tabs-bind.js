@@ -314,15 +314,13 @@ function createWebviewTabsApi({
                 }
             }
 
-            const translateItem = document.getElementById('ctxTranslate')
+            const translateItem = document.getElementById('wvTranslate')
             if (translateItem) {
                 const extState = store.get('extensionsState', {})
-                const canTranslate = params.selectionText && extState.translate === true
+                const canTranslate = !!params.selectionText && extState.translate === true
                 translateItem.style.display = canTranslate ? 'flex' : 'none'
-                const divider = translateItem.nextElementSibling
-                if (divider?.classList.contains('context-divider')) {
-                    divider.style.display = canTranslate ? 'block' : 'none'
-                }
+                const wvTranslateDivider = document.getElementById('wvTranslateDivider')
+                if (wvTranslateDivider) wvTranslateDivider.style.display = canTranslate ? 'block' : 'none'
             }
 
             const webviewRect = webview.getBoundingClientRect()
@@ -459,6 +457,15 @@ function createWebviewTabsApi({
 
     function bindWebviewContextMenuActions() {
         bindGlobalMenuClose()
+
+        document.getElementById('wvTranslate')?.addEventListener('click', () => {
+            const text = (state.wvContextParams || {}).selectionText || ''
+            if (text) {
+                const url = `https://translate.google.com/?sl=auto&tl=auto&text=${encodeURIComponent(text)}&op=translate`
+                ipcRenderer.send('open-url', url)
+            }
+            hideWebviewContextMenu()
+        })
 
         document.getElementById('wvCopy')?.addEventListener('click', async () => {
             const params = state.wvContextParams || {}
