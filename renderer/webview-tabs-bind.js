@@ -276,6 +276,11 @@ function createWebviewTabsApi({
                     return
                 }
 
+                if (shortcut === 'ctrl+search') {
+                    document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, code: 'KeyK', key: 'k', bubbles: true, cancelable: true }))
+                    return
+                }
+
                 if (shortcut === 'ctrl+comma') {
                     if (typeof openSettings === 'function') openSettings()
                     return

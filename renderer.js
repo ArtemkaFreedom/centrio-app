@@ -993,13 +993,14 @@ function applyZoomWhenReady(webview, zoomLevel) {
 
     markWebviewReady(webview)
 
-    if (webview.dataset.domReady === 'true') {
-        try {
-            webview.setZoomFactor(zoomLevel)
-        } catch (error) {
-            console.error('Failed to set webview zoom:', error)
-        }
+    // Try immediately — works if webview is already loaded.
+    // setZoomFactor throws when webContents isn't ready yet; pendingZoom handles that case.
+    try {
+        webview.setZoomFactor(zoomLevel)
+        webview.dataset.pendingZoom = String(zoomLevel)
         return
+    } catch (_) {
+        // webview not ready yet — defer to dom-ready via markWebviewReady
     }
 
     webview.dataset.pendingZoom = String(zoomLevel)

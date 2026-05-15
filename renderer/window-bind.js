@@ -23,7 +23,7 @@ function bindWindowUi({
         if (sec.enabled && sec.lockOnHide) showLockScreen()
     })
 
-    ipcRenderer.on('switch-messenger-index', (event, index) => {
+    ipcRenderer.on('switch-messenger-index', (index) => {
         if (state.activeMessengers[index]) switchTab(state.activeMessengers[index].id)
     })
 

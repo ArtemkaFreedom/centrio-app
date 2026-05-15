@@ -206,21 +206,18 @@ function bindContextMenuForwarding() {
     const DOUBLE_CLICK_THRESHOLD = 600  // мс
 
     document.addEventListener('contextmenu', (e) => {
-        // Если зажат Ctrl — всегда показываем нативное браузерное меню
-        if (e.ctrlKey) {
-            return
-        }
-
         const now = Date.now()
         const timeSinceLast = now - lastRightClickTime
         lastRightClickTime = now
 
-        if (timeSinceLast > DOUBLE_CLICK_THRESHOLD) {
-            // Первый клик — позволяем браузеру показать своё меню
+        // Ctrl+ПКМ или двойной ПКМ — показываем наше кастомное меню
+        const showCustomMenu = e.ctrlKey || timeSinceLast <= DOUBLE_CLICK_THRESHOLD
+
+        if (!showCustomMenu) {
+            // Первый клик без Ctrl — позволяем браузеру показать своё меню
             return
         }
 
-        // Второй быстрый клик — показываем наше меню
         e.preventDefault()
         e.stopPropagation()
 
@@ -407,8 +404,8 @@ function bindKeyboardForwarding() {
             shortcut = 'ctrl+r'
         } else if (!e.shiftKey && e.code === 'KeyF') {
             shortcut = 'ctrl+f'
-        } else if (!e.shiftKey && e.code === 'KeyP') {
-            shortcut = 'ctrl+p'
+        } else if (!e.shiftKey && (e.code === 'KeyP' || e.code === 'KeyK')) {
+            shortcut = 'ctrl+search'
         } else if (!e.shiftKey && e.code === 'Comma') {
             shortcut = 'ctrl+comma'
         }

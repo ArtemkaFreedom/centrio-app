@@ -527,20 +527,45 @@
     </div>
     <div class="changelog-popup-body">
         <div class="changelog-entry">
-            <div class="changelog-version">v1.6.8</div>
+            <div class="changelog-version">v1.6.84</div>
             <ul class="changelog-list">
-                <li>Каталог расширений: добавлен Юбуст (SEO & Аналитика), Яндекс Переводчик, Поиск картинки Яндексом</li>
-                <li>Плагины: всплывающие окна расширений открываются корректно</li>
-                <li>Плагины: правая кнопка на карточке — меню «Открыть попап» / «Настройки расширения»</li>
-                <li>Grammarly: авторизация через браузер работает корректно</li>
-                <li>Акцент-цвет: убран последний пресет, добавлен кружочек для выбора любого цвета</li>
-                <li>Вкладки: кнопки управления окном не съезжают в центр при скрытых вкладках</li>
+                <li>Язык интерфейса сохраняется после перезапуска (await перед reload)</li>
+                <li>Состояние расширений восстанавливается при запуске</li>
+                <li>«Блокировать при сворачивании» работает, в т.ч. на кнопку минимизации</li>
+                <li>Темы Фисташка и Пастельно-розовая — полный охват UI, нейтральный текст</li>
+                <li>Перевод выделенного текста открывается внутри приложения</li>
             </ul>
         </div>
         <div class="changelog-entry">
-            <div class="changelog-version">v1.6.5</div>
+            <div class="changelog-version">v1.6.83</div>
             <ul class="changelog-list">
-                <li>Уменьшен размер установщика, исправлены таймауты скачивания</li>
+                <li>Перевод текста доступен в контекстном меню webview</li>
+                <li>Исправлены акцент-цвета тем Фисташка и Пастельно-розовая</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.6.82</div>
+            <ul class="changelog-list">
+                <li>Расширения доступны только на PRO-плане</li>
+                <li>Расширения по умолчанию выключены</li>
+                <li>SVG-иконки расширений вместо emoji</li>
+                <li>Переводы ключей расширений во всех 7 локалях</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.6.81</div>
+            <ul class="changelog-list">
+                <li>Исправлен критический баг вкладок (ReferenceError в webview-tabs-bind.js)</li>
+                <li>Прогресс-бар при запуске переведён на все 7 языков</li>
+                <li>Subtitle стартового экрана теперь локализован</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.6.80</div>
+            <ul class="changelog-list">
+                <li>Исправлена раскладка раздела Extensions в настройках</li>
+                <li>Исправлена кодировка русских строк в локали</li>
+                <li>Добавлены i18n-ключи для раздела расширений</li>
             </ul>
         </div>
         <div class="changelog-entry">
