@@ -444,4 +444,16 @@ module.exports = {
         removeTabLabel: '删除 {name}',
     },
 
+
+    startup: {
+        subtitle: '将所有通讯工具整合到一处',
+        boot:     { label: '初始化',  hint: '启动核心服务...' },
+        store:    { label: '加载数据', hint: '读取设置和本地状态...' },
+        i18n:     { label: '本地化',  hint: '应用界面语言...' },
+        ui:       { label: '准备界面',    hint: '构建界面和组件...' },
+        bindings: { label: '连接模块',  hint: '链接处理程序和系统功能...' },
+        data:     { label: '加载工作区',  hint: '连接通讯应用、标签页和文件夹...' },
+        security: { label: '安全检查',   hint: '验证安全设置...' },
+        done:     { label: '就绪',  hint: '工作区已准备好使用。' },
+    },
 }

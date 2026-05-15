@@ -1,5 +1,6 @@
 function createWebviewTabsApi({
     state,
+    store,
     tabsBar,
     tabsContent,
     findCount,

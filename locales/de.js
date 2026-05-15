@@ -444,4 +444,16 @@ module.exports = {
         removeTabLabel: '{name} entfernen',
     },
 
+
+    startup: {
+        subtitle: 'Alle Messenger an einem Ort',
+        boot:     { label: 'Initialisierung',  hint: 'Hauptdienste werden gestartet...' },
+        store:    { label: 'Daten laden', hint: 'Einstellungen und lokalen Status lesen...' },
+        i18n:     { label: 'Lokalisierung',  hint: 'Oberflächensprache anwenden...' },
+        ui:       { label: 'UI vorbereiten',    hint: 'Oberfläche und Komponenten aufbauen...' },
+        bindings: { label: 'Module verbinden',  hint: 'Handler und Systemfunktionen verknüpfen...' },
+        data:     { label: 'Arbeitsbereich laden',  hint: 'Messenger, Tabs und Ordner verbinden...' },
+        security: { label: 'Sicherheitscheck',   hint: 'Sicherheitseinstellungen überprüfen...' },
+        done:     { label: 'Bereit',  hint: 'Arbeitsbereich ist einsatzbereit.' },
+    },
 }

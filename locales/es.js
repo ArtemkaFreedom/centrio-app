@@ -444,4 +444,16 @@ module.exports = {
         removeTabLabel: 'Eliminar {name}',
     },
 
+
+    startup: {
+        subtitle: 'Todos tus mensajeros en un solo lugar',
+        boot:     { label: 'Inicialización',  hint: 'Iniciando servicios principales...' },
+        store:    { label: 'Cargando datos', hint: 'Leyendo configuración y estado local...' },
+        i18n:     { label: 'Localización',  hint: 'Aplicando idioma de la interfaz...' },
+        ui:       { label: 'Preparando UI',    hint: 'Construyendo interfaz y componentes...' },
+        bindings: { label: 'Conectando módulos',  hint: 'Vinculando manejadores y funciones del sistema...' },
+        data:     { label: 'Cargando área de trabajo',  hint: 'Conectando mensajeros, pestañas y carpetas...' },
+        security: { label: 'Verificación de seguridad',   hint: 'Verificando configuración de seguridad...' },
+        done:     { label: 'Listo',  hint: 'El área de trabajo está lista para usar.' },
+    },
 }

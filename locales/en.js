@@ -476,4 +476,16 @@ module.exports = {
         cancelBtn:      'Cancel',
         removeTabLabel: 'Remove {name}',
     },
+
+    startup: {
+        subtitle: 'All your messengers in one place',
+        boot:     { label: 'Initializing',          hint: 'Starting core services...' },
+        store:    { label: 'Loading data',           hint: 'Reading settings and local state...' },
+        i18n:     { label: 'Localization',           hint: 'Applying interface language...' },
+        ui:       { label: 'Preparing UI',           hint: 'Building interface and components...' },
+        bindings: { label: 'Connecting modules',     hint: 'Linking handlers and system functions...' },
+        data:     { label: 'Loading workspace',      hint: 'Connecting messengers, tabs and folders...' },
+        security: { label: 'Security check',         hint: 'Verifying security settings...' },
+        done:     { label: 'Ready',                  hint: 'Workspace is ready to use.' },
+    },
 }

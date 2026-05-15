@@ -444,4 +444,17 @@ module.exports = {
         removeTabLabel: 'Rimuovi {name}',
     },
 
+
+
+    startup: {
+        subtitle: 'Tutti i tuoi messenger in un unico posto',
+        boot:     { label: 'Inizializzazione',             hint: 'Avvio dei servizi principali...' },
+        store:    { label: 'Caricamento dati',             hint: 'Lettura impostazioni e stato locale...' },
+        i18n:     { label: 'Localizzazione',               hint: "Applicazione della lingua dell'interfaccia..." },
+        ui:       { label: 'Preparazione UI',              hint: 'Costruzione interfaccia e componenti...' },
+        bindings: { label: 'Connessione moduli',           hint: 'Collegamento gestori e funzioni di sistema...' },
+        data:     { label: 'Caricamento area di lavoro',   hint: 'Connessione messenger, schede e cartelle...' },
+        security: { label: 'Controllo sicurezza',          hint: 'Verifica impostazioni di sicurezza...' },
+        done:     { label: 'Pronto',                       hint: "L'area di lavoro è pronta all'uso." },
+    },
 }

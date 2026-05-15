@@ -203,38 +203,22 @@ function invokeIpc(channel, ...args) {
     return Promise.resolve(null)
 }
 
-const STARTUP_STAGES = {
-    boot: {
-        label: 'Инициализация',
-        hint: 'Запускаем основные сервисы...'
-    },
-    store: {
-        label: 'Загрузка данных',
-        hint: 'Читаем настройки и локальное состояние...'
-    },
-    i18n: {
-        label: 'Локализация',
-        hint: 'Применяем язык интерфейса...'
-    },
-    ui: {
-        label: 'Подготовка UI',
-        hint: 'Собираем интерфейс и компоненты...'
-    },
-    bindings: {
-        label: 'Подключение модулей',
-        hint: 'Связываем обработчики и системные функции...'
-    },
-    data: {
-        label: 'Загрузка рабочего пространства',
-        hint: 'Подключаем мессенджеры, вкладки и папки...'
-    },
-    security: {
-        label: 'Проверка защиты',
-        hint: 'Проверяем параметры безопасности...'
-    },
-    done: {
-        label: 'Готово',
-        hint: 'Рабочее пространство готово к использованию.'
+const STARTUP_STAGES_FALLBACK = {
+    boot:     { label: 'Инициализация',               hint: 'Запускаем основные сервисы...' },
+    store:    { label: 'Загрузка данных',              hint: 'Читаем настройки и локальное состояние...' },
+    i18n:     { label: 'Локализация',                  hint: 'Применяем язык интерфейса...' },
+    ui:       { label: 'Подготовка UI',                hint: 'Собираем интерфейс и компоненты...' },
+    bindings: { label: 'Подключение модулей',          hint: 'Связываем обработчики и системные функции...' },
+    data:     { label: 'Загрузка рабочего пространства', hint: 'Подключаем мессенджеры, вкладки и папки...' },
+    security: { label: 'Проверка защиты',              hint: 'Проверяем параметры безопасности...' },
+    done:     { label: 'Готово',                       hint: 'Рабочее пространство готово к использованию.' },
+}
+
+function getStartupStage(key) {
+    const fallback = STARTUP_STAGES_FALLBACK[key] || { label: key, hint: '' }
+    return {
+        label: tGet(`startup.${key}.label`) || fallback.label,
+        hint:  tGet(`startup.${key}.hint`)  || fallback.hint,
     }
 }
 
@@ -251,7 +235,7 @@ function getStartupUi() {
 
 function setStartupStage(stageKey) {
     const { stageText, hintText } = getStartupUi()
-    const stage = STARTUP_STAGES[stageKey]
+    const stage = getStartupStage(stageKey)
     if (!stage) return
 
     if (stageText) {
@@ -395,7 +379,9 @@ async function bootstrap() {
 
     await advanceStartup('store', 24, { minStepTime: 240 })
     await initI18n()
-     await advanceStartup('i18n', 34, { minStepTime: 220 })
+    const _subtitleEl = document.querySelector('.startup-subtitle[data-i18n]')
+    if (_subtitleEl) _subtitleEl.textContent = tGet('startup.subtitle')
+    await advanceStartup('i18n', 34, { minStepTime: 220 })
     // ==============================
     // НАЧАЛЬНОЕ СОСТОЯНИЕ
     // ==============================
@@ -1176,6 +1162,7 @@ function applyTabZoom(level) {
     // ==============================
     const webviewTabsApi = createWebviewTabsApi({
         state,
+        store,
         tabsBar,
         tabsContent,
         findCount,
