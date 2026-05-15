@@ -317,7 +317,7 @@ function createWebviewTabsApi({
             const translateItem = document.getElementById('ctxTranslate')
             if (translateItem) {
                 const extState = store.get('extensionsState', {})
-                const canTranslate = params.selectionText && extState.translate !== false
+                const canTranslate = params.selectionText && extState.translate === true
                 translateItem.style.display = canTranslate ? 'flex' : 'none'
                 const divider = translateItem.nextElementSibling
                 if (divider?.classList.contains('context-divider')) {
@@ -385,7 +385,7 @@ function createWebviewTabsApi({
         webview.setAttribute('preload', preloadPath)
 
         const extState = store.get('extensionsState', {})
-        if (extState.grammarly !== false) {
+        if (extState.grammarly === true) {
             webview.setAttribute('spellcheck', 'true')
         }
 

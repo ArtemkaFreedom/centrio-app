@@ -426,6 +426,8 @@ module.exports = {
         customMessengerDesc:  '将任何网站添加为应用在 Pro 计划中可用。',
         upgradeBtn:           '升级到 Pro',
         laterBtn:             '稍后',
+        extensionsTitle: '扩展功能 — 仅限 Pro',
+        extensionsDesc: '内置工具在 Pro 计划中可用。'
     },
 
     extensions: {

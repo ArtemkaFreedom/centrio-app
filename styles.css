@@ -1058,15 +1058,16 @@ body {
 }
 
 .ext-card-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
     border: 1px solid;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
+.ext-card-icon svg { display: block; }
 
 .ext-card-info {
     flex: 1;
@@ -1119,6 +1120,24 @@ body {
     background: var(--accent);
     color: #fff;
 }
+
+.ext-card-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+.ext-pro-lock {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border-radius: 5px;
+    padding: 3px 7px;
+    letter-spacing: .03em;
+}
+
+.toggle-locked .toggle-slider { opacity: .5; cursor: not-allowed; }
+.toggle-locked input { cursor: not-allowed; }
 
 .ext-install-btn.loading,
 .ext-install-btn:disabled {

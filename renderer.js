@@ -1411,7 +1411,7 @@ function applyTabZoom(level) {
 
     // Initial screenshot button state
     const initialExtState = store.get('extensionsState', {})
-    if (initialExtState.screenshot !== false) {
+    if (initialExtState.screenshot === true) {
         const btn = document.getElementById('screenshotBtn')
         if (btn) btn.style.display = 'flex'
     }

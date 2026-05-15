@@ -453,6 +453,8 @@ module.exports = {
         extensionsDesc:       'Use Chrome extensions directly inside your messengers to boost productivity.',
         upgradeBtn:           'Upgrade to Pro',
         laterBtn:             'Later',
+        extensionsTitle: 'Extensions — Pro only',
+        extensionsDesc: 'Built-in tools are available on the Pro plan.'
     },
 
     extensions: {

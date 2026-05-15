@@ -20,7 +20,8 @@ module.exports = {
         zoomIn: 'Увеличить',
         zoomOut: 'Уменьшить',
         zoomReset: 'По умолчанию',
-        print: 'Печать'
+        print: 'Печать',
+        translate: 'Перевести выделенное'
     },
 
     folders: {
@@ -450,7 +451,9 @@ module.exports = {
         customMessengerTitle: 'Свой мессенджер — только в Pro',
         customMessengerDesc: 'Добавление любого сайта как мессенджера доступно на плане Pro. Обновитесь для неограниченных возможностей.',
         upgradeBtn: 'Перейти на Pro',
-        laterBtn: 'Позже'
+        laterBtn: 'Позже',
+        extensionsTitle: 'Расширения — только Pro',
+        extensionsDesc: 'Встроенные инструменты доступны на плане Pro.'
     },
 
     extensions: {

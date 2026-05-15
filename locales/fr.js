@@ -426,6 +426,8 @@ module.exports = {
         customMessengerDesc:  'L\'ajout de sites Web comme messenger est disponible dans le plan Pro.',
         upgradeBtn:           'Passer à Pro',
         laterBtn:             'Plus tard',
+        extensionsTitle: 'Extensions — Pro uniquement',
+        extensionsDesc: 'Les outils intégrés sont disponibles avec le plan Pro.'
     },
 
     extensions: {
