@@ -1,5 +1,100 @@
 const { setCurrentLanguage } = require('./i18n')
 
+// ── Adaptive Theme ────────────────────────────────────────────────────────────
+let _adaptiveActive = false
+let _adaptiveTimer  = null
+
+function _rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255
+    const max = Math.max(r, g, b), min = Math.min(r, g, b)
+    let h, s, l = (max + min) / 2
+    if (max === min) { h = s = 0 }
+    else {
+        const d = max - min
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+        switch (max) {
+            case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+            case g: h = ((b - r) / d + 2) / 6; break
+            case b: h = ((r - g) / d + 4) / 6; break
+        }
+    }
+    return [h * 360, s * 100, l * 100]
+}
+
+function _applyAdaptiveColor({ r, g, b }) {
+    // Если цвет слишком тёмный — используем нейтральный синий
+    if (r + g + b < 30) { r = 28; g = 34; b = 80 }
+    const [h, s] = _rgbToHsl(r, g, b)
+    const sat = Math.max(18, Math.min(s, 55))
+    const root = document.documentElement
+    root.style.setProperty('--bg-primary',   `hsl(${h},${sat}%,8%)`)
+    root.style.setProperty('--bg-secondary', `hsl(${h},${Math.min(sat,45)}%,11%)`)
+    root.style.setProperty('--bg-tertiary',  `hsl(${h},${Math.min(sat,40)}%,14%)`)
+    root.style.setProperty('--bg-hover',     `hsl(${h},${Math.min(sat,38)}%,16%)`)
+    root.style.setProperty('--bg-active',    `hsl(${h},${Math.min(sat,42)}%,19%)`)
+    root.style.setProperty('--sidebar-bg',   `hsl(${h},${sat}%,12%)`)
+    root.style.setProperty('--titlebar-bg',  `hsl(${h},${Math.min(sat,48)}%,10%)`)
+    root.style.setProperty('--statusbar-bg', `hsl(${h},${Math.min(sat,50)}%,7%)`)
+    root.style.setProperty('--border',       `hsl(${h},${Math.min(sat,30)}%,22%)`)
+    root.style.setProperty('--border-light', `hsl(${h},${Math.min(sat,25)}%,18%)`)
+    root.style.setProperty('--accent',       `hsl(${h},70%,65%)`)
+    root.style.setProperty('--accent-hover', `hsl(${h},70%,70%)`)
+    root.style.setProperty('--accent-dim',   `hsla(${h},70%,65%,0.15)`)
+    root.style.setProperty('--accent-glow',  `hsla(${h},70%,65%,0.28)`)
+}
+
+function _clearAdaptiveVars() {
+    const props = [
+        '--bg-primary','--bg-secondary','--bg-tertiary','--bg-hover','--bg-active',
+        '--sidebar-bg','--titlebar-bg','--statusbar-bg','--border','--border-light',
+        '--accent','--accent-hover','--accent-dim','--accent-glow',
+    ]
+    const root = document.documentElement
+    props.forEach(p => root.style.removeProperty(p))
+}
+
+async function _extractWebviewColor(webview) {
+    if (!webview || typeof webview.executeJavaScript !== 'function') return null
+    try {
+        return await webview.executeJavaScript(`
+            (function() {
+                function parseRgb(s) {
+                    const m = s && s.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+                    return m ? [+m[1],+m[2],+m[3]] : null;
+                }
+                const sels = [
+                    '[class*="sidebar"]','[class*="Sidebar"]','[class*="side-bar"]',
+                    '[class*="leftPanel"]','[class*="left-panel"]',
+                    '[class*="nav-panel"]','[data-testid*="sidebar"]',
+                    'aside','[role="navigation"]','nav'
+                ];
+                for (const s of sels) {
+                    const el = document.querySelector(s);
+                    if (!el) continue;
+                    const bg = getComputedStyle(el).backgroundColor;
+                    const rgb = parseRgb(bg);
+                    if (rgb && (rgb[0]+rgb[1]+rgb[2]) > 5) return {r:rgb[0],g:rgb[1],b:rgb[2]};
+                }
+                const body = parseRgb(getComputedStyle(document.body).backgroundColor);
+                return body ? {r:body[0],g:body[1],b:body[2]} : null;
+            })()
+        `)
+    } catch {
+        return null
+    }
+}
+
+async function updateAdaptiveTheme(getActiveWebview) {
+    if (!_adaptiveActive) return
+    clearTimeout(_adaptiveTimer)
+    _adaptiveTimer = setTimeout(async () => {
+        const wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null
+        if (!wv) return
+        const color = await _extractWebviewColor(wv)
+        if (color) _applyAdaptiveColor(color)
+    }, 800)
+}
+
 function createSettingsUiApi({
     store,
     invokeIpc,
@@ -34,10 +129,12 @@ function createSettingsUiApi({
 
     function applyTheme(theme) {
         const root = document.documentElement
+        _adaptiveActive = (theme === 'adaptive')
+        if (!_adaptiveActive) _clearAdaptiveVars()
         root.setAttribute('data-theme', theme)
 
         const settings = getSettings()
-        if (settings.accentColor) {
+        if (settings.accentColor && theme !== 'adaptive') {
             root.style.setProperty('--accent', settings.accentColor)
             root.style.setProperty('--accent-hover', settings.accentColor)
         }
@@ -247,5 +344,6 @@ function createSettingsUiApi({
 }
 
 module.exports = {
-    createSettingsUiApi
+    createSettingsUiApi,
+    updateAdaptiveTheme,
 }

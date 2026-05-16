@@ -96,6 +96,7 @@ module.exports = {
         themeLight:       'Hell',
         themeMidnight:    'Mitternacht',
         themeGlass:       'Glas',
+        themeAdaptive:    'Adaptiv',
         accentColor:      'Akzentfarbe',
         fontSize:         'Schriftgröße',
         fontSmall:        'Klein',

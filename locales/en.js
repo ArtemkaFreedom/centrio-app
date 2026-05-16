@@ -96,6 +96,7 @@ module.exports = {
         themeLight:       'Light',
         themeMidnight:    'Midnight',
         themeGlass:       'Glass',
+        themeAdaptive:    'Adaptive',
         accentColor:      'Accent color',
         fontSize:         'Font size',
         fontSmall:        'Small',

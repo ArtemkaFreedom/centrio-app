@@ -96,6 +96,7 @@ module.exports = {
         themeLight:       '浅色',
         themeMidnight:    '午夜',
         themeGlass:       '玻璃',
+        themeAdaptive:    '自适应',
         accentColor:      '强调色',
         fontSize:         '字体大小',
         fontSmall:        '小',

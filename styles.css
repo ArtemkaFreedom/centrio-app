@@ -482,14 +482,15 @@
     border-right: 1px solid var(--border);
 }
 [data-theme="light"] .settings-content {
-    background: var(--bg-primary);
+    background: #ffffff;
 }
 [data-theme="light"] .settings-group {
-    background: #ffffff;
-    border: 1px solid var(--border-light);
+    background: transparent;
+    border: none;
 }
 [data-theme="light"] .settings-group-title {
     color: #636366;
+    border-bottom-color: var(--border-light);
 }
 [data-theme="light"] .settings-label {
     color: #1c1c1e;
@@ -555,6 +556,41 @@
 /* Светлая тема: status-divider */
 [data-theme="light"] .status-divider {
     background: var(--border);
+}
+
+/* ===== ТЕМА: ADAPTIVE (адаптивная) ===== */
+/* Цвета выставляются JS при смене вкладки; сдесь только умолчания (dark-like) */
+[data-theme="adaptive"] {
+    --bg-primary:      #0f1117;
+    --bg-secondary:    #161b27;
+    --bg-tertiary:     #1c2236;
+    --bg-active:       #1e2840;
+    --bg-hover:        #1a2030;
+    --border:          #252d45;
+    --border-light:    #1e2638;
+    --accent:          #7b68ee;
+    --accent-hover:    #8f7ef2;
+    --accent-dim:      rgba(123,104,238,0.15);
+    --accent-glow:     rgba(123,104,238,0.3);
+    --text-primary:    #e8eaf6;
+    --text-secondary:  #8892b0;
+    --text-muted:      #546080;
+    --text-bright:     #ffffff;
+    --danger:          #ef4444;
+    --danger-dim:      rgba(239,68,68,0.12);
+    --success:         #22c55e;
+    --warning:         #f59e0b;
+    --statusbar-bg:    #0c1020;
+    --titlebar-bg:     #111827;
+    --sidebar-bg:      #131a2e;
+    --tab-active:      #1e2840;
+    --tab-inactive:    #141c32;
+    --shadow-sm:       0 1px 4px rgba(0,0,0,0.4);
+    --shadow-md:       0 4px 20px rgba(0,0,0,0.5);
+    --shadow-lg:       0 8px 40px rgba(0,0,0,0.6);
+    --shadow-glow:     0 0 20px rgba(123,104,238,0.25);
+    --glass-bg:        rgba(15,17,23,0.85);
+    --glass-border:    rgba(255,255,255,0.06);
 }
 
 /* ===== АНИМАЦИИ ===== */
@@ -2321,6 +2357,14 @@ webview.active { display: flex; }
 .light-preview { background: #f5f5f7; }
 .light-preview .tp-sidebar { background: #e8e8ea; }
 .light-preview .tp-content { background: #f5f5f7; }
+
+/* Adaptive preview — diagonal dark/light split */
+.adaptive-preview {
+    background: linear-gradient(135deg, #13152a 50%, #f0f0f4 50%);
+    position: relative;
+}
+.adaptive-preview .tp-sidebar { background: linear-gradient(135deg, #1a1e38 50%, #e4e4ec 50%); }
+.adaptive-preview .tp-content { background: linear-gradient(135deg, #0e1020 50%, #f5f5fa 50%); }
 
 /* Accent picker */
 .accent-picker {
@@ -7382,6 +7426,7 @@ body.startup-locked #lockScreen {
    UPDATE TOAST — premium glassmorphism
    ══════════════════════════════════════════════════════════════ */
 
+/* ── Update Card (redesigned, replaces simple toast) ─────────── */
 .update-toast-container {
     position: fixed;
     right: 20px;
@@ -7392,6 +7437,194 @@ body.startup-locked #lockScreen {
     align-items: flex-end;
     gap: 10px;
     pointer-events: none;
+}
+
+/* Rich update card */
+.update-card {
+    width: 360px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary, #1a1b2e);
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03);
+    overflow: hidden;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateX(110%) scale(0.96);
+    transition: opacity 0.32s cubic-bezier(0.34,1.56,0.64,1),
+                transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
+}
+.update-card.show {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+}
+/* Accent gradient stripe at top */
+.update-card-stripe {
+    height: 3px;
+    background: linear-gradient(90deg, #4f8cff 0%, #7b68ee 50%, #ec4899 100%);
+    background-size: 200% 100%;
+    animation: toastShimmer 3s linear infinite;
+}
+.update-card-stripe.success { background: linear-gradient(90deg, #22c55e 0%, #4ade80 50%, #22c55e 100%); }
+.update-card-stripe.error   { background: linear-gradient(90deg, #ef4444 0%, #f97316 50%, #ef4444 100%); }
+
+/* Header */
+.update-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 16px 12px;
+}
+.update-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(79,140,255,0.18) 0%, rgba(123,104,238,0.18) 100%);
+    border: 1px solid rgba(123,104,238,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+}
+.update-card-icon.success {
+    background: linear-gradient(135deg, rgba(34,197,94,0.18) 0%, rgba(74,222,128,0.18) 100%);
+    border-color: rgba(34,197,94,0.25);
+}
+.update-card-icon.error {
+    background: linear-gradient(135deg, rgba(239,68,68,0.18) 0%, rgba(249,115,22,0.18) 100%);
+    border-color: rgba(239,68,68,0.25);
+}
+.update-card-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.update-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-bright, #fff);
+    line-height: 1.3;
+}
+.update-card-version {
+    font-size: 11px;
+    color: var(--text-secondary, rgba(255,255,255,0.5));
+    font-family: monospace;
+    letter-spacing: 0.04em;
+}
+.update-card-close {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.45);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+.update-card-close:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+/* Changelog section */
+.update-card-changelog {
+    padding: 0 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.update-card-change {
+    font-size: 12px;
+    color: var(--text-secondary, rgba(255,255,255,0.6));
+    line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+}
+.update-card-change::before {
+    content: '›';
+    color: var(--accent, #7b68ee);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+/* Divider */
+.update-card-divider {
+    height: 1px;
+    background: var(--border, rgba(255,255,255,0.07));
+    margin: 0 16px;
+}
+
+/* Progress section */
+.update-card-progress-wrap {
+    padding: 12px 16px 8px;
+}
+.update-card-progress-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.update-card-progress-status {
+    font-size: 11px;
+    color: var(--text-secondary, rgba(255,255,255,0.5));
+}
+.update-card-progress-pct {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent, #7b68ee);
+    font-family: monospace;
+}
+.update-card-progress-bar {
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.07);
+    overflow: hidden;
+}
+.update-card-progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #4f8cff 0%, #7b68ee 100%);
+    box-shadow: 0 0 10px rgba(79,140,255,0.5);
+    transition: width 0.35s ease;
+}
+
+/* Actions */
+.update-card-actions {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px 16px;
+    justify-content: flex-end;
+}
+.update-card-btn {
+    border: none;
+    outline: none;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(135deg, #4f8cff 0%, #7b68ee 100%);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(79,140,255,0.35);
+    transition: filter 0.18s, transform 0.18s;
+    letter-spacing: 0.01em;
+}
+.update-card-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.update-card-btn:active { filter: brightness(0.96); transform: none; }
+.update-card-btn.success {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    box-shadow: 0 4px 14px rgba(34,197,94,0.35);
 }
 
 /* ── Base toast card ─────────────────────────────────────────── */

@@ -10,7 +10,7 @@
 // ИМПОРТЫ ВНУТРЕННИХ МОДУЛЕЙ
 // ==============================
 const state = require('./renderer/state')
-const { tGet, applyI18n, initI18n, setCurrentLanguage } = require('./renderer/i18n')
+const { tGet, applyI18n, initI18n, setCurrentLanguage, getCurrentLanguage } = require('./renderer/i18n')
 const { getCurrentLocale, getUserInitial, hashPassword } = require('./renderer/helpers')
 const { popularMessengers, folderIcons, PAGE_SIZE } = require('./renderer/constants')
 const { createCloudStore, createCloudApi } = require('./renderer/cloud')
@@ -28,7 +28,7 @@ const { createContextMenusApi } = require('./renderer/context-menus')
 const { createFoldersUiApi } = require('./renderer/folders-ui')
 const { createSearchUiApi } = require('./renderer/search-ui')
 const { createAddModalUiApi } = require('./renderer/add-modal-ui')
-const { createSettingsUiApi } = require('./renderer/settings-ui')
+const { createSettingsUiApi, updateAdaptiveTheme } = require('./renderer/settings-ui')
 const { createExtensionsUiApi } = require('./renderer/extensions-ui')
 const { createChangeIconUiApi } = require('./renderer/change-icon-ui')
 const { createMessengerSoundUiApi } = require('./renderer/messenger-sound-ui')
@@ -380,6 +380,7 @@ async function bootstrap() {
 
     await advanceStartup('store', 24, { minStepTime: 240 })
     await initI18n()
+    const _bootLanguage = getCurrentLanguage() // Сохраняем язык до loadData/cloud-sync
     const _subtitleEl = document.querySelector('.startup-subtitle[data-i18n]')
     if (_subtitleEl) _subtitleEl.textContent = tGet('startup.subtitle')
     await advanceStartup('i18n', 34, { minStepTime: 220 })
@@ -1067,6 +1068,9 @@ function switchTab(id) {
 
 
     updateZoomStatus()
+
+    // Адаптивная тема: обновить цвета под новую вкладку
+    updateAdaptiveTheme(() => document.getElementById(`webview-${id}`))
 }
 
     // ==============================
@@ -2044,6 +2048,8 @@ function applyTabZoom(level) {
     }
 
     initSettings()
+    // Восстанавливаем язык из initI18n — cloud-sync или initSettings мог перезатереть storeCache
+    setCurrentLanguage(_bootLanguage)
     applyI18n()
     updateCloudBtn()
     updateLockBtn()

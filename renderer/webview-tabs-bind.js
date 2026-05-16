@@ -442,6 +442,13 @@ function createWebviewTabsApi({
         })
 
         webview.addEventListener('did-finish-load', applyInitialZoom)
+        webview.addEventListener('did-finish-load', () => {
+            // Адаптивная тема: перечитываем цвет после загрузки страницы
+            if (webview.classList.contains('active')) {
+                const { updateAdaptiveTheme } = require('./settings-ui')
+                updateAdaptiveTheme(() => webview)
+            }
+        })
 
 
         webview.addEventListener('new-window', (e) => {

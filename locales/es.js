@@ -96,6 +96,7 @@ module.exports = {
         themeLight:       'Claro',
         themeMidnight:    'Medianoche',
         themeGlass:       'Cristal',
+        themeAdaptive:    'Adaptativa',
         accentColor:      'Color de acento',
         fontSize:         'Tamaño de fuente',
         fontSmall:        'Pequeño',
