@@ -80,14 +80,14 @@
                                                           ]
                                              }
                                          ],
-                              "icon":  "assets/logo.png",
+                              "icon":  "assets/icon.png",
                               "category":  "public.app-category.productivity",
                               "darkModeSupport":  true,
                               "hardenedRuntime":  false
                           },
                   "dmg":  {
                               "title":  "Centrio ${version}",
-                              "icon":  "assets/logo.png",
+                              "icon":  "assets/icon.png",
                               "window":  {
                                              "width":  540,
                                              "height":  380
@@ -108,7 +108,7 @@
                                                             ]
                                                }
                                            ],
-                                "icon":  "assets/logo.png",
+                                "icon":  "assets/icon.png",
                                 "category":  "Network"
                             },
                   "nsis":  {

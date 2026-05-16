@@ -7,12 +7,20 @@ Menu.setApplicationMenu(null)
 
 
 // ── GPU / compositing fixes (must run before app.whenReady) ──────────────────
-// Electron 36.9+ on Windows: CalculateNativeWinOcclusion can incorrectly mark
-// the window as hidden → GPU stops presenting frames → black screen while
-// mouse hit-testing still works (content is rendered but not shown).
-app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
-// Force ANGLE D3D11 backend — avoids swapchain issues on some GPU drivers.
-app.commandLine.appendSwitch('use-angle', 'd3d11')
+if (process.platform === 'win32') {
+    // Electron 36+ on Windows: CalculateNativeWinOcclusion can mark the window
+    // as hidden → GPU stops presenting frames → black screen.
+    app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
+    // Force ANGLE D3D11 backend — avoids swapchain issues on some GPU drivers.
+    // D3D11 is Windows-only; do NOT apply on Linux/macOS.
+    app.commandLine.appendSwitch('use-angle', 'd3d11')
+}
+if (process.platform === 'linux') {
+    // On Linux (especially VMs / Ubuntu without full GPU support) the GPU
+    // sandbox can cause an immediate crash. Disable it for stability.
+    app.commandLine.appendSwitch('no-sandbox')
+    app.commandLine.appendSwitch('disable-gpu-sandbox')
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Логирование необработанных ошибок главного процесса

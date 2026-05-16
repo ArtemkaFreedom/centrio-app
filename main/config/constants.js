@@ -21,7 +21,9 @@ module.exports = {
     PATHS: {
         ROOT_DIR,
         ASSETS_DIR,
-        ICON: path.join(ASSETS_DIR, 'logotype.ico'),
+        ICON: process.platform === 'win32'
+            ? path.join(ASSETS_DIR, 'logotype.ico')
+            : path.join(ASSETS_DIR, 'icon.png'),
         TRAY_ICON: path.join(ASSETS_DIR, 'tray-icon.png'),
         LOGO: path.join(ASSETS_DIR, 'logo.png'),
         PRELOAD: path.join(ROOT_DIR, 'preload.js'),
