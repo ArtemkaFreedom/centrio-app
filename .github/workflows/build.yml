@@ -71,7 +71,7 @@ jobs:
       - run: npm ci
 
       - name: Resize icon to 512x512 (macOS requirement)
-        run: sips -z 512 512 assets/logo.png --out assets/logo.png
+        run: sips -z 512 512 assets/icon.png --out assets/icon.png
 
       - name: Build macOS (unsigned)
         run: node build-renderer.js && npx electron-builder --mac --publish never
@@ -120,7 +120,7 @@ jobs:
       - run: npm ci
 
       - name: Resize icon to 512x512 (Linux requirement)
-        run: convert assets/logo.png -resize 512x512 assets/logo.png
+        run: convert assets/icon.png -resize 512x512 assets/icon.png
 
       - name: Build Linux
         run: node build-renderer.js && npx electron-builder --linux AppImage deb --x64 --publish never
