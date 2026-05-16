@@ -1,4 +1,4 @@
-const { setCurrentLanguage } = require('./i18n')
+const { setCurrentLanguage, getCurrentLanguage } = require('./i18n')
 
 // ── Adaptive Theme ────────────────────────────────────────────────────────────
 let _adaptiveActive = false
@@ -220,7 +220,7 @@ function createSettingsUiApi({
         const settingFoldersEnabled = document.getElementById('settingFoldersEnabled')
         const settingFolderLabel = document.getElementById('settingFolderLabel')
 
-        if (settingLanguage) settingLanguage.value = settings.language || 'ru'
+        if (settingLanguage) settingLanguage.value = getCurrentLanguage() || settings.language || 'ru'
         if (settingCloseBehavior) settingCloseBehavior.value = settings.closeBehavior || 'tray'
         if (settingStartMinimized) settingStartMinimized.checked = settings.startMinimized || false
         if (settingFontSize) settingFontSize.value = settings.fontSize || '13'

@@ -2,7 +2,8 @@ require('dotenv').config()
 
 const fs = require('fs')
 const path = require('path')
-const { app, ipcMain, BrowserWindow, protocol } = require('electron')
+const { app, ipcMain, BrowserWindow, protocol, Menu } = require('electron')
+Menu.setApplicationMenu(null)
 
 
 // ── GPU / compositing fixes (must run before app.whenReady) ──────────────────
@@ -39,6 +40,9 @@ process.on('unhandledRejection', (reason) => {
 ipcMain.on('renderer-error-log', (_event, data) => {
     _writeCrashLog('renderer-js', JSON.stringify(data))
 })
+
+// Рендерер просит перестроить tray-меню на текущем языке (после смены языка)
+ipcMain.on('update-tray-menu', () => { updateTrayMenu() })
 
 const { APP_USER_MODEL_ID } = require('./main/config/constants')
 

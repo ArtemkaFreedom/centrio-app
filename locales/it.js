@@ -460,4 +460,16 @@ module.exports = {
         security: { label: 'Controllo sicurezza',          hint: 'Verifica impostazioni di sicurezza...' },
         done:     { label: 'Pronto',                       hint: "L'area di lavoro è pronta all'uso." },
     },
+
+    menu: {
+        file: 'File', edit: 'Modifica', view: 'Visualizza', window: 'Finestra', help: 'Aiuto',
+        settings: 'Impostazioni', quit: 'Esci',
+        undo: 'Annulla', redo: 'Ripristina', cut: 'Taglia', copy: 'Copia',
+        paste: 'Incolla', delete: 'Elimina', selectAll: 'Seleziona tutto',
+        appZoom: "Zoom app", zoomReset: 'Dimensione reale',
+        zoomIn: 'Ingrandisci', zoomOut: 'Riduci',
+        tabZoomIn: 'Ingrandisci scheda', tabZoomOut: 'Riduci scheda',
+        fullscreen: 'Schermo intero', hide: 'Nascondi', close: 'Chiudi',
+        support: 'Supporto', about: "Informazioni",
+    },
 }

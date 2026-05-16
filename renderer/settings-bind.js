@@ -221,7 +221,7 @@ function bindSettingsUi({
         try {
             const { r: rv, g, b } = _hexToRgb(hex)
             const { h, s } = _rgbToHsl(rv, g, b)
-            const angle = (h - 90) * Math.PI / 180
+            const angle = h * Math.PI / 180
             const dist = s * r
             return { x: cx + dist * Math.cos(angle), y: cy + dist * Math.sin(angle) }
         } catch { return { x: cx, y: cy } }
@@ -230,7 +230,7 @@ function bindSettingsUi({
     function _wheelPosToHex(px, py, cx, cy, r) {
         const dx = px - cx, dy = py - cy
         const dist = Math.min(Math.sqrt(dx * dx + dy * dy), r)
-        const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI
         const h = ((angle % 360) + 360) % 360
         const s = dist / r
         // Convert HSL (s, 50% lightness) → hex

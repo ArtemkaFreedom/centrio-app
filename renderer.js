@@ -556,7 +556,10 @@ async function bootstrap() {
                 if (cloudData.settings) {
                     const { extra, ...baseSettings } = cloudData.settings
                     const cur = store.get('settings', {}) || {}
-                    await store.setAsync('settings', { ...cur, ...baseSettings })
+                    // Language is device-local — never let cloud overwrite it
+                    const merged = { ...cur, ...baseSettings }
+                    if (cur.language) merged.language = cur.language
+                    await store.setAsync('settings', merged)
                     if (extra) {
                         // Восстанавливаем блокировку в 'security' (именно там читает lock.js)
                         if (extra.pinEnabled !== undefined || extra.pinHash !== undefined) {
@@ -1472,7 +1475,10 @@ function applyTabZoom(level) {
                     if (cloudData.settings) {
                         const currentSettings = store.get('settings', {}) || {}
                         const { extra, ...baseSettings } = cloudData.settings
-                        store.set('settings', { ...currentSettings, ...baseSettings })
+                        // Language is device-local — never let cloud overwrite it
+                        const merged = { ...currentSettings, ...baseSettings }
+                        if (currentSettings.language) merged.language = currentSettings.language
+                        store.set('settings', merged)
                         // Restore extra settings (PIN, zoom, last active tab)
                         if (extra) {
                             if (extra.pinEnabled  !== undefined) store.set('pinEnabled', extra.pinEnabled)
@@ -2051,6 +2057,8 @@ function applyTabZoom(level) {
     // Восстанавливаем язык из initI18n — cloud-sync или initSettings мог перезатереть storeCache
     setCurrentLanguage(_bootLanguage)
     applyI18n()
+    // Перестраиваем tray-меню на правильном языке (main-процесс не знает о смене языка)
+    ipcRenderer.send('update-tray-menu')
     updateCloudBtn()
     updateLockBtn()
 

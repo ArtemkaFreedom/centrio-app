@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import type React from 'react'
 import Link from 'next/link'
+import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
 
-const VERSION = '1.5.18'
+const VERSION = '1.6.90'
 
 const URLS = {
   win:       `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`,
@@ -125,37 +126,25 @@ export default function DownloadPage() {
     : platforms
 
   return (
-    <div style={{ minHeight: '100vh', background: '#070711', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#06060f', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
 
-      {/* NAV */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', background: 'rgba(7,7,17,0.85)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <img src="/logo.png" alt="Centrio" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-            <span style={{ fontWeight: 700, fontSize: 16, color: '#fff' }}>Centrio</span>
-          </Link>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Link href="/pricing" style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.45)', textDecoration: 'none' }}>Тарифы</Link>
-            <Link href="/dashboard" style={{ padding: '7px 14px', borderRadius: 8, fontSize: 13, color: 'rgba(255,255,255,0.45)', textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)' }}>Кабинет</Link>
-          </div>
-        </div>
-      </nav>
+      <SiteNav active="/download" />
 
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative', paddingTop: 66 }}>
 
         {/* BG GLOW */}
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 0, width: 800, height: 400, background: 'radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.12) 0%, transparent 65%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 0, width: 800, height: 400, background: 'radial-gradient(ellipse at 50% 0%, rgba(168,85,247,0.1) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
         {/* HERO */}
         <section style={{ textAlign: 'center', padding: '72px 24px 56px', position: 'relative' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 20, padding: '5px 14px', fontSize: 11, color: '#60a5fa', marginBottom: 28, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 20, padding: '5px 14px', fontSize: 11, color: '#c084fc', marginBottom: 28, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             Версия {VERSION} · Апрель 2026
           </div>
 
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 60px)', fontWeight: 800, lineHeight: 1.1, margin: '0 0 18px', letterSpacing: '-0.03em' }}>
             Скачай{' '}
-            <span style={{ background: 'linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <span style={{ background: 'linear-gradient(135deg, #c084fc 0%, #a78bfa 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               Centrio
             </span>
           </h1>
@@ -326,12 +315,12 @@ export default function DownloadPage() {
                 <div style={{ padding: '18px 22px', fontFamily: '"JetBrains Mono","Fira Code","Cascadia Code",monospace', fontSize: 12.5, lineHeight: 2 }}>
                   <div>
                     <span style={{ color: 'rgba(255,255,255,0.25)', userSelect: 'none' }}>$ </span>
-                    <span style={{ color: '#60a5fa' }}>wget</span>
+                    <span style={{ color: '#c084fc' }}>wget</span>
                     <span style={{ color: 'rgba(255,255,255,0.45)' }}> {URLS.linux_app}</span>
                   </div>
                   <div>
                     <span style={{ color: 'rgba(255,255,255,0.25)', userSelect: 'none' }}>$ </span>
-                    <span style={{ color: '#60a5fa' }}>chmod</span>
+                    <span style={{ color: '#c084fc' }}>chmod</span>
                     <span style={{ color: '#f97316' }}> +x</span>
                     <span style={{ color: 'rgba(255,255,255,0.45)' }}> Centrio-{VERSION}.AppImage</span>
                   </div>
@@ -378,23 +367,9 @@ export default function DownloadPage() {
           </div>
         </section>
 
-        {/* FOOTER */}
-        <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '32px 24px' }}>
-          <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <img src="/logo.png" alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
-              <span style={{ fontWeight: 700, color: 'rgba(255,255,255,0.25)', fontSize: 13 }}>Centrio</span>
-              <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: 13 }}>v{VERSION}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-              {[['/', 'Главная'], ['/pricing', 'Тарифы'], ['/faq', 'FAQ'], ['/privacy', 'Конфиденциальность'], ['/terms', 'Условия']].map(([href, label]) => (
-                <Link key={href} href={href} style={{ fontSize: 13, color: 'rgba(255,255,255,0.25)', textDecoration: 'none' }}>{label}</Link>
-              ))}
-            </div>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.12)', margin: 0 }}>© 2026 Centrio</p>
-          </div>
-        </footer>
       </div>
+
+      <SiteFooter />
 
       <style>{`
         @media (max-width: 700px) {

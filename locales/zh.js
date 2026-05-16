@@ -459,4 +459,16 @@ module.exports = {
         security: { label: '安全检查',   hint: '验证安全设置...' },
         done:     { label: '就绪',  hint: '工作区已准备好使用。' },
     },
+
+    menu: {
+        file: '文件', edit: '编辑', view: '视图', window: '窗口', help: '帮助',
+        settings: '设置', quit: '退出',
+        undo: '撤销', redo: '重做', cut: '剪切', copy: '复制',
+        paste: '粘贴', delete: '删除', selectAll: '全选',
+        appZoom: '应用缩放', zoomReset: '实际大小',
+        zoomIn: '放大', zoomOut: '缩小',
+        tabZoomIn: '放大标签页', tabZoomOut: '缩小标签页',
+        fullscreen: '全屏', hide: '隐藏', close: '关闭',
+        support: '支持', about: '关于',
+    },
 }

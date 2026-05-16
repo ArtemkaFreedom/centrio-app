@@ -459,4 +459,16 @@ module.exports = {
         security: { label: 'Verificación de seguridad',   hint: 'Verificando configuración de seguridad...' },
         done:     { label: 'Listo',  hint: 'El área de trabajo está lista para usar.' },
     },
+
+    menu: {
+        file: 'Archivo', edit: 'Editar', view: 'Vista', window: 'Ventana', help: 'Ayuda',
+        settings: 'Configuración', quit: 'Salir',
+        undo: 'Deshacer', redo: 'Rehacer', cut: 'Cortar', copy: 'Copiar',
+        paste: 'Pegar', delete: 'Eliminar', selectAll: 'Seleccionar todo',
+        appZoom: 'Zoom de la app', zoomReset: 'Tamaño real',
+        zoomIn: 'Acercar', zoomOut: 'Alejar',
+        tabZoomIn: 'Acercar pestaña', tabZoomOut: 'Alejar pestaña',
+        fullscreen: 'Pantalla completa', hide: 'Ocultar', close: 'Cerrar',
+        support: 'Soporte', about: 'Acerca de',
+    },
 }

@@ -459,4 +459,16 @@ module.exports = {
         security: { label: 'Sicherheitscheck',   hint: 'Sicherheitseinstellungen überprüfen...' },
         done:     { label: 'Bereit',  hint: 'Arbeitsbereich ist einsatzbereit.' },
     },
+
+    menu: {
+        file: 'Datei', edit: 'Bearbeiten', view: 'Ansicht', window: 'Fenster', help: 'Hilfe',
+        settings: 'Einstellungen', quit: 'Beenden',
+        undo: 'Rückgängig', redo: 'Wiederholen', cut: 'Ausschneiden', copy: 'Kopieren',
+        paste: 'Einfügen', delete: 'Löschen', selectAll: 'Alles auswählen',
+        appZoom: 'App-Zoom', zoomReset: 'Originalgröße',
+        zoomIn: 'Vergrößern', zoomOut: 'Verkleinern',
+        tabZoomIn: 'Tab vergrößern', tabZoomOut: 'Tab verkleinern',
+        fullscreen: 'Vollbild', hide: 'Ausblenden', close: 'Schließen',
+        support: 'Support', about: 'Über die App',
+    },
 }

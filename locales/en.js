@@ -489,4 +489,16 @@ module.exports = {
         security: { label: 'Security check',         hint: 'Verifying security settings...' },
         done:     { label: 'Ready',                  hint: 'Workspace is ready to use.' },
     },
+
+    menu: {
+        file: 'File', edit: 'Edit', view: 'View', window: 'Window', help: 'Help',
+        settings: 'Settings', quit: 'Quit',
+        undo: 'Undo', redo: 'Redo', cut: 'Cut', copy: 'Copy',
+        paste: 'Paste', delete: 'Delete', selectAll: 'Select All',
+        appZoom: 'App Zoom', zoomReset: 'Actual Size',
+        zoomIn: 'Zoom In', zoomOut: 'Zoom Out',
+        tabZoomIn: 'Zoom Tab In', tabZoomOut: 'Zoom Tab Out',
+        fullscreen: 'Full Screen', hide: 'Hide', close: 'Close',
+        support: 'Support', about: 'About',
+    },
 }

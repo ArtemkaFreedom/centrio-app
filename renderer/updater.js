@@ -1,5 +1,21 @@
 // Список изменений по версиям (показывается в окне обновления)
 const CHANGELOG = {
+    '1.6.90': [
+        'Меню "Файл/Правка/Вид/Окно/Справка" переведено на все языки',
+        'Исправлена точка выбора цвета в палитре акцента',
+    ],
+    '1.6.89': [
+        'Язык сохраняется между запусками, облако его не затирает',
+        'Переключение на Русский язык теперь работает корректно',
+        'Tray-меню отображается на актуальном языке интерфейса',
+        'Окно обновлений: SVG-иконки, прокрутка длинных чейнжлогов',
+    ],
+    '1.6.88': [
+        'Удалены темы Glass, Pistachio и Pink — осталось 4 темы',
+        'Иконка адаптивной темы: радужный сайдбар показывает суть',
+        'Исправлен выпадающий список языка в настройках',
+        'Убрано системное меню (File/Edit) при нажатии Alt',
+    ],
     '1.6.87': [
         'Адаптивная тема: цвет подстраивается под мессенджер',
         'Полностью переработано окно обновления с чейнжлогом',
@@ -47,6 +63,15 @@ function removeExistingCard() {
     setTimeout(() => { if (existing.parentNode) existing.remove() }, 400)
 }
 
+// SVG иконки для update-карточки
+const UPDATE_ICONS = {
+    available:     '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3v10M6 9l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16h12" stroke-linecap="round"/></svg>',
+    downloading:   '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3v9M7 9l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 14l-1 3h12l-1-3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    downloaded:    '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5l4 4 8-8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    notAvailable:  '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5l4 4 8-8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    error:         '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="7.5"/><path d="M10 7v4M10 13.5v.5" stroke-linecap="round"/></svg>',
+}
+
 function createUpdateCard({ type = 'info', icon, title, version, changes = [], progress = null, button = null }) {
     const card = document.createElement('div')
     card.id = 'updateToast'
@@ -63,7 +88,8 @@ function createUpdateCard({ type = 'info', icon, title, version, changes = [], p
 
     const iconEl = document.createElement('div')
     iconEl.className = `update-card-icon ${type === 'success' ? 'success' : type === 'error' ? 'error' : ''}`
-    iconEl.textContent = icon
+    // icon — ключ из UPDATE_ICONS или SVG-строка напрямую
+    iconEl.innerHTML = UPDATE_ICONS[icon] || icon || UPDATE_ICONS.available
 
     const infoEl = document.createElement('div')
     infoEl.className = 'update-card-info'
@@ -194,7 +220,7 @@ function updateCardProgress(percent) {
 function showUpdateBanner(message, type = 'info', button = null) {
     showUpdateCard({
         type,
-        icon: type === 'success' ? '✓' : type === 'error' ? '⚠' : '📦',
+        icon: type === 'success' ? 'notAvailable' : type === 'error' ? 'error' : 'available',
         title: message,
         version: null,
         changes: [],
@@ -220,7 +246,7 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
             const changes = getChangelog(version)
             showUpdateCard({
                 type: 'info',
-                icon: '🚀',
+                icon: 'available',
                 title: tGet('updater.available'),
                 version,
                 changes,
@@ -239,7 +265,7 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
             const changes = getChangelog(version)
             showUpdateCard({
                 type: 'info',
-                icon: '⬇',
+                icon: 'downloading',
                 title: tGet('updater.downloading'),
                 version,
                 changes,
@@ -253,7 +279,7 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
             const changes = getChangelog(version)
             showUpdateCard({
                 type: 'success',
-                icon: '✅',
+                icon: 'downloaded',
                 title: tGet('updater.downloaded'),
                 version,
                 changes,
@@ -268,7 +294,7 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
         if (status === 'not-available') {
             showUpdateCard({
                 type: 'success',
-                icon: '✓',
+                icon: 'notAvailable',
                 title: tGet('updater.notAvailable'),
                 version: null,
                 changes: [],
@@ -280,7 +306,7 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
             console.warn('[updater] Update error:', error)
             showUpdateCard({
                 type: 'error',
-                icon: '⚠',
+                icon: 'error',
                 title: tGet('updater.error'),
                 version: null,
                 changes: [],
