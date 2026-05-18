@@ -236,9 +236,18 @@ module.exports = {
     },
 
     welcome: {
-        title:  '欢迎使用',
-        sub:    '在一个窗口中使用所有应用',
-        addBtn: '添加应用',
+        title:    '欢迎使用',
+        sub:      '您所有的通讯工具集于一处。快速、便捷、美观。',
+        addBtn:   '添加应用',
+        loginBtn: '登录账户',
+        f1title:  '所有通讯工具',
+        f1desc:   'Telegram、WhatsApp、VK 等——集于一窗',
+        f2title:  '文件夹与分类',
+        f2desc:   '按类别分组管理通讯工具',
+        f3title:  '主题外观',
+        f3desc:   'Dark、Glass、Midnight——选择您的风格',
+        f4title:  'PIN 码保护',
+        f4desc:   '个人数据安全保护',
         hints: {
             rcm:         '右键图标显示菜单',
             quickSearch: 'Ctrl+P — 快速搜索',

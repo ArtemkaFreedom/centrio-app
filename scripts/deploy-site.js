@@ -21,14 +21,16 @@ const SFTP_CONFIG = {
     password: 'j2KHHxjz5_A)'
 }
 
-const ROOT         = path.join(__dirname, '..')
-const DOWNLOAD_TSX = path.join(ROOT, 'landing', 'download.tsx')
-const I18N_TS      = path.join(ROOT, 'landing', 'i18n.ts')
+const ROOT           = path.join(__dirname, '..')
+const DOWNLOAD_TSX   = path.join(ROOT, 'landing', 'download.tsx')
+const I18N_TS        = path.join(ROOT, 'landing', 'i18n.ts')
+const SITE_SHELL_TSX = path.join(ROOT, 'landing', 'site-shell.tsx')
 
 // Remote paths
-const REMOTE_DOWNLOAD = '/var/www/centrio-web/src/app/download/page.tsx'
-const REMOTE_I18N     = '/var/www/centrio-web/src/lib/i18n.ts'
-const REMOTE_WEB      = '/var/www/centrio-web'
+const REMOTE_DOWNLOAD   = '/var/www/centrio-web/src/app/download/page.tsx'
+const REMOTE_I18N       = '/var/www/centrio-web/src/lib/i18n.ts'
+const REMOTE_SITE_SHELL = '/var/www/centrio-web/src/components/ui/site-shell.tsx'
+const REMOTE_WEB        = '/var/www/centrio-web'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function readFile(p)           { return fs.readFileSync(p, 'utf8') }
@@ -45,30 +47,43 @@ function updateDownloadTsx(version) {
     let content = readFile(DOWNLOAD_TSX)
     const before = content.match(/const VERSION = '([^']+)'/)?.[1]
     content = content.replace(/const VERSION = '[^']+'/, `const VERSION = '${version}'`)
-
-    // Update release month/year badge (Russian month names)
-    const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
-    const now   = new Date()
-    const month = MONTHS_RU[now.getMonth()]
-    const year  = now.getFullYear()
-    content = content.replace(
-        /v\{VERSION\} · (Январь|Февраль|Март|Апрель|Май|Июнь|Июль|Август|Сентябрь|Октябрь|Ноябрь|Декабрь) \d{4}/,
-        `v{VERSION} · ${month} ${year}`
-    )
-
     writeFile(DOWNLOAD_TSX, content)
     console.log(`  ✓ download.tsx: ${before} → ${version}`)
 }
 
 function updateI18n(version) {
     let content = readFile(I18N_TS)
-    const matches = (content.match(/dl_win_sub:\s*'[^']+'/g) || []).length
+
+    // Update dl_win_sub in all 5 locales
+    const winMatches = (content.match(/dl_win_sub:\s*'[^']+'/g) || []).length
     content = content.replace(
         /dl_win_sub:\s*'v[\d.]+ · Windows 10\/11'/g,
         `dl_win_sub: 'v${version} · Windows 10/11'`
     )
+
+    // Update dl_hero_date in all 5 locales
+    const MONTHS = {
+        ru: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
+        en: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+        fr: ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
+        it: ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'],
+    }
+    const now  = new Date()
+    const m    = now.getMonth()
+    const year = now.getFullYear()
+    content = content.replace(/dl_hero_date:\s*'[^']*'/g, (match, offset) => {
+        // Detect language by context (look backwards for lang key indicators)
+        const before = content.slice(Math.max(0, offset - 3000), offset)
+        if (before.lastIndexOf("it: {") > before.lastIndexOf("fr: {") &&
+            before.lastIndexOf("it: {") > before.lastIndexOf("zh: {")) return `dl_hero_date: '${MONTHS.it[m]} ${year}'`
+        if (before.lastIndexOf("fr: {") > before.lastIndexOf("zh: {")) return `dl_hero_date: '${MONTHS.fr[m]} ${year}'`
+        if (before.lastIndexOf("zh: {") > before.lastIndexOf("en: {")) return `dl_hero_date: '${year}年${m+1}月'`
+        if (before.lastIndexOf("en: {") > before.lastIndexOf("ru: {")) return `dl_hero_date: '${MONTHS.en[m]} ${year}'`
+        return `dl_hero_date: '${MONTHS.ru[m]} ${year}'`
+    })
+
     writeFile(I18N_TS, content)
-    console.log(`  ✓ i18n.ts: updated dl_win_sub in ${matches} locales`)
+    console.log(`  ✓ i18n.ts: updated dl_win_sub in ${winMatches} locales + dl_hero_date`)
 }
 
 async function runCommand(sftp, cmd) {
@@ -102,12 +117,10 @@ async function main() {
     console.log('📤 Uploading files...')
     await sftp.put(DOWNLOAD_TSX, REMOTE_DOWNLOAD)
     console.log(`  ✓ download.tsx → ${REMOTE_DOWNLOAD}`)
-
-    // 4. Patch i18n.ts on server via sed (avoids overwriting server-only blog keys)
-    console.log('🔧 Patching i18n.ts on server...')
-    await runCommand(sftp,
-        `sed -i "s/dl_win_sub: 'v[0-9][0-9.]*[^']*'/dl_win_sub: 'v${version} · Windows 10\\/11'/g" ${REMOTE_I18N} && echo patched`
-    )
+    await sftp.put(I18N_TS, REMOTE_I18N)
+    console.log(`  ✓ i18n.ts → ${REMOTE_I18N}`)
+    await sftp.put(SITE_SHELL_TSX, REMOTE_SITE_SHELL)
+    console.log(`  ✓ site-shell.tsx → ${REMOTE_SITE_SHELL}`)
 
     // 5. Clear Next.js cache & rebuild
     console.log('\n🗑  Clearing Next.js cache...')

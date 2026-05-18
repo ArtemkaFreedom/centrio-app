@@ -247,9 +247,18 @@ module.exports = {
     },
 
     welcome: {
-        title:  'Welcome',
-        sub:    'All messengers in one window',
-        addBtn: 'Add messenger',
+        title:    'Welcome to',
+        sub:      'All your messengers in one place. Fast, convenient, beautiful.',
+        addBtn:   'Add messenger',
+        loginBtn: 'Sign in to account',
+        f1title:  'All messengers',
+        f1desc:   'Telegram, WhatsApp, VK and others — in one window',
+        f2title:  'Folders & order',
+        f2desc:   'Group messengers by categories',
+        f3title:  'Themes',
+        f3desc:   'Dark, Glass, Midnight — choose your style',
+        f4title:  'PIN protection',
+        f4desc:   'Your personal data stays secure',
         hints: {
             rcm:         'Right-click icon for menu',
             quickSearch: 'Ctrl+P — quick search',

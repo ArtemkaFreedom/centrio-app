@@ -5,8 +5,9 @@ import type React from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
+import { useLang } from '@/lib/i18n'
 
-const VERSION = '1.6.95'
+const VERSION = '1.6.96'
 
 const URLS = {
   win:       `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`,
@@ -37,7 +38,6 @@ const MacIcon = ({ size = 32 }: { size?: number }) => (
   </svg>
 )
 
-// Linux icon from main page (bootstrap-icons style)
 const LinuxIcon = ({ size = 32 }: { size?: number }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} fill="currentColor" viewBox="0 0 16 16">
     <path d="M2.273 9.53a2.273 2.273 0 1 0 0-4.546 2.273 2.273 0 0 0 0 4.547Zm9.467-4.984a2.273 2.273 0 1 0 0-4.546 2.273 2.273 0 0 0 0 4.546M7.4 13.108a5.54 5.54 0 0 1-3.775-2.88 3.27 3.27 0 0 1-1.944.24 7.4 7.4 0 0 0 5.328 4.465c.53.113 1.072.169 1.614.166a3.25 3.25 0 0 1-.666-1.9 6 6 0 0 1-.557-.091m3.828 2.285a2.273 2.273 0 1 0 0-4.546 2.273 2.273 0 0 0 0 4.546m3.163-3.108a7.44 7.44 0 0 0 .373-8.726 3.3 3.3 0 0 1-1.278 1.498 5.57 5.57 0 0 1-.183 5.535 3.26 3.26 0 0 1 1.088 1.693M2.098 3.998a3.3 3.3 0 0 1 1.897.486 5.54 5.54 0 0 1 4.464-2.388c.037-.67.277-1.313.69-1.843a7.47 7.47 0 0 0-7.051 3.745"/>
@@ -52,79 +52,8 @@ const DownloadIcon = ({ size = 16 }: { size?: number }) => (
 
 type OS = 'win' | 'mac' | 'linux'
 
-interface Platform {
-  id: OS
-  name: string
-  icon: React.ReactNode
-  color: string
-  glow: string
-  rgb: string
-  badge: string
-  req: string
-  size: string
-  primary: { label: string; url: string }
-  secondary?: { label: string; url: string }
-  steps: string[]
-  note?: string
-}
-
-const platforms: Platform[] = [
-  {
-    id: 'win',
-    name: 'Windows',
-    icon: <WinIcon />,
-    color: '#60a5fa',
-    glow: 'rgba(96,165,250,0.3)',
-    rgb: '96,165,250',
-    badge: 'NSIS Installer · x64',
-    req: 'Windows 10 / 11 · x64',
-    size: '~85 MB',
-    primary: { label: 'Скачать .exe', url: URLS.win },
-    steps: [
-      'Запусти Centrio Setup.exe',
-      'Выбери папку — нажми Далее',
-      'Готово, приложение запустится само',
-    ],
-  },
-  {
-    id: 'mac',
-    name: 'macOS',
-    icon: <MacIcon />,
-    color: '#c0c0cc',
-    glow: 'rgba(192,192,204,0.2)',
-    rgb: '192,192,204',
-    badge: 'DMG · Universal',
-    req: 'macOS 12 Monterey+',
-    size: '~110 MB',
-    primary: { label: 'Скачать .dmg', url: URLS.mac },
-    steps: [
-      'Открой Centrio.dmg',
-      'Перетащи в папку Applications',
-      'ПКМ → Открыть при первом запуске',
-    ],
-    note: 'Приложение не подписано сертификатом Apple — это нормально для инди-продуктов',
-  },
-  {
-    id: 'linux',
-    name: 'Linux',
-    icon: <LinuxIcon />,
-    color: '#fb923c',
-    glow: 'rgba(251,146,60,0.25)',
-    rgb: '251,146,60',
-    badge: 'AppImage · deb · x64',
-    req: 'Ubuntu 20.04+, Debian, Arch',
-    size: '~112 MB',
-    primary: { label: 'Скачать AppImage', url: URLS.linux_app },
-    secondary: { label: 'Скачать .deb', url: URLS.linux_deb },
-    steps: [
-      'chmod +x Centrio-*.AppImage',
-      './Centrio-*.AppImage',
-      'Или: sudo dpkg -i messengerapp_*.deb',
-    ],
-  },
-]
-
 export default function DownloadPage() {
+  const { t } = useLang()
   const [detectedOs, setDetectedOs] = useState<OS | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -140,6 +69,51 @@ export default function DownloadPage() {
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  // Platform data with translated text
+  const platforms = [
+    {
+      id: 'win' as OS,
+      name: 'Windows',
+      icon: <WinIcon />,
+      color: '#60a5fa',
+      glow: 'rgba(96,165,250,0.3)',
+      rgb: '96,165,250',
+      badge: 'NSIS Installer · x64',
+      req: 'Windows 10 / 11 · x64',
+      size: '~85 MB',
+      primary: { label: t.dl_btn_win, url: URLS.win },
+      steps: [t.dl_step_win1, t.dl_step_win2, t.dl_step_win3],
+    },
+    {
+      id: 'mac' as OS,
+      name: 'macOS',
+      icon: <MacIcon />,
+      color: '#c0c0cc',
+      glow: 'rgba(192,192,204,0.2)',
+      rgb: '192,192,204',
+      badge: 'DMG · Universal',
+      req: 'macOS 12 Monterey+',
+      size: '~110 MB',
+      primary: { label: t.dl_btn_mac, url: URLS.mac },
+      steps: [t.dl_step_mac1, t.dl_step_mac2, t.dl_step_mac3],
+      note: t.dl_mac_note,
+    },
+    {
+      id: 'linux' as OS,
+      name: 'Linux',
+      icon: <LinuxIcon />,
+      color: '#fb923c',
+      glow: 'rgba(251,146,60,0.25)',
+      rgb: '251,146,60',
+      badge: 'AppImage · deb · x64',
+      req: 'Ubuntu 20.04+, Debian, Arch',
+      size: '~112 MB',
+      primary: { label: t.dl_btn_appimage, url: URLS.linux_app },
+      secondary: { label: t.dl_btn_deb, url: URLS.linux_deb },
+      steps: ['chmod +x Centrio-*.AppImage', './Centrio-*.AppImage', t.dl_step_linux3],
+    },
+  ]
 
   const sorted = detectedOs
     ? [platforms.find(p => p.id === detectedOs)!, ...platforms.filter(p => p.id !== detectedOs)]
@@ -170,8 +144,6 @@ export default function DownloadPage() {
         @keyframes grad-shift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
         @keyframes shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
         @keyframes blob-drift { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-40px,-30px) scale(1.08)} 66%{transform:translate(30px,20px) scale(.94)} }
-        @keyframes float2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-        @keyframes pulse-ring { 0%{transform:scale(1);opacity:.8} 100%{transform:scale(2.5);opacity:0} }
 
         .gt {
           background: linear-gradient(135deg, #f0abfc 0%, #a855f7 40%, #38bdf8 100%);
@@ -289,7 +261,6 @@ export default function DownloadPage() {
 
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
         <section style={{ position: 'relative', paddingTop: 66, overflow: 'hidden' }}>
-          {/* Blobs */}
           <div className="dl-hero-blob" style={{ width: 500, height: 500, background: 'rgba(168,85,247,0.12)', left: '20%', top: -100 }} />
           <div className="dl-hero-blob" style={{ width: 400, height: 400, background: 'rgba(56,189,248,0.08)', right: '15%', top: 60, animationDelay: '-5s' }} />
 
@@ -300,21 +271,21 @@ export default function DownloadPage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
                 </svg>
-                Скачать Centrio
+                {t.dl_hero_badge}
               </div>
             </motion.div>
 
             <motion.h1
               variants={fadeUpDelay(0.1)} initial="hidden" animate="show"
               style={{ fontSize: 'clamp(40px, 7vw, 72px)', fontWeight: 900, lineHeight: 1.05, marginBottom: 22, letterSpacing: '-0.035em', color: '#f0f0ff' }}>
-              Всё под рукой.<br />
-              <span className="gt">Одно приложение.</span>
+              {t.dl_hero_h1a}<br />
+              <span className="gt">{t.dl_hero_h1b}</span>
             </motion.h1>
 
             <motion.p
               variants={fadeUpDelay(0.2)} initial="hidden" animate="show"
               style={{ fontSize: 17, color: 'rgba(255,255,255,0.42)', maxWidth: 480, margin: '0 auto 36px', lineHeight: 1.75 }}>
-              Telegram, WhatsApp, Discord, VK и 100+ сервисов — в одном окне. Бесплатно, без рекламы, на всех платформах.
+              {t.dl_hero_sub}
             </motion.p>
 
             {/* Version badge */}
@@ -322,13 +293,13 @@ export default function DownloadPage() {
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 44 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 20, padding: '6px 16px', fontSize: 12, color: '#c084fc', fontWeight: 700, letterSpacing: '0.06em' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a855f7', boxShadow: '0 0 8px #a855f7', display: 'inline-block' }} />
-                v{VERSION} · Май 2026
+                v{VERSION} · {t.dl_hero_date}
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 20, padding: '6px 14px', fontSize: 12, color: 'rgba(34,197,94,0.85)', fontWeight: 600 }}>
                 <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                 </svg>
-                Стабильная версия
+                {t.dl_hero_stable}
               </div>
             </motion.div>
 
@@ -344,7 +315,7 @@ export default function DownloadPage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em' }}>
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: `rgba(${detected.rgb},1)` }} />
-                    Определили платформу: <span style={{ color: `rgba(${detected.rgb},1)`, fontWeight: 700 }}>{detected.name}</span>
+                    {t.dl_detected} <span style={{ color: `rgba(${detected.rgb},1)`, fontWeight: 700 }}>{detected.name}</span>
                   </div>
                   <a href={detected.primary.url} className="btn-g" style={{ fontSize: 16, padding: '15px 36px', borderRadius: 14, boxShadow: `0 8px 40px rgba(${detected.rgb},0.3)` }}>
                     <DownloadIcon size={18} />
@@ -353,7 +324,7 @@ export default function DownloadPage() {
                   {detected.secondary && (
                     <div style={{ marginTop: 13 }}>
                       <a href={detected.secondary.url} style={{ fontSize: 13, color: `rgba(${detected.rgb},0.6)`, textDecoration: 'none', transition: 'color .2s' }}>
-                        или {detected.secondary.label} →
+                        {t.dl_or} {detected.secondary.label} →
                       </a>
                     </div>
                   )}
@@ -369,10 +340,10 @@ export default function DownloadPage() {
               style={{ display: 'flex', justifyContent: 'center', gap: 0, marginBottom: 80 }}>
               <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 18, overflow: 'hidden' }}>
                 {[
-                  { val: '100+', label: 'сервисов' },
-                  { val: '3', label: 'платформы' },
-                  { val: '0₽', label: 'базовый план' },
-                  { val: '30s', label: 'установка' },
+                  { val: '100+', label: t.stat1l },
+                  { val: '3', label: t.dl_stat_platforms },
+                  { val: '0₽', label: t.dl_stat_free },
+                  { val: '30s', label: t.dl_stat_install },
                 ].map((s, i) => (
                   <div key={i} style={{ padding: '18px 28px', textAlign: 'center', borderRight: i < 3 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                     <div style={{ fontSize: 22, fontWeight: 800, color: '#f0f0ff', letterSpacing: '-0.02em' }}>{s.val}</div>
@@ -391,12 +362,12 @@ export default function DownloadPage() {
           <div className="wrap">
             <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
               style={{ textAlign: 'center', marginBottom: 52 }}>
-              <div className="stag">Все платформы</div>
+              <div className="stag">{t.dl_all_platforms}</div>
               <h2 style={{ fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 800, color: '#f0f0ff', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-                Одинаковый опыт на <span className="gt">Windows, macOS и Linux</span>
+                {t.dl_platforms_title} <span className="gt">{t.dl_platforms_title2}</span>
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 16, marginTop: 12, lineHeight: 1.7 }}>
-                Выбери свою платформу — Centrio всегда рядом
+                {t.dl_platforms_sub}
               </p>
             </motion.div>
 
@@ -414,23 +385,20 @@ export default function DownloadPage() {
                       boxShadow: `0 0 60px rgba(${p.rgb},0.08)`,
                     } : {}}>
 
-                    {/* Detected badge */}
                     {isDetected && (
                       <div style={{
                         position: 'absolute', top: 0, right: 0,
                         background: `linear-gradient(135deg, rgba(${p.rgb},0.95), rgba(${p.rgb},0.65))`,
                         fontSize: 9, fontWeight: 800, color: '#fff',
                         padding: '6px 16px', borderBottomLeftRadius: 14, letterSpacing: '0.12em',
-                      }}>ВАШ ПК</div>
+                      }}>{t.dl_your_pc}</div>
                     )}
 
-                    {/* Glow top */}
                     <div style={{
                       position: 'absolute', top: -1, left: 0, right: 0, height: 1,
                       background: `linear-gradient(to right, transparent, rgba(${p.rgb},${isDetected ? 0.6 : 0.25}), transparent)`,
                     }} />
 
-                    {/* Header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
                       <div style={{
                         width: 56, height: 56, borderRadius: 16,
@@ -446,7 +414,6 @@ export default function DownloadPage() {
                       </div>
                     </div>
 
-                    {/* Requirements */}
                     <div style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       background: 'rgba(255,255,255,0.04)', borderRadius: 11, padding: '10px 16px',
@@ -456,7 +423,6 @@ export default function DownloadPage() {
                       <span style={{ color: `rgba(${p.rgb},0.7)`, fontWeight: 700 }}>{p.size}</span>
                     </div>
 
-                    {/* Steps */}
                     <div style={{ marginBottom: 24 }}>
                       {p.steps.map((step, j) => (
                         <div key={j} style={{ display: 'flex', gap: 11, marginBottom: 10, alignItems: 'flex-start' }}>
@@ -470,8 +436,7 @@ export default function DownloadPage() {
                       ))}
                     </div>
 
-                    {/* Warning note */}
-                    {p.note && (
+                    {(p as any).note && (
                       <div style={{
                         background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.14)',
                         borderRadius: 11, padding: '10px 14px', marginBottom: 20,
@@ -479,11 +444,10 @@ export default function DownloadPage() {
                         display: 'flex', gap: 8,
                       }}>
                         <span style={{ flexShrink: 0 }}>⚠️</span>
-                        <span>{p.note}</span>
+                        <span>{(p as any).note}</span>
                       </div>
                     )}
 
-                    {/* Buttons */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 'auto' }}>
                       <a href={p.primary.url} className="platform-btn-primary" style={{
                         background: isDetected
@@ -498,10 +462,10 @@ export default function DownloadPage() {
                         <DownloadIcon size={16} />
                         {p.primary.label}
                       </a>
-                      {p.secondary && (
-                        <a href={p.secondary.url} className="platform-btn-secondary">
+                      {(p as any).secondary && (
+                        <a href={(p as any).secondary.url} className="platform-btn-secondary">
                           <DownloadIcon size={14} />
-                          {p.secondary.label}
+                          {(p as any).secondary.label}
                         </a>
                       )}
                     </div>
@@ -519,20 +483,20 @@ export default function DownloadPage() {
           <div className="wrap">
             <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
               style={{ textAlign: 'center', marginBottom: 44 }}>
-              <div className="stag">Почему Centrio</div>
+              <div className="stag">{t.dl_why_label}</div>
               <h2 style={{ fontSize: 'clamp(24px,3vw,38px)', fontWeight: 800, color: '#f0f0ff', letterSpacing: '-0.025em' }}>
-                Всё, что нужно — <span className="gt">ничего лишнего</span>
+                {t.feat_title} <span className="gt">{t.feat_title2}</span>
               </h2>
             </motion.div>
 
             <div className="feature-row">
               {[
-                { icon: '🗂', title: 'Все в одном окне', desc: 'Telegram, WhatsApp, Discord, VK и 100+ сервисов без переключения вкладок' },
-                { icon: '🔔', title: 'Умные уведомления', desc: 'Нативные системные уведомления от каждого сервиса' },
-                { icon: '🎨', title: '4 темы на выбор', desc: 'Тёмная, светлая, системная и адаптивная — меняется под мессенджер' },
-                { icon: '🌐', title: 'Встроенный прокси', desc: 'SOCKS5 и HTTP — безопасный доступ к заблокированным сервисам' },
-                { icon: '☁️', title: 'Облачная синхронизация', desc: 'Настройки синхронизируются между устройствами. Только в Pro.' },
-                { icon: '⚡', title: 'Автообновления', desc: 'Всегда свежая версия — обновление в фоне, без лишних действий' },
+                { icon: '🗂', title: t.dl_f1t, desc: t.dl_f1d },
+                { icon: '🔔', title: t.dl_f2t, desc: t.dl_f2d },
+                { icon: '🎨', title: t.dl_f3t, desc: t.dl_f3d },
+                { icon: '🌐', title: t.dl_f4t, desc: t.dl_f4d },
+                { icon: '☁️', title: t.dl_f5t, desc: t.dl_f5d },
+                { icon: '⚡', title: t.dl_f6t, desc: t.dl_f6d },
               ].map((f, i) => (
                 <motion.div key={i} variants={fadeUpDelay(i * 0.08)} initial="hidden" whileInView="show" viewport={{ once: true }}>
                   <div className="feature-pill">
@@ -556,18 +520,17 @@ export default function DownloadPage() {
             <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
               style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 28, padding: '44px', overflow: 'hidden', position: 'relative' }}>
 
-              {/* Linux glow */}
               <div style={{ position: 'absolute', top: -60, right: -60, width: 300, height: 300, background: 'rgba(251,146,60,0.06)', borderRadius: '50%', filter: 'blur(60px)', pointerEvents: 'none' }} />
 
               <div className="linux-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 48, alignItems: 'center', position: 'relative' }}>
                 <div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(251,146,60,0.1)', border: '1px solid rgba(251,146,60,0.22)', borderRadius: 10, padding: '5px 14px', fontSize: 11, color: '#fb923c', fontWeight: 700, marginBottom: 20, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                     <LinuxIcon size={14} />
-                    Linux · Терминал
+                    {t.dl_linux_badge}
                   </div>
-                  <h3 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 14px', lineHeight: 1.25, color: '#f0f0ff', letterSpacing: '-0.025em' }}>Одна команда —<br />и готово</h3>
+                  <h3 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 14px', lineHeight: 1.25, color: '#f0f0ff', letterSpacing: '-0.025em' }}>{t.dl_linux_h1}<br />{t.dl_linux_h2}</h3>
                   <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 14.5, lineHeight: 1.8, margin: '0 0 24px' }}>
-                    AppImage запускается на любом дистрибутиве без зависимостей. Скачал, дал права, запустил.
+                    {t.dl_linux_desc}
                   </p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <a href={URLS.linux_app} style={{
@@ -586,7 +549,7 @@ export default function DownloadPage() {
                       fontSize: 13.5, fontWeight: 600, transition: 'all .2s',
                     }}>
                       <DownloadIcon size={15} />
-                      .deb пакет
+                      .deb
                     </a>
                   </div>
                 </div>
@@ -627,7 +590,7 @@ export default function DownloadPage() {
                     <button
                       className={`copy-btn${copied ? ' copied' : ''}`}
                       onClick={() => copy(`wget ${URLS.linux_app}\nchmod +x Centrio-${VERSION}.AppImage\n./Centrio-${VERSION}.AppImage`)}>
-                      {copied ? '✓ Скопировано' : 'Копировать'}
+                      {copied ? t.dl_copied : t.dl_copy}
                     </button>
                   </div>
                 </div>
@@ -643,21 +606,21 @@ export default function DownloadPage() {
           <div className="wrap">
             <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }}
               style={{ textAlign: 'center', marginBottom: 44 }}>
-              <div className="stag">Что нового</div>
+              <div className="stag">{t.dl_news_label}</div>
               <h2 style={{ fontSize: 'clamp(24px,3vw,38px)', fontWeight: 800, color: '#f0f0ff', letterSpacing: '-0.025em' }}>
-                v{VERSION} — <span className="gt">Май 2026</span>
+                v{VERSION} — <span className="gt">{t.dl_hero_date}</span>
               </h2>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, marginTop: 10 }}>Последние улучшения в этом релизе</p>
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, marginTop: 10 }}>{t.dl_news_sub}</p>
             </motion.div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12, maxWidth: 860, margin: '0 auto' }}>
               {[
-                { tag: 'i18n', color: '#a78bfa', text: 'Меню «Файл/Правка/Вид/Окно/Справка» переведено на все 7 языков' },
-                { tag: 'fix', color: '#4ade80', text: 'Исправлена точка выбора цвета в палитре акцента' },
-                { tag: 'new', color: '#38bdf8', text: 'macOS и Linux — Centrio теперь на трёх платформах' },
-                { tag: 'fix', color: '#4ade80', text: 'Язык сохраняется между запусками, облако его не затирает' },
-                { tag: 'ui', color: '#f97316', text: 'Окно обновлений: SVG-иконки и прокрутка длинных списков' },
-                { tag: 'new', color: '#38bdf8', text: 'Адаптивная тема: цвет интерфейса подстраивается под мессенджер' },
+                { tag: 'i18n', color: '#a78bfa', text: 'PRO modal — 8 benefits, full i18n in 7 languages, new design with glow' },
+                { tag: 'fix', color: '#4ade80', text: 'Extensions toggle — non-PRO users can click and see the PRO modal' },
+                { tag: 'new', color: '#38bdf8', text: 'Linux auto-updates — platform-specific publish URL, latest-linux.yml' },
+                { tag: 'fix', color: '#4ade80', text: '"Ready to work" status badge — now i18n via tGet() in all 7 languages' },
+                { tag: 'new', color: '#38bdf8', text: 'deploy-site.js — one command updates all download links on the site' },
+                { tag: 'ui', color: '#f97316', text: 'Linux deeplink centrio:// — OAuth opens in browser, redirects back' },
               ].map((item, i) => (
                 <motion.div key={i} variants={fadeUpDelay(i * 0.07)} initial="hidden" whileInView="show" viewport={{ once: true }}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '16px 20px', background: 'rgba(255,255,255,0.025)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', transition: 'border-color .2s' }}>
@@ -678,35 +641,34 @@ export default function DownloadPage() {
         {/* ── CTA BOTTOM ───────────────────────────────────────────────────── */}
         <section style={{ padding: '90px 0 100px' }}>
           <div className="wrap" style={{ textAlign: 'center', position: 'relative' }}>
-            {/* Glow */}
             <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 300, background: 'radial-gradient(ellipse at center, rgba(168,85,247,0.1) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
             <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} style={{ position: 'relative' }}>
-              <div className="stag" style={{ justifyContent: 'center' }}>Начни прямо сейчас</div>
+              <div className="stag" style={{ justifyContent: 'center' }}>{t.dl_cta_label}</div>
               <h2 style={{ fontSize: 'clamp(30px,5vw,56px)', fontWeight: 900, color: '#f0f0ff', letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: 18 }}>
-                Все мессенджеры.<br /><span className="gt">Одно окно.</span>
+                {t.hero_h1a}<br /><span className="gt">{t.hero_h1b}</span>
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 16, marginBottom: 40, lineHeight: 1.7 }}>
-                Бесплатно для всех платформ. Без рекламы и скрытых платежей.
+                {t.dl_cta_sub}
               </p>
 
               <div className="hero-cta-row" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <a href={URLS.win} className="btn-g" style={{ fontSize: 15.5, padding: '15px 32px' }}>
                   <DownloadIcon size={17} />
-                  Скачать для Windows
+                  {t.dl_cta_win_btn}
                 </a>
                 <Link href="/pricing" className="btn-o" style={{ fontSize: 15, padding: '14px 28px' }}>
-                  Тарифы →
+                  {t.hero_cta2}
                 </Link>
               </div>
 
               <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
-                {['Бесплатно', 'Windows · macOS · Linux', `v${VERSION}`].map((t, i) => (
+                {[t.dl_cta_free, 'Windows · macOS · Linux', `v${VERSION}`].map((text, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'rgba(255,255,255,0.28)' }}>
                     <svg viewBox="0 0 20 20" fill="rgba(168,85,247,0.6)" width="13" height="13">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                     </svg>
-                    {t}
+                    {text}
                   </div>
                 ))}
               </div>

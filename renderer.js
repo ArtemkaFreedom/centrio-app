@@ -204,14 +204,14 @@ function invokeIpc(channel, ...args) {
 }
 
 const STARTUP_STAGES_FALLBACK = {
-    boot:     { label: 'Инициализация',               hint: 'Запускаем основные сервисы...' },
-    store:    { label: 'Загрузка данных',              hint: 'Читаем настройки и локальное состояние...' },
-    i18n:     { label: 'Локализация',                  hint: 'Применяем язык интерфейса...' },
-    ui:       { label: 'Подготовка UI',                hint: 'Собираем интерфейс и компоненты...' },
-    bindings: { label: 'Подключение модулей',          hint: 'Связываем обработчики и системные функции...' },
-    data:     { label: 'Загрузка рабочего пространства', hint: 'Подключаем мессенджеры, вкладки и папки...' },
-    security: { label: 'Проверка защиты',              hint: 'Проверяем параметры безопасности...' },
-    done:     { label: 'Готово',                       hint: 'Рабочее пространство готово к использованию.' },
+    boot:     { label: 'Initializing',         hint: 'Starting core services...' },
+    store:    { label: 'Loading data',         hint: 'Reading settings and local state...' },
+    i18n:     { label: 'Localization',         hint: 'Applying interface language...' },
+    ui:       { label: 'Preparing UI',         hint: 'Building interface and components...' },
+    bindings: { label: 'Connecting modules',   hint: 'Binding handlers and system functions...' },
+    data:     { label: 'Loading workspace',    hint: 'Connecting messengers, tabs and folders...' },
+    security: { label: 'Security check',       hint: 'Verifying security settings...' },
+    done:     { label: 'Ready',                hint: 'Workspace is ready to use.' },
 }
 
 function getStartupStage(key) {
@@ -506,7 +506,7 @@ async function bootstrap() {
                     theme: settings.theme || 'dark',
                     accentColor: settings.accentColor || '#7b68ee',
                     density: settings.density || 'comfortable',
-                    language: settings.language || 'ru',
+                    language: settings.language || 'en',
                     sidebarPosition: settings.sidebarPosition || 'left',
                     showTabs: settings.showTabs !== false,
                     notifications: settings.notifications !== false,

@@ -41,7 +41,7 @@
 
         <div class="startup-progress-wrap">
             <div class="startup-stage-row">
-                <div id="startupStageText" class="startup-stage-text">Инициализация</div>
+                <div id="startupStageText" class="startup-stage-text">Initializing</div>
                 <div id="startupProgressText" class="startup-progress-text">0%</div>
             </div>
 
@@ -50,7 +50,7 @@
                 <div class="startup-progress-shimmer"></div>
             </div>
 
-            <div id="startupHintText" class="startup-hint-text">Подготавливаем интерфейс...</div>
+            <div id="startupHintText" class="startup-hint-text">Starting core services...</div>
         </div>
     </div>
 </div>
@@ -365,76 +365,97 @@
         <div id="tabsContent" class="tabs-content"></div>
     </div>
     <div id="welcomeScreen" style="display:none;">
-        <div class="welcome-box">
-            <div class="welcome-logo-wrap">
-                <img src="assets/logo.png" class="welcome-logo" alt="Centrio">
-            </div>
-            <h1 class="welcome-title">Добро пожаловать в <span class="welcome-accent">Centrio</span></h1>
-            <p class="welcome-sub">Все ваши мессенджеры в одном месте. Быстро, удобно, красиво.</p>
+        <!-- Ambient background glows -->
+        <div class="welcome-glow welcome-glow-1"></div>
+        <div class="welcome-glow welcome-glow-2"></div>
+        <div class="welcome-glow welcome-glow-3"></div>
 
+        <div class="welcome-box">
+            <!-- Logo with dual spinning rings -->
+            <div class="welcome-logo-ring">
+                <div class="welcome-logo-wrap">
+                    <img src="assets/logo.png" class="welcome-logo" alt="Centrio">
+                </div>
+            </div>
+
+            <!-- Header -->
+            <div class="welcome-header">
+                <h1 class="welcome-title">
+                    <span data-i18n="welcome.title">Welcome to</span>
+                    <span class="welcome-accent"> Centrio</span>
+                </h1>
+                <p class="welcome-sub" data-i18n="welcome.sub">All your messengers in one place. Fast, convenient, beautiful.</p>
+            </div>
+
+            <!-- Feature rows -->
             <div class="welcome-features">
                 <div class="welcome-feature">
-                    <div class="welcome-feature-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <div class="welcome-feature-icon welcome-icon-blue">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </div>
                     <div class="welcome-feature-text">
-                        <span>Все мессенджеры</span>
-                        <p>Telegram, WhatsApp, VK и другие — в одном окне</p>
+                        <span data-i18n="welcome.f1title">All messengers</span>
+                        <p data-i18n="welcome.f1desc">Telegram, WhatsApp, VK and others — in one window</p>
                     </div>
+                    <div class="welcome-feature-arrow">›</div>
                 </div>
                 <div class="welcome-feature">
-                    <div class="welcome-feature-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <div class="welcome-feature-icon welcome-icon-amber">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </div>
                     <div class="welcome-feature-text">
-                        <span>Папки и порядок</span>
-                        <p>Группируй мессенджеры по категориям</p>
+                        <span data-i18n="welcome.f2title">Folders & order</span>
+                        <p data-i18n="welcome.f2desc">Group messengers by categories</p>
                     </div>
+                    <div class="welcome-feature-arrow">›</div>
                 </div>
                 <div class="welcome-feature">
-                    <div class="welcome-feature-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <div class="welcome-feature-icon welcome-icon-purple">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
-                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.8"/>
                         </svg>
                     </div>
                     <div class="welcome-feature-text">
-                        <span>Темы оформления</span>
-                        <p>Dark, Glass, Midnight — выбери свой стиль</p>
+                        <span data-i18n="welcome.f3title">Themes</span>
+                        <p data-i18n="welcome.f3desc">Dark, Glass, Midnight — choose your style</p>
                     </div>
+                    <div class="welcome-feature-arrow">›</div>
                 </div>
                 <div class="welcome-feature">
-                    <div class="welcome-feature-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <div class="welcome-feature-icon welcome-icon-green">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                         </svg>
                     </div>
                     <div class="welcome-feature-text">
-                        <span>Защита PIN-кодом</span>
-                        <p>Личные данные под надёжной защитой</p>
+                        <span data-i18n="welcome.f4title">PIN protection</span>
+                        <p data-i18n="welcome.f4desc">Your personal data stays secure</p>
                     </div>
+                    <div class="welcome-feature-arrow">›</div>
                 </div>
             </div>
 
+            <!-- Buttons -->
             <div class="welcome-btns">
                 <button class="welcome-add-btn" id="welcomeAddBtn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                        <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                        <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
                     </svg>
-                    Добавить мессенджер
+                    <span data-i18n="welcome.addBtn">Add messenger</span>
                 </button>
                 <button class="welcome-login-btn" id="welcomeLoginBtn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                         <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/>
                     </svg>
-                    Войти в аккаунт
+                    <span data-i18n="welcome.loginBtn">Sign in to account</span>
                 </button>
             </div>
         </div>
