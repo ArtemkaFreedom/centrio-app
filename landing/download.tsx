@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
 
-const VERSION = '1.6.92'
+const VERSION = '1.6.95'
 
 const URLS = {
   win:       `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`,
@@ -322,7 +322,7 @@ export default function DownloadPage() {
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 44 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 20, padding: '6px 16px', fontSize: 12, color: '#c084fc', fontWeight: 700, letterSpacing: '0.06em' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a855f7', boxShadow: '0 0 8px #a855f7', display: 'inline-block' }} />
-                v{VERSION} · Апрель 2026
+                v{VERSION} · Май 2026
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 20, padding: '6px 14px', fontSize: 12, color: 'rgba(34,197,94,0.85)', fontWeight: 600 }}>
                 <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
@@ -645,7 +645,7 @@ export default function DownloadPage() {
               style={{ textAlign: 'center', marginBottom: 44 }}>
               <div className="stag">Что нового</div>
               <h2 style={{ fontSize: 'clamp(24px,3vw,38px)', fontWeight: 800, color: '#f0f0ff', letterSpacing: '-0.025em' }}>
-                v{VERSION} — <span className="gt">Апрель 2026</span>
+                v{VERSION} — <span className="gt">Май 2026</span>
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, marginTop: 10 }}>Последние улучшения в этом релизе</p>
             </motion.div>
