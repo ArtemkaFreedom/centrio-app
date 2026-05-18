@@ -74,12 +74,13 @@ function initApp({
 
         registerShortcuts({ getMainWindow, showMainWindow })
 
-        if (process.platform === 'win32') {
+        // Handle protocol URL passed as CLI arg at startup (Windows + Linux)
+        // macOS uses the 'open-url' event instead
+        if (process.platform !== 'darwin') {
             const protocolPrefix = `${APP_PROTOCOL}://`
             const deeplink = process.argv.find(
                 (arg) => typeof arg === 'string' && arg.startsWith(protocolPrefix)
             )
-
             if (deeplink) {
                 setTimeout(() => {
                     handleProtocolUrl(deeplink, getMainWindow, showMainWindow)

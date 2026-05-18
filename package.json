@@ -1,7 +1,7 @@
 {
     "name":  "messengerapp",
     "productName":  "Centrio",
-    "version": "1.6.92",
+    "version": "1.6.94",
     "description":  "All messengers in one app",
     "author":  {
                    "name":  "Centrio",
@@ -96,20 +96,22 @@
                   "linux":  {
                                 "target":  [
                                                {
-                                                   "target":  "AppImage",
+                                                   "target":  "deb",
                                                    "arch":  [
                                                                 "x64"
                                                             ]
                                                },
                                                {
-                                                   "target":  "deb",
+                                                   "target":  "AppImage",
                                                    "arch":  [
                                                                 "x64"
                                                             ]
                                                }
                                            ],
                                 "icon":  "assets/icon.png",
-                                "category":  "Network"
+                                "category":  "Network",
+                                "executableArgs":  ["--no-sandbox"],
+                                "mimeTypes":  ["x-scheme-handler/centrio"]
                             },
                   "nsis":  {
                                "oneClick":  false,
