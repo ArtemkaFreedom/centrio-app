@@ -117,6 +117,11 @@ module.exports = {
         checkUpdatesBtn:      'Controlla aggiornamenti',
         checkUpdatesChecking: 'Controllo...',
         autoUpdateNote:       'Gli aggiornamenti vengono scaricati automaticamente',
+        statusReady:    'Pronto',
+        statusChecking: 'Controllo...',
+        statusDone:     'Controllo completato',
+        statusUpToDate: 'Aggiornato',
+        statusError:    'Controllo fallito',
         passwordEnable:   'Protezione PIN',
         passwordEnableHint:'Richiedi PIN all\'avvio',
         passwordSet:      'Imposta PIN',
@@ -428,7 +433,16 @@ module.exports = {
         upgradeBtn:           'Passa a Pro',
         laterBtn:             'Più tardi',
         extensionsTitle: 'Estensioni — solo Pro',
-        extensionsDesc: 'Gli strumenti integrati sono disponibili con il piano Pro.'
+        extensionsDesc: 'Gli strumenti integrati sono disponibili con il piano Pro.',
+        featuresLabel: 'Pro sblocca:',
+        benefit1: 'Messenger illimitati',
+        benefit2: 'Fino a 5 dispositivi contemporaneamente',
+        benefit3: 'Sincronizzazione cloud delle impostazioni',
+        benefit4: 'Cartelle e raggruppamento',
+        benefit5: 'Tutti i temi e colori di accento',
+        benefit6: 'Estensioni: AdBlock, traduttore e altro',
+        benefit7: 'Suoni di notifica per messenger',
+        benefit8: 'Supporto prioritario'
     },
 
     extensions: {

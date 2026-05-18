@@ -126,8 +126,8 @@ function createExtensionsUiApi({
                 </div>
                 <div class="ext-card-actions">
                     ${lockBadge}
-                    <label class="toggle ${!userIsPro ? 'toggle-locked' : ''}">
-                        <input type="checkbox" id="ext-toggle-${ext.id}" ${isEnabled ? 'checked' : ''} ${!userIsPro ? 'disabled' : ''}>
+                    <label class="toggle">
+                        <input type="checkbox" id="ext-toggle-${ext.id}" ${isEnabled && userIsPro ? 'checked' : ''}>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>

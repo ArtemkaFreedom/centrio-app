@@ -118,6 +118,11 @@ module.exports = {
         checkUpdatesBtn: 'Проверить обновления',
         checkUpdatesChecking: 'Проверяем...',
         autoUpdateNote: 'Обновления скачиваются автоматически',
+        statusReady:    'Готово к работе',
+        statusChecking: 'Проверка...',
+        statusDone:     'Проверка выполнена',
+        statusUpToDate: 'Актуальная версия',
+        statusError:    'Ошибка проверки',
         passwordEnable: 'Защита PIN-кодом',
         passwordEnableHint: 'Требовать PIN при запуске',
         passwordSet: 'Установить PIN',
@@ -454,7 +459,16 @@ module.exports = {
         upgradeBtn: 'Перейти на Pro',
         laterBtn: 'Позже',
         extensionsTitle: 'Расширения — только Pro',
-        extensionsDesc: 'Встроенные инструменты доступны на плане Pro.'
+        extensionsDesc: 'Встроенные инструменты доступны на плане Pro.',
+        featuresLabel: 'Pro открывает:',
+        benefit1: 'Неограниченно мессенджеров',
+        benefit2: 'До 5 устройств одновременно',
+        benefit3: 'Облачная синхронизация настроек',
+        benefit4: 'Папки и группировка сервисов',
+        benefit5: 'Все темы и акцент-цвета',
+        benefit6: 'Расширения: AdBlock, переводчик и др.',
+        benefit7: 'Индивидуальные звуки уведомлений',
+        benefit8: 'Приоритетная поддержка'
     },
 
     extensions: {

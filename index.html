@@ -1785,7 +1785,7 @@
 
                             <div class="about-version-row">
                                 <span class="about-version-badge" id="appVersionText">v1.3.3</span>
-                                <span class="about-build-badge" id="updateStatusBadge">Готово к работе</span>
+                                <span class="about-build-badge" id="updateStatusBadge" data-i18n="settings.statusReady">Готово к работе</span>
                             </div>
 
                             <div class="about-desc" data-i18n="settings.aboutDesc"></div>
@@ -2369,36 +2369,58 @@
 <!-- ── PRO Upgrade Modal ─────────────────────────────────────── -->
 <div id="upgradeModal" class="modal" style="z-index:9999;">
   <div class="modal-content modal-sm upgrade-modal-card">
-    <!-- gradient header -->
+
+    <!-- gradient glow bg -->
+    <div class="upgrade-modal-glow"></div>
+
+    <!-- header -->
     <div class="upgrade-modal-header">
       <div class="upgrade-modal-icon-wrap" id="upgradeModalIcon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="rgba(99,102,241,0.25)"/>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+            stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="rgba(139,92,246,0.3)"/>
         </svg>
       </div>
-      <div>
+      <div class="upgrade-modal-header-text">
         <div class="upgrade-modal-title" id="upgradeModalTitle">Нужен Pro</div>
         <div class="upgrade-modal-desc" id="upgradeModalDesc">Достигнут лимит бесплатного плана.</div>
       </div>
+      <button class="upgrade-modal-x" id="upgradeModalClose" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
+
+    <!-- divider -->
+    <div class="upgrade-modal-divider"></div>
+
     <!-- features -->
     <div class="upgrade-modal-features" id="upgradeModalFeatures">
-      <div class="upgrade-modal-features-label">Pro открывает:</div>
+      <div class="upgrade-modal-features-label" data-i18n="pro.featuresLabel">Pro открывает:</div>
       <div class="upgrade-modal-feat-list">
-        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Неограниченно мессенджеров</div>
-        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> До 5 устройств одновременно</div>
-        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Облачная синхронизация</div>
-        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Папки и группировка</div>
-        <div class="upgrade-modal-feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17L4 12" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Все темы и акцент-цвета</div>
+        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit1">Неограниченно мессенджеров</span></div>
+        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit2">До 5 устройств одновременно</span></div>
+        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit3">Облачная синхронизация настроек</span></div>
+        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit4">Папки и группировка сервисов</span></div>
+        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit5">Все темы и акцент-цвета</span></div>
+        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit6">Расширения: AdBlock, переводчик и др.</span></div>
+        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit7">Индивидуальные звуки уведомлений</span></div>
+        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit8">Приоритетная поддержка</span></div>
       </div>
     </div>
+
+    <!-- price hint -->
+    <div class="upgrade-modal-price-hint">от 133 ₽/мес · Отмена в любой момент</div>
+
     <!-- actions -->
     <div class="upgrade-modal-actions">
       <button id="upgradeModalBtn" onclick="window.electronAPI?.openExternal('https://centrio.me/pricing')" class="upgrade-modal-cta">
-        Перейти на Pro
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+        </svg>
+        <span data-i18n="pro.upgradeBtn">Перейти на Pro</span>
       </button>
-      <button id="upgradeModalClose" class="upgrade-modal-later">
-        Позже
+      <button id="upgradeModalLater" class="upgrade-modal-later">
+        <span data-i18n="pro.laterBtn">Позже</span>
       </button>
     </div>
   </div>

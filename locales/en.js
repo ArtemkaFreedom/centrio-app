@@ -117,6 +117,11 @@ module.exports = {
         checkUpdatesBtn:      'Check for updates',
         checkUpdatesChecking: 'Checking...',
         autoUpdateNote:       'Updates download automatically',
+        statusReady:    'Ready',
+        statusChecking: 'Checking...',
+        statusDone:     'Check complete',
+        statusUpToDate: 'Up to date',
+        statusError:    'Check failed',
         passwordEnable:   'PIN protection',
         passwordEnableHint:'Require PIN on launch',
         passwordSet:      'Set PIN',
@@ -453,7 +458,16 @@ module.exports = {
         extensionsTitle:      'Extensions — Pro Only',
         extensionsDesc:       'Built-in tools are available on the Pro plan.',
         upgradeBtn:           'Upgrade to Pro',
-        laterBtn:             'Later'
+        laterBtn:             'Later',
+        featuresLabel: 'Pro unlocks:',
+        benefit1: 'Unlimited messengers',
+        benefit2: 'Up to 5 devices at once',
+        benefit3: 'Cloud sync of settings',
+        benefit4: 'Folders & grouping',
+        benefit5: 'All themes and accent colors',
+        benefit6: 'Extensions: AdBlock, translator & more',
+        benefit7: 'Per-messenger notification sounds',
+        benefit8: 'Priority support'
     },
 
     extensions: {

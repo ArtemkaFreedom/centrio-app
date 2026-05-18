@@ -5747,99 +5747,162 @@ button:active {
 }
 
 /* ── PRO Upgrade Modal ── */
+/* ── PRO Upgrade Modal ── */
 .upgrade-modal-card {
-    max-width: 400px;
+    max-width: 420px;
     padding: 0;
     overflow: hidden;
-    border: 1px solid rgba(99,102,241,0.3) !important;
+    border: 1px solid rgba(139,92,246,0.35) !important;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.15), 0 0 60px rgba(139,92,246,0.12) !important;
+    position: relative;
+}
+.upgrade-modal-glow {
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 300px; height: 200px;
+    background: radial-gradient(ellipse at center, rgba(139,92,246,0.25) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
 }
 .upgrade-modal-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 14px;
-    background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(167,139,250,0.08));
-    padding: 24px 24px 18px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(99,102,241,0.1) 50%, rgba(56,189,248,0.05) 100%);
+    padding: 22px 22px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    position: relative; z-index: 1;
 }
 .upgrade-modal-icon-wrap {
     flex-shrink: 0;
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    background: rgba(99,102,241,0.18);
-    border: 1px solid rgba(99,102,241,0.35);
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(139,92,246,0.25), rgba(99,102,241,0.15));
+    border: 1px solid rgba(139,92,246,0.4);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #818cf8;
-    margin-top: 2px;
+    color: #a78bfa;
+    box-shadow: 0 4px 16px rgba(139,92,246,0.25);
 }
+.upgrade-modal-header-text { flex: 1; min-width: 0; }
 .upgrade-modal-title {
-    font-weight: 700;
+    font-weight: 800;
     font-size: 16px;
     color: var(--text-bright);
     margin-bottom: 4px;
+    letter-spacing: -0.01em;
 }
 .upgrade-modal-desc {
     font-size: 12px;
     color: var(--text-secondary);
     line-height: 1.5;
 }
+.upgrade-modal-x {
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.09);
+    color: rgba(255,255,255,0.4);
+    border-radius: 7px;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.upgrade-modal-x:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); }
+.upgrade-modal-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(139,92,246,0.2), rgba(56,189,248,0.1), transparent);
+}
 .upgrade-modal-features {
-    padding: 16px 24px;
+    padding: 16px 22px 10px;
+    position: relative; z-index: 1;
 }
 .upgrade-modal-features-label {
     font-size: 10px;
     font-weight: 700;
-    color: rgba(255,255,255,0.3);
+    color: rgba(139,92,246,0.7);
     text-transform: uppercase;
-    letter-spacing: .09em;
-    margin-bottom: 10px;
+    letter-spacing: .12em;
+    margin-bottom: 11px;
 }
 .upgrade-modal-feat-list {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px 12px;
 }
 .upgrade-modal-feat {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12.5px;
-    color: rgba(255,255,255,0.68);
+    align-items: flex-start;
+    gap: 7px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.62);
+    line-height: 1.45;
 }
-.upgrade-modal-feat svg { flex-shrink: 0; }
+.upgrade-feat-check {
+    flex-shrink: 0;
+    width: 16px; height: 16px;
+    border-radius: 5px;
+    background: rgba(139,92,246,0.18);
+    border: 1px solid rgba(139,92,246,0.35);
+    color: #a78bfa;
+    font-size: 10px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+}
+.upgrade-modal-price-hint {
+    padding: 8px 22px 14px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.22);
+    text-align: center;
+    position: relative; z-index: 1;
+}
 .upgrade-modal-actions {
-    padding: 0 24px 22px;
+    padding: 0 22px 22px;
     display: flex;
     gap: 8px;
+    position: relative; z-index: 1;
 }
 .upgrade-modal-cta {
     flex: 1;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1 50%, #38bdf8);
+    background-size: 200% auto;
     border: none;
     color: #fff;
-    border-radius: 9px;
-    padding: 10px;
-    font-size: 13px;
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-size: 13.5px;
     font-weight: 700;
     font-family: inherit;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(99,102,241,0.4);
-    transition: opacity 0.15s, transform 0.12s;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.45);
+    transition: box-shadow 0.2s, transform 0.15s, background-position 0.4s;
+    animation: grad-shift-pro 3s ease infinite;
 }
-.upgrade-modal-cta:hover { opacity: 0.88; transform: scale(1.02); }
+@keyframes grad-shift-pro {
+    0%,100% { background-position: 0% 50% }
+    50%      { background-position: 100% 50% }
+}
+.upgrade-modal-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(99,102,241,0.6); }
 .upgrade-modal-later {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.45);
-    border-radius: 9px;
-    padding: 10px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.38);
+    border-radius: 10px;
+    padding: 11px 16px;
     font-size: 13px;
     font-family: inherit;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
 }
-.upgrade-modal-later:hover { background: rgba(255,255,255,0.1); }
+.upgrade-modal-later:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.65); }
 
 /* ── PRO-кольцо в сайдбаре (cloudBtn) ── */
 .sidebar-avatar-ring {

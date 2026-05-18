@@ -1228,12 +1228,11 @@ function applyTabZoom(level) {
         modal.classList.add('show')
     }
 
-    document.getElementById('upgradeModalClose')?.addEventListener('click', () => {
-        document.getElementById('upgradeModal')?.classList.remove('show')
-    })
+    const _closeUpgradeModal = () => document.getElementById('upgradeModal')?.classList.remove('show')
+    document.getElementById('upgradeModalClose')?.addEventListener('click', _closeUpgradeModal)
+    document.getElementById('upgradeModalLater')?.addEventListener('click', _closeUpgradeModal)
     document.getElementById('upgradeModal')?.addEventListener('click', (e) => {
-        if (e.target === document.getElementById('upgradeModal'))
-            document.getElementById('upgradeModal').classList.remove('show')
+        if (e.target === document.getElementById('upgradeModal')) _closeUpgradeModal()
     })
 
     // Возвращает true если план PRO/TEAM, иначе показывает модалку и возвращает false
@@ -2028,7 +2027,7 @@ function applyTabZoom(level) {
 
     if (checkUpdatesBtn && updateStatusBadge && window.electronAPI?.checkForUpdates) {
         checkUpdatesBtn.addEventListener('click', async () => {
-            updateStatusBadge.textContent = 'Проверка обновлений...'
+            updateStatusBadge.textContent = tGet('settings.statusChecking')
             checkUpdatesBtn.disabled = true
 
             try {
@@ -2036,16 +2035,16 @@ function applyTabZoom(level) {
 
                 if (result?.success) {
                     if (result.updateInfo) {
-                        updateStatusBadge.textContent = 'Проверка выполнена'
+                        updateStatusBadge.textContent = tGet('settings.statusDone')
                     } else {
-                        updateStatusBadge.textContent = 'У вас актуальная версия'
+                        updateStatusBadge.textContent = tGet('settings.statusUpToDate')
                     }
                 } else {
-                    updateStatusBadge.textContent = 'Ошибка проверки'
-                    console.error('Ошибка обновления:', result?.error)
+                    updateStatusBadge.textContent = tGet('settings.statusError')
+                    console.error('Update check error:', result?.error)
                 }
             } catch (error) {
-                updateStatusBadge.textContent = 'Ошибка проверки'
+                updateStatusBadge.textContent = tGet('settings.statusError')
                 console.error(error)
             } finally {
                 checkUpdatesBtn.disabled = false

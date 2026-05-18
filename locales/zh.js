@@ -117,6 +117,11 @@ module.exports = {
         checkUpdatesBtn:      '检查更新',
         checkUpdatesChecking: '检查中...',
         autoUpdateNote:       '更新将自动下载',
+        statusReady:    '准备就绪',
+        statusChecking: '检查中...',
+        statusDone:     '检查完成',
+        statusUpToDate: '已是最新',
+        statusError:    '检查失败',
         passwordEnable:   'PIN 保护',
         passwordEnableHint:'启动时需要 PIN',
         passwordSet:      '设置 PIN',
@@ -428,7 +433,16 @@ module.exports = {
         upgradeBtn:           '升级到 Pro',
         laterBtn:             '稍后',
         extensionsTitle: '扩展功能 — 仅限 Pro',
-        extensionsDesc: '内置工具在 Pro 计划中可用。'
+        extensionsDesc: '内置工具在 Pro 计划中可用。',
+        featuresLabel: 'Pro 解锁：',
+        benefit1: '无限应用',
+        benefit2: '最多 5 台设备同时使用',
+        benefit3: '设置云端同步',
+        benefit4: '文件夹与分组',
+        benefit5: '所有主题和强调色',
+        benefit6: '扩展：AdBlock、翻译器等',
+        benefit7: '每个应用的独立通知音',
+        benefit8: '优先支持'
     },
 
     extensions: {
