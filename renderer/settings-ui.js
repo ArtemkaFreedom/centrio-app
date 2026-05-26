@@ -37,17 +37,24 @@ function _applyAdaptiveColor({ r, g, b }) {
     root.style.setProperty('--statusbar-bg', `hsl(${h},${Math.min(sat,50)}%,7%)`)
     root.style.setProperty('--border',       `hsl(${h},${Math.min(sat,30)}%,22%)`)
     root.style.setProperty('--border-light', `hsl(${h},${Math.min(sat,25)}%,18%)`)
+    root.style.setProperty('--tab-active',   `hsl(${h},${Math.min(sat,42)}%,19%)`)
+    root.style.setProperty('--tab-inactive', `hsl(${h},${Math.min(sat,35)}%,13%)`)
     root.style.setProperty('--accent',       `hsl(${h},70%,65%)`)
-    root.style.setProperty('--accent-hover', `hsl(${h},70%,70%)`)
+    root.style.setProperty('--accent-hover', `hsl(${h},70%,72%)`)
     root.style.setProperty('--accent-dim',   `hsla(${h},70%,65%,0.15)`)
     root.style.setProperty('--accent-glow',  `hsla(${h},70%,65%,0.28)`)
+    root.style.setProperty('--shadow-glow',  `0 0 20px hsla(${h},70%,65%,0.25)`)
+    root.style.setProperty('--glass-bg',     `hsla(${h},${sat}%,8%,0.85)`)
+    root.style.setProperty('--glass-border', `hsla(${h},${Math.min(sat,30)}%,80%,0.06)`)
 }
 
 function _clearAdaptiveVars() {
     const props = [
         '--bg-primary','--bg-secondary','--bg-tertiary','--bg-hover','--bg-active',
         '--sidebar-bg','--titlebar-bg','--statusbar-bg','--border','--border-light',
+        '--tab-active','--tab-inactive',
         '--accent','--accent-hover','--accent-dim','--accent-glow',
+        '--shadow-glow','--glass-bg','--glass-border',
     ]
     const root = document.documentElement
     props.forEach(p => root.style.removeProperty(p))
@@ -58,25 +65,73 @@ async function _extractWebviewColor(webview) {
     try {
         return await webview.executeJavaScript(`
             (function() {
-                function parseRgb(s) {
-                    const m = s && s.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
-                    return m ? [+m[1],+m[2],+m[3]] : null;
+                function hexToRgb(hex) {
+                    hex = hex.replace('#','');
+                    if (hex.length === 3) hex = hex.split('').map(function(c){return c+c;}).join('');
+                    if (hex.length !== 6) return null;
+                    return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
                 }
-                const sels = [
-                    '[class*="sidebar"]','[class*="Sidebar"]','[class*="side-bar"]',
-                    '[class*="leftPanel"]','[class*="left-panel"]',
-                    '[class*="nav-panel"]','[data-testid*="sidebar"]',
+                function parseColor(s) {
+                    if (!s || s === 'transparent') return null;
+                    var m = s.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?/);
+                    if (m) {
+                        var a = m[4] !== undefined ? parseFloat(m[4]) : 1;
+                        if (a < 0.1) return null;
+                        var rgb = [+m[1],+m[2],+m[3]];
+                        return (rgb[0]+rgb[1]+rgb[2]) > 10 ? rgb : null;
+                    }
+                    if (s[0] === '#') return hexToRgb(s);
+                    return null;
+                }
+                // Идём вверх по DOM, пока не найдём непрозрачный фон
+                function getBgWalking(el) {
+                    var cur = el;
+                    while (cur && cur.tagName !== 'HTML') {
+                        var rgb = parseColor(getComputedStyle(cur).backgroundColor);
+                        if (rgb) return rgb;
+                        cur = cur.parentElement;
+                    }
+                    return null;
+                }
+                // 1. meta theme-color — самый надёжный: Telegram, WhatsApp, Discord и др.
+                var meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) {
+                    var c = meta.getAttribute('content');
+                    var rgb = c && c[0] === '#' ? hexToRgb(c) : parseColor(c);
+                    if (rgb) return {r:rgb[0],g:rgb[1],b:rgb[2]};
+                }
+                // 2. Специфичные селекторы популярных мессенджеров
+                var sels = [
+                    // Telegram Web
+                    '#column-left','.LeftColumn','.sidebar-header',
+                    // WhatsApp Web
+                    '#pane-side','[data-testid="chat-list"]',
+                    // Discord
+                    '[class*="sidebar"]','[class*="Sidebar"]',
+                    // VK
+                    '.left-column','.sidebar','.ConversationsLayout--sidebar',
+                    // Slack
+                    '.p-channel_sidebar','[class*="ChannelSidebar"]',
+                    // Generic patterns
+                    '[class*="side-bar"]','[class*="leftPanel"]','[class*="left-panel"]',
+                    '[class*="nav-panel"]','[class*="LeftNav"]','[class*="leftNav"]',
+                    '[data-testid*="sidebar"]',
                     'aside','[role="navigation"]','nav'
                 ];
-                for (const s of sels) {
-                    const el = document.querySelector(s);
-                    if (!el) continue;
-                    const bg = getComputedStyle(el).backgroundColor;
-                    const rgb = parseRgb(bg);
-                    if (rgb && (rgb[0]+rgb[1]+rgb[2]) > 5) return {r:rgb[0],g:rgb[1],b:rgb[2]};
+                for (var i = 0; i < sels.length; i++) {
+                    try {
+                        var el = document.querySelector(sels[i]);
+                        if (!el) continue;
+                        var rgb = getBgWalking(el);
+                        if (rgb) return {r:rgb[0],g:rgb[1],b:rgb[2]};
+                    } catch(e) {}
                 }
-                const body = parseRgb(getComputedStyle(document.body).backgroundColor);
-                return body ? {r:body[0],g:body[1],b:body[2]} : null;
+                // 3. body → html
+                var bodyRgb = parseColor(getComputedStyle(document.body).backgroundColor);
+                if (bodyRgb) return {r:bodyRgb[0],g:bodyRgb[1],b:bodyRgb[2]};
+                var htmlRgb = parseColor(getComputedStyle(document.documentElement).backgroundColor);
+                if (htmlRgb) return {r:htmlRgb[0],g:htmlRgb[1],b:htmlRgb[2]};
+                return null;
             })()
         `)
     } catch {
@@ -84,15 +139,30 @@ async function _extractWebviewColor(webview) {
     }
 }
 
-async function updateAdaptiveTheme(getActiveWebview) {
+let _adaptiveGetWebview = null  // сохранённый геттер для немедленного вызова
+
+async function updateAdaptiveTheme(getActiveWebview, _delay = 900) {
     if (!_adaptiveActive) return
+    if (typeof getActiveWebview === 'function') _adaptiveGetWebview = getActiveWebview
+    const getter = _adaptiveGetWebview
+    if (!getter) return
     clearTimeout(_adaptiveTimer)
     _adaptiveTimer = setTimeout(async () => {
-        const wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null
+        const wv = getter()
         if (!wv) return
         const color = await _extractWebviewColor(wv)
-        if (color) _applyAdaptiveColor(color)
-    }, 800)
+        if (color) {
+            _applyAdaptiveColor(color)
+        } else {
+            // Ретрай: страница могла ещё рендериться
+            if (_delay < 4000) {
+                _adaptiveTimer = setTimeout(async () => {
+                    const color2 = await _extractWebviewColor(getter())
+                    if (color2) _applyAdaptiveColor(color2)
+                }, _delay * 1.6)
+            }
+        }
+    }, _delay)
 }
 
 function createSettingsUiApi({
@@ -104,7 +174,8 @@ function createSettingsUiApi({
     initSoundPicker,
     applyFoldersEnabled,
     resetPinSetup,
-    setActivePinBlock
+    setActivePinBlock,
+    getActiveWebview,
 }) {
     function getSettings() {
         return store.get('settings', {}) || {}
@@ -130,13 +201,20 @@ function createSettingsUiApi({
     function applyTheme(theme) {
         const root = document.documentElement
         _adaptiveActive = (theme === 'adaptive')
-        if (!_adaptiveActive) _clearAdaptiveVars()
+        if (!_adaptiveActive) {
+            _clearAdaptiveVars()
+        }
         root.setAttribute('data-theme', theme)
 
         const settings = getSettings()
         if (settings.accentColor && theme !== 'adaptive') {
             root.style.setProperty('--accent', settings.accentColor)
             root.style.setProperty('--accent-hover', settings.accentColor)
+        }
+
+        // Немедленно применяем цвет текущего мессенджера при активации темы
+        if (_adaptiveActive && typeof getActiveWebview === 'function') {
+            updateAdaptiveTheme(getActiveWebview, 300)
         }
     }
 

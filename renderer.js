@@ -1376,7 +1376,8 @@ function applyTabZoom(level) {
         initSoundPicker,
         applyFoldersEnabled,
         resetPinSetup,
-        setActivePinBlock
+        setActivePinBlock,
+        getActiveWebview,
     })
 
     const {

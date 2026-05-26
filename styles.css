@@ -330,7 +330,26 @@
 }
 
 /* ===== ТЕМА: ADAPTIVE (адаптивная) ===== */
-/* Цвета выставляются JS при смене вкладки; сдесь только умолчания (dark-like) */
+/* Цвета выставляются JS при смене вкладки; здесь только умолчания (dark-like) */
+
+/* Плавный переход цветов при смене мессенджера */
+[data-theme="adaptive"] .activity-bar,
+[data-theme="adaptive"] .titlebar,
+[data-theme="adaptive"] .status-bar,
+[data-theme="adaptive"] .content-area,
+[data-theme="adaptive"] .messenger-item,
+[data-theme="adaptive"] .folder-item,
+[data-theme="adaptive"] .tab-item,
+[data-theme="adaptive"] .tabs-bar,
+[data-theme="adaptive"] .settings-panel,
+[data-theme="adaptive"] .modal-content,
+[data-theme="adaptive"] body {
+    transition:
+        background-color 0.5s ease,
+        border-color     0.4s ease,
+        box-shadow       0.4s ease !important;
+}
+
 [data-theme="adaptive"] {
     --bg-primary:      #0f1117;
     --bg-secondary:    #161b27;
