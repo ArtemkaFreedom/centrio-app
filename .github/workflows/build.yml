@@ -86,6 +86,7 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.dmg.blockmap
+            dist/latest-mac.yml
           if-no-files-found: error
 
   # ─── Linux ─────────────────────────────────────────────────────────────────
@@ -168,6 +169,7 @@ jobs:
           sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
             -o StrictHostKeyChecking=no \
             artifacts/mac-artifacts/*.dmg \
+            artifacts/mac-artifacts/latest-mac.yml \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/centrio-downloads/mac/
 
       - name: Upload Linux

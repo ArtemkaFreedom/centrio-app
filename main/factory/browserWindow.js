@@ -12,6 +12,7 @@ function getSavedBounds() {
 
 function createMainBrowserWindow() {
     const bounds = getSavedBounds()
+    const isMac = process.platform === 'darwin'
 
     const win = new BrowserWindow({
         width: bounds.width,
@@ -23,8 +24,12 @@ function createMainBrowserWindow() {
         autoHideMenuBar: true,
         title: 'Centrio',
         icon: PATHS.ICON,
-        frame: false,
-        titleBarStyle: 'hidden',
+        // На macOS используем hiddenInset — traffic lights остаются,
+        // но titlebar прозрачный. На Win/Linux — полностью кастомный frame.
+        frame: isMac,
+        titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+        titlebarAppearsTransparent: isMac,
+        trafficLightPosition: isMac ? { x: 14, y: 14 } : undefined,
         webPreferences: {
             preload: path.resolve(__dirname, '..', '..', 'preload.js'),
             nodeIntegration: false,

@@ -52,6 +52,8 @@ function normalizePayload(channel, args) {
 }
 
 const electronAPI = {
+    platform: process.platform,
+
     storeGet: (key, def) => ipcRenderer.invoke('store:get', key, def),
     storeSet: (key, value) => ipcRenderer.invoke('store:set', key, value),
     storeDelete: (key) => ipcRenderer.invoke('store:delete', key),

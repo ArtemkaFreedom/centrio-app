@@ -379,6 +379,12 @@ async function bootstrap() {
     ])
 
     await advanceStartup('store', 24, { minStepTime: 240 })
+
+    // Помечаем платформу на <body> для CSS-адаптаций
+    if (window.electronAPI?.platform) {
+        document.body.classList.add(`platform-${window.electronAPI.platform}`)
+    }
+
     await initI18n()
     const _bootLanguage = getCurrentLanguage() // Сохраняем язык до loadData/cloud-sync
     const _subtitleEl = document.querySelector('.startup-subtitle[data-i18n]')

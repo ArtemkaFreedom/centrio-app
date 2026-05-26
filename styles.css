@@ -543,6 +543,12 @@ body {
     color: white !important;
 }
 
+/* ===== macOS — нативные traffic lights вместо наших кнопок ===== */
+/* На macOS frame=true + hiddenInset: traffic lights рисует система.
+   Наши кнопки закрытия/сворачивания скрываем, освобождаем место слева. */
+body.platform-darwin .titlebar-right { display: none; }
+body.platform-darwin .titlebar-left  { padding-left: 78px; } /* отступ под traffic lights */
+
 /* ===== MAIN CONTAINER ===== */
 .main-container {
     display: flex;
