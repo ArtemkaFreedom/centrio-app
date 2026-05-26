@@ -22,10 +22,20 @@ function _rgbToHsl(r, g, b) {
 }
 
 function _applyAdaptiveColor({ r, g, b }) {
-    // Если цвет слишком тёмный — используем нейтральный синий
+    // Слишком тёмный пиксель — нейтральный тёмно-синий
     if (r + g + b < 30) { r = 28; g = 34; b = 80 }
     const [h, s] = _rgbToHsl(r, g, b)
-    const sat = Math.max(18, Math.min(s, 55))
+
+    // ВАЖНО: не форсируем минимальную насыщенность для серых тонов.
+    // При s≈0 и h=0 (Telegram dark #212121) Math.max(18,...) давал
+    // hsl(0,18%,8%) — «шоколадный» коричневый. Теперь серое остаётся серым.
+    //   s < 5  → почти ахроматический: sat = s (0–4%)
+    //   s 5–12 → слабо окрашенный: sat = s (сохраняем тонировку)
+    //   s > 12 → полноценный цвет: sat зажат в [18, 55]
+    const sat = s < 12
+        ? Math.min(s, 10)                   // серый/слабый → без накрутки
+        : Math.max(18, Math.min(s, 55))     // цветной → насыщенный, но не кислотный
+
     const root = document.documentElement
     root.style.setProperty('--bg-primary',   `hsl(${h},${sat}%,8%)`)
     root.style.setProperty('--bg-secondary', `hsl(${h},${Math.min(sat,45)}%,11%)`)
@@ -39,11 +49,11 @@ function _applyAdaptiveColor({ r, g, b }) {
     root.style.setProperty('--border-light', `hsl(${h},${Math.min(sat,25)}%,18%)`)
     root.style.setProperty('--tab-active',   `hsl(${h},${Math.min(sat,42)}%,19%)`)
     root.style.setProperty('--tab-inactive', `hsl(${h},${Math.min(sat,35)}%,13%)`)
-    root.style.setProperty('--accent',       `hsl(${h},70%,65%)`)
-    root.style.setProperty('--accent-hover', `hsl(${h},70%,72%)`)
-    root.style.setProperty('--accent-dim',   `hsla(${h},70%,65%,0.15)`)
-    root.style.setProperty('--accent-glow',  `hsla(${h},70%,65%,0.28)`)
-    root.style.setProperty('--shadow-glow',  `0 0 20px hsla(${h},70%,65%,0.25)`)
+    root.style.setProperty('--accent',       `hsl(${h},${Math.max(45, s < 12 ? 50 : 70)}%,62%)`)
+    root.style.setProperty('--accent-hover', `hsl(${h},${Math.max(45, s < 12 ? 50 : 70)}%,70%)`)
+    root.style.setProperty('--accent-dim',   `hsla(${h},60%,62%,0.15)`)
+    root.style.setProperty('--accent-glow',  `hsla(${h},60%,62%,0.28)`)
+    root.style.setProperty('--shadow-glow',  `0 0 20px hsla(${h},60%,62%,0.25)`)
     root.style.setProperty('--glass-bg',     `hsla(${h},${sat}%,8%,0.85)`)
     root.style.setProperty('--glass-border', `hsla(${h},${Math.min(sat,30)}%,80%,0.06)`)
 }
