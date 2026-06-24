@@ -1,7 +1,7 @@
 {
 	"name": "messengerapp",
 	"productName": "Centrio",
-	"version": "1.7.0",
+	"version": "1.7.1",
 	"description": "All messengers in one app",
 	"author": {
 		"name": "Centrio",
@@ -36,6 +36,7 @@
 		"electron-updater": "^6.8.3",
 		"pg": "^8.21.0",
 		"sound-play": "^1.1.0",
+		"ssh2": "^1.17.0",
 		"uuid": "^14.0.0"
 	},
 	"build": {
@@ -56,6 +57,9 @@
 			"!*.log",
 			"!.git/**/*",
 			"!.github/**/*",
+			"!.claude/**/*",
+			"!**/*.py",
+			"!telegram-claude/**/*",
 			"!scripts/**/*",
 			"!renderer/**/*.js",
 			"!renderer.js",
