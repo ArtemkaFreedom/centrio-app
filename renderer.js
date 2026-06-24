@@ -1754,7 +1754,10 @@ function applyTabZoom(level) {
         const modes = modesResult?.modes || {}
         const enabled = modes[id] !== false
         const label = document.getElementById('ctxVpnLabel')
-        if (label) label.textContent = tGet(enabled ? 'network.vpnCtx' : 'network.vpnCtxDisable')
+        if (label) label.textContent = tGet('network.vpnCtx')
+        // Ползунок показывает, использует ли мессенджер VPN
+        const vpnToggle = document.getElementById('ctxVpnToggle')
+        if (vpnToggle) vpnToggle.classList.toggle('on', enabled)
 
         const m = state.activeMessengers.find(x => x.id === id)
         const dmLabel = document.getElementById('ctxDarkModeLabel')
@@ -1882,6 +1885,8 @@ function applyTabZoom(level) {
     }, 5 * 60 * 1000)
 
     setInterval(updateStatusBar, 30000)
+    window.addEventListener('online', updateStatusBar)
+    window.addEventListener('offline', updateStatusBar)
       await advanceStartup('data', 82, { minStepTime: 300 })
     try {
         await loadData()

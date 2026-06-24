@@ -28,6 +28,16 @@ function vpnProxyOff ()     { return { enabled: false } }
 function saveActiveLink (link) { store.set('vpnActiveLink', link || null) }
 function loadActiveLink ()     { return store.get('vpnActiveLink', null) }
 
+// Подписка (subscription URL) — запоминаем, чтобы можно было обновлять список серверов.
+// vpnSubUrl   — последний введённый http(s) URL подписки
+// vpnSubLinks — список ссылок конфигов, полученных из этой подписки (для корректного обновления)
+function saveSubscription (url, links) {
+    store.set('vpnSubUrl', url || null)
+    store.set('vpnSubLinks', Array.isArray(links) ? links : [])
+}
+function getSubUrl ()   { return store.get('vpnSubUrl', null) }
+function getSubLinks () { return store.get('vpnSubLinks', []) || [] }
+
 // Per-app VPN modes: { [messengerId]: boolean }, true = use VPN (default)
 function getAppModes ()             { return store.get('vpnAppModes', {}) || {} }
 function setAppMode (id, enabled)   { const m = getAppModes(); m[id] = enabled; store.set('vpnAppModes', m) }
@@ -84,6 +94,7 @@ function registerVpnIpc ({ getMainWindow }) {
                     return { success: false, error: 'Configurations not found in subscription' }
                 }
                 for (const item of items) vpn.saveConfig(item.parsed.name, item.link)
+                saveSubscription(link, items.map(i => i.link))
 
                 await vpn.startProxy(items[0].parsed, (line) => {
                     const win = getMainWindow()
@@ -128,6 +139,7 @@ function registerVpnIpc ({ getMainWindow }) {
                     return { success: false, error: 'Configurations not found in subscription' }
                 }
                 for (const item of items) vpn.saveConfig(item.parsed.name, item.link)
+                saveSubscription(link, items.map(i => i.link))
 
                 await vpn.startProxy(items[0].parsed, (line) => {
                     if (win) win.webContents.send('vpn-log', line)
@@ -201,6 +213,46 @@ function registerVpnIpc ({ getMainWindow }) {
         try {
             const configs = getVpn().deleteConfig(id)
             return { success: true, configs }
+        } catch (e) {
+            return errResult(e)
+        }
+    })
+
+    // ── Получить сохранённый URL подписки (для отображения в выпадающем списке) ──
+    ipcMain.handle('vpn-get-subscription', () => {
+        return { success: true, url: getSubUrl() }
+    })
+
+    // ── Обновить список серверов из подписки ──────────────────────
+    // Заново скачивает подписку по сохранённому URL, добавляет новые серверы,
+    // удаляет исчезнувшие (которые ранее пришли из этой же подписки), обновляет имена.
+    ipcMain.handle('vpn-refresh-subscription', async (event, explicitUrl) => {
+        try {
+            const vpn = getVpn()
+            const url = (explicitUrl && /^https?:\/\//.test(explicitUrl)) ? explicitUrl : getSubUrl()
+            if (!url) return { success: false, error: 'No subscription saved' }
+
+            const items = await vpn.fetchSubscription(url)
+            if (!items || items.length === 0) {
+                return { success: false, error: 'Configurations not found in subscription' }
+            }
+
+            const newLinks = items.map(i => i.link)
+            const oldLinks = getSubLinks()
+
+            // Удаляем серверы, которые были в старой подписке, но исчезли в новой
+            for (const oldLink of oldLinks) {
+                if (!newLinks.includes(oldLink)) {
+                    const cfg = vpn.getSavedConfigs().find(c => c.link === oldLink)
+                    if (cfg) vpn.deleteConfig(cfg.id)
+                }
+            }
+
+            // Добавляем/обновляем актуальные серверы
+            for (const item of items) vpn.saveConfig(item.parsed.name, item.link)
+            saveSubscription(url, newLinks)
+
+            return { success: true, status: vpn.getStatus(), imported: items.length }
         } catch (e) {
             return errResult(e)
         }

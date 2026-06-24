@@ -548,6 +548,21 @@
     </div>
     <div class="changelog-popup-body">
         <div class="changelog-entry">
+            <div class="changelog-version">v1.7.0</div>
+            <ul class="changelog-list">
+                <li>Личный кабинет переработан: исправлены шрифты, надписи, вкладки и раздел подписки</li>
+                <li>VPN: серверы без отклика автоматически опускаются вниз списка</li>
+                <li>VPN: ссылка подписки запоминается — список серверов можно обновлять одной кнопкой</li>
+                <li>VPN: в контекстном меню мессенджера появился ползунок вкл/выкл VPN</li>
+                <li>Статусная строка показывает «Не в сети» при отсутствии интернета</li>
+                <li>Надёжное копирование изображений: добавлены запасные способы</li>
+                <li>Подменю «Масштаб приложения» больше не закрывается до наведения курсора</li>
+                <li>Убраны «Перевести выделенное» и «Инструменты разработчика» из меню мессенджера</li>
+                <li>Из расширений удалён неработающий Grammarly</li>
+                <li>Производительность: дебаунс сохранения размера окна, умные перезагрузки без интернета</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
             <div class="changelog-version">v1.6.84</div>
             <ul class="changelog-list">
                 <li>Язык интерфейса сохраняется после перезапуска (await перед reload)</li>
@@ -913,18 +928,13 @@
         </svg>
         <span data-i18n="notifications.mute"></span>
     </div>
-    <div class="context-item" id="ctxTranslate">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 8l6 6"></path><path d="m4 14l6-6 2-3"></path><path d="M2 5h12"></path><path d="M7 2h1"></path><path d="m22 22-5-10-5 10"></path><path d="M14 18h6"></path>
-        </svg>
-        <span data-i18n="ctx.translate"></span>
-    </div>
     <div class="context-divider"></div>
-    <div class="context-item" id="ctxVpn">
+    <div class="context-item context-item-toggle" id="ctxVpn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span id="ctxVpnLabel"></span>
+        <span class="ctx-toggle" id="ctxVpnToggle"><span class="ctx-toggle-knob"></span></span>
     </div>
     <div class="context-item" id="ctxDarkMode">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -959,13 +969,6 @@
             <polyline points="21 15 16 10 5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span data-i18n="ctx.changeIcon"></span>
-    </div>
-    <div class="context-divider"></div>
-    <div class="context-item" id="ctxDevTools">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline>
-        </svg>
-        <span>Инструменты разработчика</span>
     </div>
     <div class="context-divider"></div>
     <div class="context-item context-danger" id="ctxRemove">

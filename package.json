@@ -1,7 +1,7 @@
 {
 	"name": "messengerapp",
 	"productName": "Centrio",
-	"version": "1.6.99",
+	"version": "1.7.0",
 	"description": "All messengers in one app",
 	"author": {
 		"name": "Centrio",
@@ -34,7 +34,9 @@
 		"electron-log": "^5.4.3",
 		"electron-store": "^10.0.1",
 		"electron-updater": "^6.8.3",
-		"sound-play": "^1.1.0"
+		"pg": "^8.21.0",
+		"sound-play": "^1.1.0",
+		"uuid": "^14.0.0"
 	},
 	"build": {
 		"appId": "me.centrio.app",

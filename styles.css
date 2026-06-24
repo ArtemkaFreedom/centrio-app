@@ -1629,6 +1629,39 @@ webview.active { display: flex; }
     opacity: 1;
 }
 
+/* ── Ползунок в пункте контекстного меню (VPN вкл/выкл) ── */
+.context-item-toggle .ctx-toggle {
+    margin-left: auto;
+    flex-shrink: 0;
+    width: 30px;
+    height: 17px;
+    border-radius: 9px;
+    background: rgba(120,120,128,0.4);
+    position: relative;
+    transition: background 0.18s ease;
+}
+.context-item-toggle .ctx-toggle.on {
+    background: #34c759;
+}
+.ctx-toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    transition: transform 0.18s ease;
+}
+.context-item-toggle .ctx-toggle.on .ctx-toggle-knob {
+    transform: translateX(13px);
+}
+/* На hover пункта (фон акцентный) держим контраст ползунка */
+.context-item-toggle:hover .ctx-toggle:not(.on) {
+    background: rgba(255,255,255,0.35);
+}
+
 .context-danger { color: var(--danger); }
 .context-danger:hover {
     background: var(--danger) !important;
@@ -3425,7 +3458,20 @@ webview.active { display: flex; }
     border-color: var(--glass-border);
 }
 
-.menu-has-sub:hover > .menu-submenu {
+/* Невидимый «мост» закрывает зазор между пунктом и подменю,
+   чтобы курсор по диагонали не терял :hover и подменю не закрывалось */
+.menu-submenu::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: -14px;
+    width: 18px;
+    bottom: -6px;
+    background: transparent;
+}
+
+.menu-has-sub:hover > .menu-submenu,
+.menu-submenu:hover {
     display: block;
 }
 
@@ -8157,6 +8203,8 @@ body.startup-locked #lockScreen {
 /* ── Статусная точка онлайн в statusbar (только там) ─────────── */
 .status-dot.status-online  { background: #4caf7d; box-shadow: 0 0 6px #4caf7d; }
 .status-dot.status-busy    { background: #f0b429; box-shadow: 0 0 6px #f0b429; }
+.status-dot.status-no-internet { background: #e5484d; box-shadow: 0 0 6px #e5484d; }
+#statusActive.status-no-internet-item { color: #e5484d; }
 
 /* Бейдж уведомлений на кнопке */
 .sidebar-notif-badge {
@@ -8994,6 +9042,51 @@ body.startup-locked #lockScreen {
 }
 
 /* Кнопка "Добавить" в боковой панели VPN */
+/* ── Строка подписки в VPN-панели (источник + обновить список) ── */
+.vpn-sub-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 7px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+}
+.vpn-sub-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+    color: var(--text-secondary);
+}
+.vpn-sub-info svg { flex-shrink: 0; opacity: 0.7; }
+.vpn-sub-url {
+    font-size: 11.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.vpn-sub-refresh {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    padding: 5px 10px;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: opacity 0.15s, filter 0.15s;
+}
+.vpn-sub-refresh:hover { filter: brightness(1.08); }
+.vpn-sub-refresh:disabled { opacity: 0.6; cursor: default; }
+.vpn-sub-refresh.vpn-sub-refreshing svg { animation: vpnSpin 0.8s linear infinite; }
+@keyframes vpnSpin { to { transform: rotate(360deg); } }
+
 .vpn-add-hint {
     padding: 8px 4px 4px;
 }

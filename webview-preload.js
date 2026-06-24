@@ -248,33 +248,92 @@ function bindContextMenuForwarding() {
 }
 
 function bindDownloadImageHandler() {
-    ipcRenderer.on('download-image', async (_event, url) => {
-        try {
-            let dataUrl = ''
+    // Преобразует Blob в data:URL
+    function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result)
+            reader.onerror = () => reject(new Error('FileReader failed'))
+            reader.readAsDataURL(blob)
+        })
+    }
 
-            if (url.startsWith('blob:')) {
-                const response = await fetch(url)
-                const blob = await response.blob()
-                dataUrl = await new Promise((resolve) => {
-                    const reader = new FileReader()
-                    reader.onload = () => resolve(reader.result)
-                    reader.readAsDataURL(blob)
-                })
-            } else if (url.startsWith('data:')) {
-                dataUrl = url
-            } else {
-                const response = await fetch(url, { credentials: 'include' })
-                const blob = await response.blob()
-                dataUrl = await new Promise((resolve) => {
-                    const reader = new FileReader()
-                    reader.onload = () => resolve(reader.result)
-                    reader.readAsDataURL(blob)
-                })
+    function isValidImageDataUrl(s) {
+        return typeof s === 'string' && s.startsWith('data:image') && s.length > 64
+    }
+
+    // Запасной путь: рисуем уже отрисованную в DOM картинку на canvas.
+    // Работает даже если fetch заблокирован CORS — пиксели уже в памяти.
+    function dataUrlFromDomImage(url) {
+        try {
+            const imgs = Array.from(document.querySelectorAll('img'))
+            // Ищем точное совпадение по src / currentSrc
+            let el = imgs.find(i => i.currentSrc === url || i.src === url)
+            // Частичное совпадение (CDN мог переписать query-параметры)
+            if (!el) {
+                const base = url.split('?')[0]
+                el = imgs.find(i => (i.currentSrc || i.src || '').split('?')[0] === base)
+            }
+            if (!el || !el.naturalWidth) return null
+            const canvas = document.createElement('canvas')
+            canvas.width = el.naturalWidth
+            canvas.height = el.naturalHeight
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(el, 0, 0)
+            return canvas.toDataURL('image/png')
+        } catch {
+            return null  // tainted canvas / cross-origin без CORS
+        }
+    }
+
+    async function fetchAsDataUrl(url) {
+        // 1) пробуем с credentials (нужно для приватных вложений мессенджеров)
+        try {
+            const res = await fetch(url, { credentials: 'include' })
+            if (res.ok) {
+                const d = await blobToDataUrl(await res.blob())
+                if (isValidImageDataUrl(d)) return d
+            }
+        } catch {}
+        // 2) повтор без credentials (некоторые CDN отклоняют credentialed-запрос при ACAO:*)
+        try {
+            const res = await fetch(url, { credentials: 'omit', mode: 'cors' })
+            if (res.ok) {
+                const d = await blobToDataUrl(await res.blob())
+                if (isValidImageDataUrl(d)) return d
+            }
+        } catch {}
+        return null
+    }
+
+    ipcRenderer.on('download-image', async (_event, url) => {
+        let dataUrl = null
+        try {
+            if (!url) {
+                ipcRenderer.sendToHost('image-data', null)
+                return
             }
 
-            ipcRenderer.sendToHost('image-data', dataUrl)
+            if (url.startsWith('data:')) {
+                dataUrl = url
+            } else if (url.startsWith('blob:')) {
+                try {
+                    const blob = await (await fetch(url)).blob()
+                    dataUrl = await blobToDataUrl(blob)
+                } catch {}
+            } else {
+                dataUrl = await fetchAsDataUrl(url)
+            }
+
+            // Запасной путь через DOM canvas, если основной не сработал
+            if (!isValidImageDataUrl(dataUrl)) {
+                dataUrl = dataUrlFromDomImage(url) || dataUrl
+            }
+
+            ipcRenderer.sendToHost('image-data', isValidImageDataUrl(dataUrl) ? dataUrl : null)
         } catch {
-            ipcRenderer.sendToHost('image-data', null)
+            const fallback = dataUrlFromDomImage(url)
+            ipcRenderer.sendToHost('image-data', isValidImageDataUrl(fallback) ? fallback : null)
         }
     })
 }

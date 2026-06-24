@@ -219,10 +219,13 @@ function bindContextActionsUi({
         if (folderId) removeFolder(folderId)
     })
 
-    document.getElementById('ctxVpn')?.addEventListener('click', () => {
+    document.getElementById('ctxVpn')?.addEventListener('click', (e) => {
         const m = getMessengerById(state.contextTargetId)
-        hideAllMenus()
-        if (!m || !toggleMessengerVpn) return
+        if (!m || !toggleMessengerVpn) { hideAllMenus(); return }
+        // Не закрываем меню — даём увидеть переключение ползунка
+        e.stopPropagation()
+        const toggle = document.getElementById('ctxVpnToggle')
+        if (toggle) toggle.classList.toggle('on')
         toggleMessengerVpn(m.id)
     })
 
@@ -249,22 +252,6 @@ function bindContextActionsUi({
         }
     })
 
-    document.getElementById('ctxTranslate')?.addEventListener('click', () => {
-        const params = state.wvContextParams || {}
-        const text = params.selectionText
-        if (!text) return
-
-        hideAllMenus()
-        ipcRenderer.send('open-translate-window', text)
-    })
-
-    document.getElementById('ctxDevTools')?.addEventListener('click', () => {
-        const m = getMessengerById(state.contextTargetId)
-        hideAllMenus()
-        if (!m) return
-        const wv = document.getElementById(`webview-${m.id}`)
-        if (wv) wv.openDevTools()
-    })
 }
 
 module.exports = {

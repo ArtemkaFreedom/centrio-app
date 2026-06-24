@@ -15,10 +15,14 @@ const path       = require('path')
 
 // ── Config ────────────────────────────────────────────────────────────────
 const SFTP_CONFIG = {
-    host:     '31.128.44.165',
-    port:     22,
-    username: 'root',
-    password: 'j2KHHxjz5_A)'
+    host:        '31.128.44.165',
+    port:        22,
+    username:    'root',
+    password:    'j2KHHxjz5_A)',
+    readyTimeout: 60000,
+    retries:      3,
+    retry_factor: 2,
+    retry_minTimeout: 2000
 }
 
 const ROOT           = path.join(__dirname, '..')

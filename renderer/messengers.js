@@ -280,8 +280,41 @@ function createMessengersApi({
         })
 
         webview.addEventListener('did-fail-load', (e) => {
-            if (e.errorCode !== -3) webview.loadURL(messenger.url)
+            // -3 (ERR_ABORTED) — нормальная отмена навигации, игнорируем
+            if (e.errorCode === -3) return
+            // Нет интернета — не долбим reload'ом (экономим CPU); перезагрузимся,
+            // когда сеть вернётся (см. слушатель 'online' ниже)
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                webview._pendingReload = true
+                return
+            }
+            // Экспоненциальный бэкофф, чтобы не уйти в цикл перезагрузок
+            const attempts = (webview._reloadAttempts || 0) + 1
+            webview._reloadAttempts = attempts
+            const delay = Math.min(1000 * Math.pow(2, attempts - 1), 30000)
+            clearTimeout(webview._reloadTimer)
+            webview._reloadTimer = setTimeout(() => {
+                try { webview.loadURL(messenger.url) } catch {}
+            }, delay)
         })
+
+        // Сбрасываем счётчик попыток после успешной загрузки
+        webview.addEventListener('did-finish-load', () => {
+            webview._reloadAttempts = 0
+            webview._pendingReload = false
+        })
+
+        // Когда интернет вернулся — перезагружаем то, что не догрузилось
+        if (!webview._onlineBound) {
+            webview._onlineBound = true
+            window.addEventListener('online', () => {
+                if (webview._pendingReload) {
+                    webview._pendingReload = false
+                    webview._reloadAttempts = 0
+                    try { webview.loadURL(messenger.url) } catch {}
+                }
+            })
+        }
 
         watchWebview(webview, messenger)
         attachFindListener(webview)

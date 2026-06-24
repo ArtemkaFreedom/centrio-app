@@ -213,6 +213,10 @@ module.exports = {
         vpnAppsEmpty:        '没有活跃应用',
         vpnCtx:              '使用VPN',
         vpnCtxDisable:       '不使用VPN',
+        vpnSubscription:     '订阅',
+        vpnRefresh:          '刷新',
+        vpnRefreshing:       '正在刷新列表...',
+        vpnRefreshed:        '列表已更新 ({n})',
     },
 
     status: {
@@ -224,6 +228,7 @@ module.exports = {
         unread:         ' {n} 条未读',
         online:         '在线',
         offline:        '不活跃',
+        noInternet:     '离线',
     },
 
     search: {

@@ -40,12 +40,19 @@ function createMainBrowserWindow() {
         }
     })
 
+    // Сохраняем размер с дебаунсом: resize стреляет десятки раз в секунду при
+    // перетаскивании — синхронная запись в стор на каждый кадр давала просадки и
+    // лишний дисковый I/O. Пишем только через 300мс после остановки.
+    let resizeSaveTimer = null
     win.on('resize', () => {
-        try {
-            const [width, height] = win.getSize()
-            store.set('window.width', width)
-            store.set('window.height', height)
-        } catch {}
+        if (resizeSaveTimer) clearTimeout(resizeSaveTimer)
+        resizeSaveTimer = setTimeout(() => {
+            try {
+                const [width, height] = win.getSize()
+                store.set('window.width', width)
+                store.set('window.height', height)
+            } catch {}
+        }, 300)
     })
 
     win.webContents.setWindowOpenHandler(() => {

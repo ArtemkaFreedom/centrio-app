@@ -219,7 +219,11 @@ module.exports = {
         vpnAppsHint:      'Выберите, какие мессенджеры работают через VPN',
         vpnAppsEmpty:     'Нет активных мессенджеров',
         vpnCtx:           'Использовать VPN',
-        vpnCtxDisable:    'Не использовать VPN'
+        vpnCtxDisable:    'Не использовать VPN',
+        vpnSubscription:  'Подписка',
+        vpnRefresh:       'Обновить',
+        vpnRefreshing:    'Обновление списка...',
+        vpnRefreshed:     'Список обновлён ({n})'
     },
 
     status: {
@@ -230,7 +234,8 @@ module.exports = {
         noUnread: 'Нет уведомлений',
         unread: ' {n} непрочитанных',
         online: 'Онлайн',
-        offline: 'Не активно'
+        offline: 'Не активно',
+        noInternet: 'Не в сети'
     },
 
     search: {

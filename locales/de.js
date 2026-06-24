@@ -213,6 +213,10 @@ module.exports = {
         vpnAppsEmpty:        'Keine aktiven Messenger',
         vpnCtx:              'VPN verwenden',
         vpnCtxDisable:       'VPN nicht verwenden',
+        vpnSubscription:     'Abonnement',
+        vpnRefresh:          'Aktualisieren',
+        vpnRefreshing:       'Liste wird aktualisiert...',
+        vpnRefreshed:        'Liste aktualisiert ({n})',
     },
 
     status: {
@@ -224,6 +228,7 @@ module.exports = {
         unread:         ' {n} ungelesen',
         online:         'Online',
         offline:        'Inaktiv',
+        noInternet:     'Offline',
     },
 
     search: {
