@@ -14,8 +14,39 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
     function applyLeft (pct) {
         state.splitLeftPct = pct
         contentArea.style.setProperty('--split-left', pct + '%')
-        // Keep picker aligned to right pane
+        // Sync picker position (it reads from CSS var but update left directly too)
         if (splitPicker) splitPicker.style.left = pct + '%'
+        // Belt-and-suspenders: also set inline style on active webview
+        // (Electron webviews can ignore CSS constraints in some cases)
+        _applyWebviewInlineStyles(pct)
+    }
+
+    function _applyWebviewInlineStyles (pct) {
+        // Primary: constrain to left side
+        const primaryWv = state.activeTabId
+            ? document.getElementById(`webview-${state.activeTabId}`)
+            : null
+        if (primaryWv) {
+            primaryWv.style.right = `calc(100% - ${pct}%)`
+            primaryWv.style.width = 'auto'
+        }
+        // Secondary: constrain to right side
+        const secondaryWv = state.splitTabId
+            ? document.getElementById(`webview-${state.splitTabId}`)
+            : null
+        if (secondaryWv) {
+            secondaryWv.style.left  = pct + '%'
+            secondaryWv.style.right = '0'
+            secondaryWv.style.width = 'auto'
+        }
+    }
+
+    function _clearWebviewInlineStyles () {
+        document.querySelectorAll('webview').forEach(wv => {
+            wv.style.right = ''
+            wv.style.left  = ''
+            wv.style.width = ''
+        })
     }
 
     function setSplitFocus (side) {
@@ -41,10 +72,11 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
             }
 
             const icon = document.createElement('img')
-            icon.width = 24
-            icon.height = 24
-            try { icon.src = m.icon || `https://www.google.com/s2/favicons?domain=${new URL(m.url).hostname}&sz=32` }
-            catch { icon.src = '' }
+            icon.width  = 44
+            icon.height = 44
+            try {
+                icon.src = m.icon || `https://www.google.com/s2/favicons?domain=${new URL(m.url).hostname}&sz=64`
+            } catch { icon.src = '' }
             icon.onerror = () => { icon.style.display = 'none' }
 
             const name = document.createElement('span')
@@ -67,18 +99,17 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
     function enterSplitMode () {
         if (state.activeMessengers.length < 2) {
-            const btn = splitBtn
-            if (btn) {
-                const orig = btn.title
-                btn.title = 'Нужен ещё хотя бы один мессенджер'
-                setTimeout(() => { btn.title = orig }, 2500)
+            if (splitBtn) {
+                const orig = splitBtn.title
+                splitBtn.title = 'Нужен ещё хотя бы один мессенджер'
+                setTimeout(() => { splitBtn.title = orig }, 2500)
             }
             return false
         }
 
-        state.splitMode    = true
-        state.splitFocus   = 'left'
-        state.splitTabId   = null
+        state.splitMode  = true
+        state.splitFocus = 'left'
+        state.splitTabId = null
 
         contentArea.classList.add('split-active')
         contentArea.dataset.splitFocus = 'left'
@@ -90,9 +121,10 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
     }
 
     function exitSplitMode () {
-        // Remove secondary class from previous right-pane webview
+        // Remove secondary class + inline styles from right-pane webview
         if (state.splitTabId) {
-            document.getElementById(`webview-${state.splitTabId}`)?.classList.remove('split-secondary')
+            const wv = document.getElementById(`webview-${state.splitTabId}`)
+            wv?.classList.remove('split-secondary')
         }
 
         state.splitMode  = false
@@ -102,6 +134,7 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         contentArea.classList.remove('split-active')
         delete contentArea.dataset.splitFocus
         splitBtn?.classList.remove('split-active')
+        _clearWebviewInlineStyles()
         hidePicker()
     }
 
@@ -112,11 +145,25 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
         // Remove previous secondary
         if (state.splitTabId) {
-            document.getElementById(`webview-${state.splitTabId}`)?.classList.remove('split-secondary')
+            const prev = document.getElementById(`webview-${state.splitTabId}`)
+            if (prev) {
+                prev.classList.remove('split-secondary')
+                prev.style.left  = ''
+                prev.style.right = ''
+                prev.style.width = ''
+            }
         }
 
         state.splitTabId = id
-        document.getElementById(`webview-${id}`)?.classList.add('split-secondary')
+        const wv = document.getElementById(`webview-${id}`)
+        if (wv) {
+            wv.classList.add('split-secondary')
+            // Inline style to ensure Electron webview respects the boundary
+            const pct = state.splitLeftPct || 50
+            wv.style.left  = pct + '%'
+            wv.style.right = '0'
+            wv.style.width = 'auto'
+        }
 
         hidePicker()
         setSplitFocus('right')
@@ -126,13 +173,19 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
     function onPrimaryChanged (newPrimaryId) {
         if (!state.splitMode) return
-        // If new primary is the same messenger that was secondary — clear secondary
+        // If new primary is same as secondary — clear secondary
         if (state.splitTabId === newPrimaryId) {
-            document.getElementById(`webview-${state.splitTabId}`)?.classList.remove('split-secondary')
+            const wv = document.getElementById(`webview-${state.splitTabId}`)
+            if (wv) {
+                wv.classList.remove('split-secondary')
+                wv.style.left = wv.style.right = wv.style.width = ''
+            }
             state.splitTabId = null
             showPicker()
         }
-        // Refresh picker so disabled item updates
+        // Re-apply inline styles for new primary webview
+        _applyWebviewInlineStyles(state.splitLeftPct || 50)
+        // Refresh picker disabled state
         if (splitPicker?.style.display !== 'none') showPicker()
     }
 
@@ -157,10 +210,8 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
     splitHandle?.addEventListener('mousedown', e => {
         _dragging = true
         splitHandle.classList.add('dragging')
-        document.body.style.cursor    = 'col-resize'
+        document.body.style.cursor     = 'col-resize'
         document.body.style.userSelect = 'none'
-        // Block pointer events on webviews so they don't eat mousemove
-        tabsContent.style.pointerEvents = 'none'
         e.preventDefault()
         e.stopPropagation()
     })
@@ -179,7 +230,6 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         splitHandle?.classList.remove('dragging')
         document.body.style.cursor     = ''
         document.body.style.userSelect = ''
-        tabsContent.style.pointerEvents = 'auto'
     })
 
     // ── Button wiring ─────────────────────────────────────────────────────────
