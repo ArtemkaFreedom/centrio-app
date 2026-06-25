@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
 import { useLang } from '@/lib/i18n'
 
-const VERSION = '1.7.2'
+const VERSION = '1.7.3'
 
 const URLS = {
   win:       `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`,
