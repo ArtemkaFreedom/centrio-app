@@ -97,6 +97,7 @@ module.exports = {
         themeMidnight:    'Midnight',
         themeGlass:       'Glass',
         themeAdaptive:    'Adaptive',
+        themeDock:        'Dock',
         accentColor:      'Accent color',
         fontSize:         'Font size',
         fontSmall:        'Small',

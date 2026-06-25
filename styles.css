@@ -1714,6 +1714,366 @@ webview.active { display: flex; }
     filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 
+/* ╔══════════════════════════════════════════════════════════════════╗
+ * ║  ТЕМА: DOCK (плавающие иконки, glow-кольца, глубина)            ║
+ * ╚══════════════════════════════════════════════════════════════════╝ */
+
+/* ── Переменные ──────────────────────────────────────────────────── */
+[data-theme="dock"] {
+    --bg-primary:      #09090f;
+    --bg-secondary:    #0e0e17;
+    --bg-tertiary:     #13131e;
+    --bg-active:       #1a1a29;
+    --bg-hover:        #111120;
+    --border:          #1b1b2e;
+    --border-light:    #24243c;
+    --accent:          #818cf8;
+    --accent-hover:    #a5b4fc;
+    --accent-dim:      rgba(129,140,248,0.14);
+    --accent-glow:     rgba(129,140,248,0.38);
+    --text-primary:    #d8dcf8;
+    --text-secondary:  #5a607e;
+    --text-muted:      #34385a;
+    --text-bright:     #ffffff;
+    --danger:          #f87171;
+    --danger-dim:      rgba(248,113,113,0.12);
+    --success:         #34d399;
+    --warning:         #fbbf24;
+    --statusbar-bg:    #06060c;
+    --titlebar-bg:     #07070d;
+    --sidebar-bg:      #06060c;
+    --tab-active:      #0a0a14;
+    --tab-inactive:    #0d0d19;
+    --shadow-sm:       0 2px 8px  rgba(0,0,0,0.55);
+    --shadow-md:       0 4px 20px rgba(0,0,0,0.75);
+    --shadow-lg:       0 10px 50px rgba(0,0,0,0.9);
+    --shadow-glow:     0 0 28px rgba(129,140,248,0.28);
+    --radius-sm:       8px;
+    --radius-md:       13px;
+    --radius-lg:       18px;
+    --glass-bg:        rgba(6,6,12,0.92);
+    --glass-border:    rgba(255,255,255,0.04);
+}
+
+/* ── Titlebar ────────────────────────────────────────────────────── */
+[data-theme="dock"] .titlebar {
+    background: var(--titlebar-bg);
+    border-bottom: 1px solid rgba(129,140,248,0.07);
+    box-shadow: 0 1px 24px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(129,140,248,0.05) inset;
+}
+[data-theme="dock"] .menu-label {
+    color: var(--text-secondary);
+}
+[data-theme="dock"] .menu-item:hover .menu-label {
+    color: var(--text-primary);
+}
+
+/* ── Activity bar ────────────────────────────────────────────────── */
+[data-theme="dock"] .activity-bar {
+    width: 62px;
+    background: linear-gradient(180deg, #060610 0%, #07070e 100%);
+    border-right: 1px solid rgba(129,140,248,0.06);
+    box-shadow: 2px 0 20px rgba(0,0,0,0.5);
+}
+
+[data-theme="dock"] .activity-top {
+    padding-top: 4px;
+}
+
+[data-theme="dock"] .activity-bottom {
+    gap: 3px;
+    padding-bottom: 8px;
+}
+
+[data-theme="dock"] .activity-divider {
+    width: 18px;
+    height: 1px;
+    background: rgba(129,140,248,0.1);
+    margin: 10px 0;
+    opacity: 1;
+}
+
+/* ── Кнопки сайдбара (настройки, VPN, и др.) ────────────────────── */
+[data-theme="dock"] .activity-btn {
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: var(--radius-md);
+    transition: color 0.2s ease,
+                transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                filter 0.2s ease;
+}
+[data-theme="dock"] .activity-btn:hover {
+    background: transparent;
+    color: var(--accent);
+    transform: translateY(-3px);
+    filter: drop-shadow(0 5px 12px var(--accent-glow));
+}
+[data-theme="dock"] .activity-btn:active {
+    transform: translateY(0) scale(0.9);
+    filter: none;
+}
+
+/* Кнопка «+» — dashed ring */
+[data-theme="dock"] .add-btn {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: 1.5px dashed rgba(129,140,248,0.25) !important;
+    border-radius: 50% !important;
+    width: 38px !important;
+    height: 38px !important;
+    transition: color 0.2s ease,
+                border-color 0.2s ease,
+                transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                filter 0.2s ease !important;
+}
+[data-theme="dock"] .add-btn:hover {
+    background: transparent !important;
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    box-shadow: none !important;
+    transform: translateY(-3px) !important;
+    filter: drop-shadow(0 5px 12px var(--accent-glow)) !important;
+}
+
+/* ── Мессенджер в сайдбаре ───────────────────────────────────────── */
+
+/* Убираем левую полоску — dock использует glow-кольцо */
+[data-theme="dock"] .messenger-item::before {
+    display: none;
+}
+
+[data-theme="dock"] .messenger-item {
+    width: 46px;
+    height: 46px;
+    background: transparent;
+    border-radius: var(--radius-md);
+    margin: 2px 0;
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.25s ease;
+}
+[data-theme="dock"] .messenger-item:hover {
+    background: transparent;
+    transform: translateY(-4px) scale(1.06);
+    box-shadow: none;
+}
+[data-theme="dock"] .messenger-item:active {
+    transform: translateY(0) scale(0.9);
+}
+
+/* Активный элемент — glow-кольцо */
+[data-theme="dock"] .messenger-item.active {
+    background: transparent;
+    transform: translateY(-1px);
+    box-shadow:
+        0 0 0 1.5px var(--accent),
+        0 0 18px var(--accent-glow),
+        0 0 40px rgba(129,140,248,0.12);
+}
+
+/* Иконки — floating drop-shadow */
+[data-theme="dock"] .messenger-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    filter: drop-shadow(0 3px 8px rgba(0,0,0,0.75));
+    transition: filter 0.28s ease,
+                transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+[data-theme="dock"] .messenger-item:hover .messenger-icon {
+    filter: drop-shadow(0 7px 18px rgba(0,0,0,0.9)) brightness(1.12);
+    transform: none; /* lift идёт через parent */
+}
+[data-theme="dock"] .messenger-item.active .messenger-icon {
+    filter:
+        drop-shadow(0 0 8px var(--accent-glow))
+        drop-shadow(0 4px 12px rgba(0,0,0,0.85));
+}
+
+/* Бейдж */
+[data-theme="dock"] .messenger-badge {
+    border: 1.5px solid var(--sidebar-bg);
+    box-shadow: 0 0 10px var(--accent-glow), 0 2px 6px rgba(0,0,0,0.6);
+    background: var(--accent);
+}
+
+/* ── Папки — то же dock-поведение ───────────────────────────────── */
+[data-theme="dock"] .folder-header::before {
+    display: none;
+}
+[data-theme="dock"] .folder-header {
+    background: transparent;
+    border-radius: var(--radius-md);
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.25s ease;
+}
+[data-theme="dock"] .folder-header:hover {
+    background: transparent;
+    transform: translateY(-4px) scale(1.06);
+}
+[data-theme="dock"] .folder-item.open .folder-header {
+    background: transparent;
+    transform: translateY(-1px);
+    box-shadow:
+        0 0 0 1.5px var(--accent),
+        0 0 18px var(--accent-glow),
+        0 0 40px rgba(129,140,248,0.12);
+}
+[data-theme="dock"] .folder-icon-wrap {
+    color: var(--text-secondary);
+    filter: drop-shadow(0 3px 8px rgba(0,0,0,0.75));
+}
+[data-theme="dock"] .folder-header:hover .folder-icon-wrap {
+    color: var(--text-bright);
+    filter: drop-shadow(0 7px 18px rgba(0,0,0,0.9)) brightness(1.12);
+}
+[data-theme="dock"] .folder-item.open .folder-icon-wrap {
+    color: var(--accent);
+}
+[data-theme="dock"] .folder-badge {
+    border: 1.5px solid var(--sidebar-bg);
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ── Folder panel (выезжающая) ───────────────────────────────────── */
+[data-theme="dock"] .folder-panel.open {
+    background: #070712;
+    border-right: 1px solid rgba(129,140,248,0.08);
+    box-shadow: 4px 0 30px rgba(0,0,0,0.6);
+}
+[data-theme="dock"] .folder-panel-label {
+    background: linear-gradient(180deg, rgba(129,140,248,0.08) 0%, transparent 60%);
+    border-right: 1px solid rgba(129,140,248,0.15);
+    box-shadow: inset -1px 0 16px rgba(129,140,248,0.05), 1px 0 12px rgba(129,140,248,0.06);
+}
+
+/* ── Контент-зона ────────────────────────────────────────────────── */
+[data-theme="dock"] .content-area {
+    background: var(--bg-primary);
+}
+
+/* ── Статусбар ───────────────────────────────────────────────────── */
+[data-theme="dock"] .statusbar {
+    background: var(--statusbar-bg);
+    border-top: 1px solid rgba(129,140,248,0.07);
+    box-shadow: 0 -1px 20px rgba(0,0,0,0.4);
+}
+
+/* ── Меню (контекстное + titlebar dropdown) ──────────────────────── */
+[data-theme="dock"] .menu-dropdown {
+    background: #0f0f1a;
+    border: 1px solid rgba(129,140,248,0.12);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8), 0 0 0 0.5px rgba(129,140,248,0.05);
+    border-radius: var(--radius-md);
+}
+[data-theme="dock"] .menu-drop-item:hover {
+    background: rgba(129,140,248,0.1);
+    color: var(--accent);
+}
+[data-theme="dock"] .menu-drop-divider {
+    background: rgba(129,140,248,0.08);
+}
+
+[data-theme="dock"] .context-menu {
+    background: #0f0f1a;
+    border: 1px solid rgba(129,140,248,0.12);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+    border-radius: var(--radius-md);
+}
+[data-theme="dock"] .context-item:hover {
+    background: rgba(129,140,248,0.12);
+    color: var(--accent);
+}
+[data-theme="dock"] .context-divider {
+    background: rgba(129,140,248,0.08);
+}
+
+/* ── Быстрый поиск ───────────────────────────────────────────────── */
+[data-theme="dock"] .quick-search-box {
+    background: #0f0f1a;
+    border: 1px solid rgba(129,140,248,0.14);
+    box-shadow: 0 16px 60px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(129,140,248,0.06);
+    border-radius: var(--radius-lg);
+}
+[data-theme="dock"] .quick-search-input {
+    background: transparent;
+    color: var(--text-primary);
+}
+[data-theme="dock"] .quick-item:hover,
+[data-theme="dock"] .quick-item.selected {
+    background: rgba(129,140,248,0.1);
+}
+
+/* ── Настройки ───────────────────────────────────────────────────── */
+[data-theme="dock"] .settings-panel {
+    background: #07070d;
+    border-right: 1px solid rgba(129,140,248,0.07);
+}
+[data-theme="dock"] .settings-content {
+    background: var(--bg-primary);
+}
+[data-theme="dock"] .settings-nav-item.active {
+    background: rgba(129,140,248,0.1);
+    color: var(--accent);
+}
+[data-theme="dock"] .settings-nav-item:hover {
+    background: rgba(129,140,248,0.06);
+    color: var(--text-primary);
+}
+[data-theme="dock"] .settings-group {
+    background: transparent;
+}
+
+/* ── Модалки ─────────────────────────────────────────────────────── */
+[data-theme="dock"] .modal-content {
+    background: #0f0f1a;
+    border: 1px solid rgba(129,140,248,0.1);
+    box-shadow: 0 20px 80px rgba(0,0,0,0.9), 0 0 0 0.5px rgba(129,140,248,0.06);
+    border-radius: var(--radius-lg);
+}
+[data-theme="dock"] .modal-header {
+    border-bottom-color: rgba(129,140,248,0.08);
+}
+
+/* ── Split picker (dock стиль) ───────────────────────────────────── */
+[data-theme="dock"] .split-picker {
+    background: rgba(9,9,15,0.97);
+    border-left: 1px solid rgba(129,140,248,0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+[data-theme="dock"] .split-picker-item {
+    background: rgba(129,140,248,0.05);
+    border: 1px solid rgba(129,140,248,0.08);
+    border-radius: var(--radius-md);
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.25s ease,
+                border-color 0.2s ease;
+}
+[data-theme="dock"] .split-picker-item:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 20px var(--accent-glow);
+}
+
+/* ── Tabs (вкладки браузерного стиля) ───────────────────────────── */
+[data-theme="dock"] .tab-item {
+    background: var(--tab-inactive);
+}
+[data-theme="dock"] .tab-item.active {
+    background: var(--tab-active);
+    box-shadow: 0 -1px 0 var(--accent) inset;
+}
+
+/* ── Превью темы в настройках ────────────────────────────────────── */
+.dock-preview { background: #09090f; }
+.dock-preview .tp-sidebar {
+    background: linear-gradient(180deg, #060610 0%, #07070e 100%);
+    box-shadow: 1px 0 6px rgba(129,140,248,0.1);
+}
+.dock-preview .tp-content { background: #09090f; }
+
 /* ===== STATUSBAR ===== */
 .statusbar {
     height: 26px;

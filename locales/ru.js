@@ -98,6 +98,7 @@ module.exports = {
         themeMidnight: 'Полночь',
         themeGlass: 'Стекло',
         themeAdaptive: 'Адаптивная',
+        themeDock: 'Dock',
         accentColor: 'Акцентный цвет',
         fontSize: 'Размер текста',
         fontSmall: 'Маленький',
