@@ -1,5 +1,11 @@
 // renderer/split.js — Split-screen mode
 // Two messengers side by side with a drag-resize divider.
+//
+// KEY DESIGN DECISION:
+// The picker is appended to document.body as position:fixed.
+// This takes it completely outside the webview stacking context —
+// Electron webviews can bypass z-index inside their parent container,
+// but document.body fixed elements are always clickable above them.
 'use strict'
 
 function createSplitApi ({ state, tabsContent, contentArea }) {
@@ -9,31 +15,58 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
     const splitBtn        = document.getElementById('splitBtn')
     const splitCloseBtn   = document.getElementById('splitCloseBtn')
 
+    // ── Move picker to body so it's above the webview stacking context ────────
+    if (splitPicker && splitPicker.parentElement !== document.body) {
+        document.body.appendChild(splitPicker)
+    }
+    if (splitPicker) {
+        splitPicker.style.position = 'fixed'
+        splitPicker.style.zIndex   = '99999'
+        splitPicker.style.display  = 'none'
+    }
+
+    // ── Position picker to the right pane (recalculate from contentArea rect) ─
+
+    function _positionPicker () {
+        if (!splitPicker || !contentArea) return
+        const rect = contentArea.getBoundingClientRect()
+        const pct  = (state.splitLeftPct || 50) / 100
+        const left = rect.left + rect.width * pct
+        splitPicker.style.left   = left + 'px'
+        splitPicker.style.top    = rect.top + 'px'
+        splitPicker.style.width  = (rect.right - left) + 'px'
+        splitPicker.style.height = rect.height + 'px'
+        // reset right/bottom so width/height take effect
+        splitPicker.style.right  = 'auto'
+        splitPicker.style.bottom = 'auto'
+    }
+
+    // Reposition on window resize
+    window.addEventListener('resize', () => {
+        if (state.splitMode && splitPicker?.style.display !== 'none') {
+            _positionPicker()
+        }
+    })
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     function applyLeft (pct) {
         state.splitLeftPct = pct
         contentArea.style.setProperty('--split-left', pct + '%')
-        // Sync picker position (it reads from CSS var but update left directly too)
-        if (splitPicker) splitPicker.style.left = pct + '%'
-        // Belt-and-suspenders: also set inline style on active webview
-        // (Electron webviews can ignore CSS constraints in some cases)
         _applyWebviewInlineStyles(pct)
+        _positionPicker()
     }
 
     function _applyWebviewInlineStyles (pct) {
-        // Primary: constrain to left side
         const primaryWv = state.activeTabId
-            ? document.getElementById(`webview-${state.activeTabId}`)
-            : null
+            ? document.getElementById(`webview-${state.activeTabId}`) : null
         if (primaryWv) {
             primaryWv.style.right = `calc(100% - ${pct}%)`
+            primaryWv.style.left  = '0'
             primaryWv.style.width = 'auto'
         }
-        // Secondary: constrain to right side
         const secondaryWv = state.splitTabId
-            ? document.getElementById(`webview-${state.splitTabId}`)
-            : null
+            ? document.getElementById(`webview-${state.splitTabId}`) : null
         if (secondaryWv) {
             secondaryWv.style.left  = pct + '%'
             secondaryWv.style.right = '0'
@@ -43,9 +76,24 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
     function _clearWebviewInlineStyles () {
         document.querySelectorAll('webview').forEach(wv => {
-            wv.style.right = ''
-            wv.style.left  = ''
-            wv.style.width = ''
+            wv.style.right         = ''
+            wv.style.left          = ''
+            wv.style.width         = ''
+            wv.style.pointerEvents = ''
+        })
+    }
+
+    // Disable pointer events on ALL webviews while picker is showing
+    // so they can't intercept clicks even if they bleed beyond CSS bounds
+    function _disableWebviewPointerEvents () {
+        document.querySelectorAll('webview').forEach(wv => {
+            wv.style.pointerEvents = 'none'
+        })
+    }
+
+    function _restoreWebviewPointerEvents () {
+        document.querySelectorAll('webview').forEach(wv => {
+            wv.style.pointerEvents = ''
         })
     }
 
@@ -54,7 +102,7 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         contentArea.dataset.splitFocus = side
     }
 
-    // ── Picker (right-pane messenger selector) ────────────────────────────────
+    // ── Picker ────────────────────────────────────────────────────────────────
 
     function showPicker () {
         if (!splitPicker || !splitPickerList) return
@@ -62,10 +110,9 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         splitPickerList.innerHTML = ''
         state.activeMessengers.forEach(m => {
             const item = document.createElement('button')
-            item.type = 'button'
+            item.type      = 'button'
             item.className = 'split-picker-item'
 
-            // Disable the one already in the left pane
             if (m.id === state.activeTabId) {
                 item.classList.add('is-primary')
                 item.disabled = true
@@ -75,7 +122,8 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
             icon.width  = 44
             icon.height = 44
             try {
-                icon.src = m.icon || `https://www.google.com/s2/favicons?domain=${new URL(m.url).hostname}&sz=64`
+                icon.src = m.icon ||
+                    `https://www.google.com/s2/favicons?domain=${new URL(m.url).hostname}&sz=64`
             } catch { icon.src = '' }
             icon.onerror = () => { icon.style.display = 'none' }
 
@@ -88,14 +136,20 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
             splitPickerList.appendChild(item)
         })
 
+        _positionPicker()
         splitPicker.style.display = 'flex'
+
+        // Disable webview pointer events so nothing can block picker
+        _disableWebviewPointerEvents()
     }
 
     function hidePicker () {
         if (splitPicker) splitPicker.style.display = 'none'
+        // Restore webview pointer events
+        _restoreWebviewPointerEvents()
     }
 
-    // ── Enter / exit split mode ───────────────────────────────────────────────
+    // ── Enter / exit ──────────────────────────────────────────────────────────
 
     function enterSplitMode () {
         if (state.activeMessengers.length < 2) {
@@ -121,7 +175,6 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
     }
 
     function exitSplitMode () {
-        // Remove secondary class + inline styles from right-pane webview
         if (state.splitTabId) {
             const wv = document.getElementById(`webview-${state.splitTabId}`)
             wv?.classList.remove('split-secondary')
@@ -138,19 +191,16 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         hidePicker()
     }
 
-    // ── Switch secondary (right-pane) tab ────────────────────────────────────
+    // ── Switch secondary tab ──────────────────────────────────────────────────
 
     function switchSplitTab (id) {
-        if (id === state.activeTabId) return   // same as primary — ignore
+        if (id === state.activeTabId) return
 
-        // Remove previous secondary
         if (state.splitTabId) {
             const prev = document.getElementById(`webview-${state.splitTabId}`)
             if (prev) {
                 prev.classList.remove('split-secondary')
-                prev.style.left  = ''
-                prev.style.right = ''
-                prev.style.width = ''
+                prev.style.left = prev.style.right = prev.style.width = ''
             }
         }
 
@@ -158,22 +208,20 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         const wv = document.getElementById(`webview-${id}`)
         if (wv) {
             wv.classList.add('split-secondary')
-            // Inline style to ensure Electron webview respects the boundary
             const pct = state.splitLeftPct || 50
             wv.style.left  = pct + '%'
             wv.style.right = '0'
             wv.style.width = 'auto'
         }
 
-        hidePicker()
+        hidePicker()  // also restores webview pointer events
         setSplitFocus('right')
     }
 
-    // ── Called by renderer.js when primary tab changes ────────────────────────
+    // ── Callbacks from renderer.js ────────────────────────────────────────────
 
     function onPrimaryChanged (newPrimaryId) {
         if (!state.splitMode) return
-        // If new primary is same as secondary — clear secondary
         if (state.splitTabId === newPrimaryId) {
             const wv = document.getElementById(`webview-${state.splitTabId}`)
             if (wv) {
@@ -183,23 +231,16 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
             state.splitTabId = null
             showPicker()
         }
-        // Re-apply inline styles for new primary webview
         _applyWebviewInlineStyles(state.splitLeftPct || 50)
-        // Refresh picker disabled state
         if (splitPicker?.style.display !== 'none') showPicker()
     }
-
-    // ── Called by renderer.js when a messenger is removed ────────────────────
 
     function onMessengerRemoved (id) {
         if (!state.splitMode) return
         if (state.splitTabId === id) {
             state.splitTabId = null
-            if (state.activeMessengers.length >= 2) {
-                showPicker()
-            } else {
-                exitSplitMode()
-            }
+            if (state.activeMessengers.length >= 2) showPicker()
+            else exitSplitMode()
         }
     }
 
@@ -212,6 +253,10 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         splitHandle.classList.add('dragging')
         document.body.style.cursor     = 'col-resize'
         document.body.style.userSelect = 'none'
+        // Block webview events during drag so mousemove isn't eaten
+        document.querySelectorAll('webview').forEach(wv => {
+            wv.style.pointerEvents = 'none'
+        })
         e.preventDefault()
         e.stopPropagation()
     })
@@ -230,6 +275,10 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         splitHandle?.classList.remove('dragging')
         document.body.style.cursor     = ''
         document.body.style.userSelect = ''
+        // Restore webview pointer events (unless picker is open)
+        if (splitPicker?.style.display === 'none') {
+            _restoreWebviewPointerEvents()
+        }
     })
 
     // ── Button wiring ─────────────────────────────────────────────────────────
@@ -240,7 +289,7 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
     splitCloseBtn?.addEventListener('click', () => exitSplitMode())
 
-    // ── Focus tracking (called from webview focus events) ─────────────────────
+    // ── Focus tracking ────────────────────────────────────────────────────────
 
     function onWebviewFocus (webview) {
         if (!state.splitMode) return

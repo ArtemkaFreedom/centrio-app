@@ -1577,13 +1577,8 @@ webview.active { display: flex; }
 .split-handle:hover::after { opacity: 0.5; }
 
 /* ── Right-pane messenger picker ────────────────────────────────── */
+/* position:fixed + z-index are set by JS (appended to document.body) */
 .split-picker {
-    position:        absolute;
-    top:             0;
-    bottom:          0;
-    left:            var(--split-left, 50%);
-    right:           0;
-    z-index:         9000;   /* must beat any webview stacking */
     align-items:     center;
     justify-content: center;
     background:      var(--bg);
