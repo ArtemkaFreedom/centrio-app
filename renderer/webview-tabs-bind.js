@@ -450,6 +450,11 @@ function createWebviewTabsApi({
             }
         })
 
+        // Split mode: track which pane has focus when user clicks inside a webview
+        webview.addEventListener('focus', () => {
+            window.__centrioSplitFocus?.(webview)
+        })
+
 
         webview.addEventListener('new-window', (e) => {
             e.preventDefault()

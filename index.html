@@ -333,6 +333,13 @@
                     <circle cx="12" cy="13" r="4"/>
                 </svg>
             </button>
+            <!-- Сплит-экран -->
+            <button id="splitBtn" class="activity-btn" title="Сплит-экран">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="18" rx="2"/>
+                    <line x1="12" y1="3" x2="12" y2="21"/>
+                </svg>
+            </button>
             <!-- VPN кнопка (активна = SVG зеленеет через .vpn-active) -->
             <button id="vpnBtn" class="activity-btn vpn-btn" title="VPN">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -361,8 +368,23 @@
             </button>
         </div>
     </div>
-    <div class="content-area">
+    <div class="content-area" id="contentArea">
         <div id="tabsContent" class="tabs-content"></div>
+        <!-- Split-screen divider handle -->
+        <div id="splitHandle" class="split-handle"></div>
+        <!-- Split-screen messenger picker (right pane, shown until secondary is chosen) -->
+        <div id="splitPicker" class="split-picker" style="display:none">
+            <div class="split-picker-inner">
+                <svg class="split-picker-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="18" rx="2"/>
+                    <line x1="12" y1="3" x2="12" y2="21"/>
+                </svg>
+                <h3 class="split-picker-title">Выберите мессенджер</h3>
+                <p class="split-picker-sub">для правой панели</p>
+                <div id="splitPickerList" class="split-picker-list"></div>
+                <button id="splitCloseBtn" class="split-close-btn">Закрыть сплит</button>
+            </div>
+        </div>
     </div>
     <div id="welcomeScreen" style="display:none;">
         <!-- Ambient background glows -->

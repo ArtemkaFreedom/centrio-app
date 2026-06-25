@@ -35,6 +35,7 @@ const { createMessengerSoundUiApi } = require('./renderer/messenger-sound-ui')
 const { createSidebarDndApi } = require('./renderer/sidebar-dnd-bind')
 const { createWebviewNotifyApi } = require('./renderer/webview-notify')
 const { createWebviewTabsApi } = require('./renderer/webview-tabs-bind')
+const { createSplitApi } = require('./renderer/split')
 
 const { bindSettingsUi } = require('./renderer/settings-bind')
 const { bindLockUi } = require('./renderer/lock-bind')
@@ -451,7 +452,8 @@ async function bootstrap() {
     // ==============================
     const messengerList = document.getElementById('messengerList')
     const tabsBar = document.getElementById('tabsBar')
-    const tabsContent = document.getElementById('tabsContent')
+    const tabsContent  = document.getElementById('tabsContent')
+    const contentArea  = document.getElementById('contentArea')
     const welcomeScreen = document.getElementById('welcomeScreen')
     const addModal = document.getElementById('addModal')
     const messengerGrid = document.getElementById('messengerGrid')
@@ -1025,7 +1027,20 @@ function applyZoomWhenReady(webview, zoomLevel) {
     let _tkPrevName  = null   // previous messenger name
     let _tkStart     = 0      // when current tab became active
 
+// ── Split API (initialised below, after DOM refs are ready) ───
+    let splitApi = null
+
 function switchTab(id) {
+    // In split mode route to the focused pane
+    if (state.splitMode) {
+        if (state.splitFocus === 'right') {
+            splitApi?.switchSplitTab(id)
+            return
+        }
+        // Left pane: don't let primary overlap secondary
+        if (id === state.splitTabId) return
+    }
+
     // Track time spent on previous tab
     if (_tkPrevId && _tkPrevName && _tkStart > 0) {
         const secs = Math.floor((Date.now() - _tkStart) / 1000)
@@ -1080,6 +1095,9 @@ function switchTab(id) {
 
     // Адаптивная тема: обновить цвета под новую вкладку
     updateAdaptiveTheme(() => document.getElementById(`webview-${id}`))
+
+    // Notify split API that primary changed (e.g. update picker, resolve overlap)
+    splitApi?.onPrimaryChanged(id)
 }
 
     // ==============================
@@ -1110,6 +1128,11 @@ function switchTab(id) {
     // ПОЛУЧЕНИЕ АКТИВНОГО WEBVIEW
     // ==============================
     function getActiveWebview() {
+        // In split mode return the focused pane's webview
+        if (state.splitMode && state.splitFocus === 'right') {
+            if (!state.splitTabId) return null
+            return document.getElementById(`webview-${state.splitTabId}`)
+        }
         if (!state.activeTabId) return null
         return document.getElementById(`webview-${state.activeTabId}`)
     }
@@ -1164,6 +1187,9 @@ function applyTabZoom(level) {
             state.activeTabId = null
         }
 
+        // Notify split API (closes split or shows picker if secondary was removed)
+        splitApi?.onMessengerRemoved(id)
+
         tabsContent.style.pointerEvents = state.activeMessengers.length > 0 ? 'auto' : 'none'
         saveData()
         updateStatusBar()
@@ -1202,6 +1228,14 @@ function applyTabZoom(level) {
         addWebview,
         bindWebviewContextMenuActions
     } = webviewTabsApi
+
+    // ==============================
+    // SPLIT MODE
+    // ==============================
+    splitApi = createSplitApi({ state, tabsContent, contentArea })
+
+    // Expose focus-tracker for webview-tabs-bind.js
+    window.__centrioSplitFocus = (webview) => splitApi.onWebviewFocus(webview)
 
     // ==============================
     // ADD MODAL UI API

@@ -30,7 +30,12 @@ const state = {
     messengerNotifyState: {},
     webviewWatchBound: new Set(),
     siteNotificationState: {},
-    unreadStabilizeTimers: {}
+    unreadStabilizeTimers: {},
+    // ── Split-screen ──────────────────────────────────────────────────────────
+    splitMode:    false,   // is split mode active?
+    splitTabId:   null,    // ID of the secondary (right pane) messenger
+    splitFocus:   'left',  // 'left' | 'right' — which pane receives tab switches
+    splitLeftPct: 50       // divider position 20–80 %
 }
 
 module.exports = state
