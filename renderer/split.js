@@ -1,11 +1,11 @@
 // renderer/split.js — Split-screen mode
 // Two messengers side by side with a drag-resize divider.
 //
-// KEY DESIGN DECISION:
-// The picker is appended to document.body as position:fixed.
-// This takes it completely outside the webview stacking context —
-// Electron webviews can bypass z-index inside their parent container,
-// but document.body fixed elements are always clickable above them.
+// ARCHITECTURE NOTE:
+// Both #splitHandle and #splitPicker are appended to document.body as
+// position:fixed elements. This is the only reliable way to make them
+// receive pointer events above Electron webviews, which intercept all
+// mouse input within their bounds regardless of CSS z-index.
 'use strict'
 
 function createSplitApi ({ state, tabsContent, contentArea }) {
@@ -15,7 +15,19 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
     const splitBtn        = document.getElementById('splitBtn')
     const splitCloseBtn   = document.getElementById('splitCloseBtn')
 
-    // ── Move picker to body so it's above the webview stacking context ────────
+    // ── Hoist both handle and picker to document.body ─────────────────────────
+    //    Electron webviews eat pointer events inside their stacking context.
+    //    position:fixed children of body are always above them.
+
+    if (splitHandle && splitHandle.parentElement !== document.body) {
+        document.body.appendChild(splitHandle)
+    }
+    if (splitHandle) {
+        splitHandle.style.position = 'fixed'
+        splitHandle.style.zIndex   = '99998'
+        splitHandle.style.display  = 'none'
+    }
+
     if (splitPicker && splitPicker.parentElement !== document.body) {
         document.body.appendChild(splitPicker)
     }
@@ -25,44 +37,56 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         splitPicker.style.display  = 'none'
     }
 
-    // ── Position picker to the right pane (recalculate from contentArea rect) ─
+    // ── Position helpers (recalculate from contentArea live rect) ─────────────
+
+    function _positionHandle () {
+        if (!splitHandle || !contentArea) return
+        const rect  = contentArea.getBoundingClientRect()
+        const pct   = (state.splitLeftPct || 50) / 100
+        const centerX = rect.left + rect.width * pct
+        splitHandle.style.left   = (centerX - 3) + 'px'
+        splitHandle.style.top    = rect.top + 'px'
+        splitHandle.style.width  = '6px'
+        splitHandle.style.height = rect.height + 'px'
+        splitHandle.style.right  = 'auto'
+        splitHandle.style.bottom = 'auto'
+    }
 
     function _positionPicker () {
         if (!splitPicker || !contentArea) return
-        const rect = contentArea.getBoundingClientRect()
-        const pct  = (state.splitLeftPct || 50) / 100
-        const left = rect.left + rect.width * pct
-        splitPicker.style.left   = left + 'px'
+        const rect  = contentArea.getBoundingClientRect()
+        const pct   = (state.splitLeftPct || 50) / 100
+        const leftX = rect.left + rect.width * pct
+        splitPicker.style.left   = leftX + 'px'
         splitPicker.style.top    = rect.top + 'px'
-        splitPicker.style.width  = (rect.right - left) + 'px'
+        splitPicker.style.width  = (rect.right - leftX) + 'px'
         splitPicker.style.height = rect.height + 'px'
-        // reset right/bottom so width/height take effect
         splitPicker.style.right  = 'auto'
         splitPicker.style.bottom = 'auto'
     }
 
-    // Reposition on window resize
     window.addEventListener('resize', () => {
-        if (state.splitMode && splitPicker?.style.display !== 'none') {
-            _positionPicker()
-        }
+        if (!state.splitMode) return
+        _positionHandle()
+        if (splitPicker?.style.display !== 'none') _positionPicker()
     })
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Core helpers ──────────────────────────────────────────────────────────
 
     function applyLeft (pct) {
         state.splitLeftPct = pct
         contentArea.style.setProperty('--split-left', pct + '%')
         _applyWebviewInlineStyles(pct)
-        _positionPicker()
+        _positionHandle()
+        if (splitPicker?.style.display !== 'none') _positionPicker()
     }
 
     function _applyWebviewInlineStyles (pct) {
         const primaryWv = state.activeTabId
             ? document.getElementById(`webview-${state.activeTabId}`) : null
         if (primaryWv) {
-            primaryWv.style.right = `calc(100% - ${pct}%)`
             primaryWv.style.left  = '0'
+            primaryWv.style.right = `calc(100% - ${pct}%)`
             primaryWv.style.width = 'auto'
         }
         const secondaryWv = state.splitTabId
@@ -76,15 +100,13 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
     function _clearWebviewInlineStyles () {
         document.querySelectorAll('webview').forEach(wv => {
-            wv.style.right         = ''
             wv.style.left          = ''
+            wv.style.right         = ''
             wv.style.width         = ''
             wv.style.pointerEvents = ''
         })
     }
 
-    // Disable pointer events on ALL webviews while picker is showing
-    // so they can't intercept clicks even if they bleed beyond CSS bounds
     function _disableWebviewPointerEvents () {
         document.querySelectorAll('webview').forEach(wv => {
             wv.style.pointerEvents = 'none'
@@ -138,14 +160,11 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
         _positionPicker()
         splitPicker.style.display = 'flex'
-
-        // Disable webview pointer events so nothing can block picker
         _disableWebviewPointerEvents()
     }
 
     function hidePicker () {
         if (splitPicker) splitPicker.style.display = 'none'
-        // Restore webview pointer events
         _restoreWebviewPointerEvents()
     }
 
@@ -167,6 +186,8 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
         contentArea.classList.add('split-active')
         contentArea.dataset.splitFocus = 'left'
+
+        if (splitHandle) splitHandle.style.display = 'block'
         applyLeft(state.splitLeftPct || 50)
 
         splitBtn?.classList.add('split-active')
@@ -187,6 +208,8 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         contentArea.classList.remove('split-active')
         delete contentArea.dataset.splitFocus
         splitBtn?.classList.remove('split-active')
+
+        if (splitHandle) splitHandle.style.display = 'none'
         _clearWebviewInlineStyles()
         hidePicker()
     }
@@ -214,7 +237,7 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
             wv.style.width = 'auto'
         }
 
-        hidePicker()  // also restores webview pointer events
+        hidePicker()
         setSplitFocus('right')
     }
 
@@ -253,10 +276,8 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         splitHandle.classList.add('dragging')
         document.body.style.cursor     = 'col-resize'
         document.body.style.userSelect = 'none'
-        // Block webview events during drag so mousemove isn't eaten
-        document.querySelectorAll('webview').forEach(wv => {
-            wv.style.pointerEvents = 'none'
-        })
+        // Block webview pointer events during drag
+        _disableWebviewPointerEvents()
         e.preventDefault()
         e.stopPropagation()
     })
@@ -265,7 +286,7 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         if (!_dragging) return
         const rect = contentArea.getBoundingClientRect()
         let pct = ((e.clientX - rect.left) / rect.width) * 100
-        pct = Math.max(20, Math.min(80, pct))
+        pct = Math.max(15, Math.min(85, pct))
         applyLeft(pct)
     })
 
@@ -275,7 +296,7 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         splitHandle?.classList.remove('dragging')
         document.body.style.cursor     = ''
         document.body.style.userSelect = ''
-        // Restore webview pointer events (unless picker is open)
+        // Restore pointer events (unless picker is still open)
         if (splitPicker?.style.display === 'none') {
             _restoreWebviewPointerEvents()
         }
