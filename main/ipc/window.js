@@ -83,12 +83,26 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
 
         const zoomLevel = Number(level)
         if (!Number.isFinite(zoomLevel)) return
-
-        win.webContents.setZoomLevel(zoomLevel)
+        // Clamp to a safe range: Electron allows -8 to 8, we restrict further
+        const clamped = Math.max(-3, Math.min(3, zoomLevel))
+        win.webContents.setZoomLevel(clamped)
     })
 
     safeOn('open-url', async (_event, url) => {
         if (!url || typeof url !== 'string') return
+
+        // Only allow safe external protocols
+        const ALLOWED_SCHEMES = ['https:', 'http:', 'mailto:', 'tel:']
+        try {
+            const parsed = new URL(url)
+            if (!ALLOWED_SCHEMES.includes(parsed.protocol)) {
+                console.warn('[security] open-url blocked — disallowed scheme:', parsed.protocol, url)
+                return
+            }
+        } catch {
+            console.warn('[security] open-url blocked — invalid URL:', url)
+            return
+        }
 
         try {
             await shell.openExternal(url)

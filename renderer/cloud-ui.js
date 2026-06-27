@@ -50,11 +50,32 @@ function createCloudUiApi({
         if (!avatarEl || !overlay) return
 
         if (src) {
-            avatarEl.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+            // Validate URL to prevent XSS via javascript: or other dangerous schemes
+            let safeSrc = null
+            try {
+                const u = new URL(src)
+                if (u.protocol === 'https:' || u.protocol === 'http:') safeSrc = src
+            } catch {
+                // Not a valid URL - check for base64 data URI (used when uploading photo)
+                if (src.startsWith('data:image/')) safeSrc = src
+            }
+
+            if (safeSrc) {
+                const img = document.createElement('img')
+                img.src = safeSrc
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;'
+                img.onerror = () => { img.style.display = 'none' }
+                avatarEl.textContent = ''
+                avatarEl.appendChild(img)
+            } else {
+                // Unsafe src — fall back to initial letter
+                const user = cloudStore.getUser()
+                avatarEl.textContent = getUserInitial(user)
+            }
             avatarEl.appendChild(overlay)
         } else {
             const user = cloudStore.getUser()
-            avatarEl.innerHTML = getUserInitial(user)
+            avatarEl.textContent = getUserInitial(user)
             avatarEl.appendChild(overlay)
         }
     }

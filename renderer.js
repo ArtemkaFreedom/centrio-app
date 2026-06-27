@@ -126,6 +126,51 @@ const store = {
         }
 
         return undefined
+    },
+
+    // ── Encrypted secure storage (OS safeStorage: DPAPI / Keychain / libsecret) ──
+    // Writes encrypted on disk, cache holds plaintext for runtime use.
+    secureSet(key, value) {
+        storeCache.set(key, value) // cache as plaintext for this session
+        if (window.electronAPI?.storeSecureSet) {
+            return window.electronAPI.storeSecureSet(key, value)
+        }
+        // Fallback: plain write if secure API not yet available
+        if (window.electronAPI?.storeSet) {
+            return window.electronAPI.storeSet(key, value)
+        }
+        return undefined
+    },
+
+    async secureGetAsync(key, def = null) {
+        // Return from cache first (already decrypted if hydrated)
+        if (storeCache.has(key)) return storeCache.get(key)
+
+        if (window.electronAPI?.storeSecureGet) {
+            const value = await window.electronAPI.storeSecureGet(key, def)
+            const final = (value === undefined || value === null) ? def : value
+            storeCache.set(key, final)
+            return final
+        }
+        // Fallback
+        if (window.electronAPI?.storeGet) {
+            const value = await window.electronAPI.storeGet(key, def)
+            const final = (value === undefined || value === null) ? def : value
+            storeCache.set(key, final)
+            return final
+        }
+        return def
+    },
+
+    secureDelete(key) {
+        storeCache.delete(key)
+        if (window.electronAPI?.storeSecureDelete) {
+            return window.electronAPI.storeSecureDelete(key)
+        }
+        if (window.electronAPI?.storeDelete) {
+            return window.electronAPI.storeDelete(key)
+        }
+        return undefined
     }
 }
 
@@ -371,13 +416,18 @@ async function bootstrap() {
         ['mutedMessengers', {}],
         ['globalMuteAll', false],
         ['extensionsState', {}],
-        // Cloud auth — must be hydrated so tokens survive restart
-        ['cloud.accessToken', null],
-        ['cloud.refreshToken', null],
+        // Cloud non-secret fields
         ['cloud.user', null],
         ['cloud.lastSyncAt', null],
         ['cloud.lastSyncError', null]
+        // NOTE: cloud.accessToken and cloud.refreshToken are hydrated below
+        //       via secure (encrypted) channel to avoid plain-text disk exposure
     ])
+
+    // Hydrate auth tokens via encrypted channel (safeStorage)
+    // Migration-safe: decryptValue() returns plain value if not yet encrypted
+    await store.secureGetAsync('cloud.accessToken', null)
+    await store.secureGetAsync('cloud.refreshToken', null)
 
     await advanceStartup('store', 24, { minStepTime: 240 })
 

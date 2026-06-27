@@ -58,6 +58,11 @@ const electronAPI = {
     storeSet: (key, value) => ipcRenderer.invoke('store:set', key, value),
     storeDelete: (key) => ipcRenderer.invoke('store:delete', key),
 
+    // Encrypted storage — backed by OS-level safeStorage (DPAPI/Keychain/libsecret)
+    storeSecureGet: (key, def) => ipcRenderer.invoke('store:secure-get', key, def),
+    storeSecureSet: (key, value) => ipcRenderer.invoke('store:secure-set', key, value),
+    storeSecureDelete: (key) => ipcRenderer.invoke('store:secure-delete', key),
+
     getWebviewPreloadPath: () => ipcRenderer.invoke('get-webview-preload-path'),
 
     invoke: (channel, ...args) => {

@@ -8,8 +8,9 @@ function createCloudStore(store) {
 
         setAuth: (user, accessToken, refreshToken) => {
             store.set('cloud.user', user)
-            store.set('cloud.accessToken', accessToken)
-            store.set('cloud.refreshToken', refreshToken)
+            // Tokens stored encrypted via OS safeStorage (DPAPI/Keychain/libsecret)
+            store.secureSet('cloud.accessToken', accessToken)
+            store.secureSet('cloud.refreshToken', refreshToken)
         },
 
         setUser: (user) => {

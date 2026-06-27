@@ -87,8 +87,11 @@ function registerVpnIpc ({ getMainWindow }) {
                 return { success: false, needsDownload: true }
             }
 
-            // Подписка: http(s):// → скачать, распарсить, сохранить все, подключить к первому
+            // Подписка: только HTTPS → скачать, распарсить, сохранить все, подключить к первому
             if (link.startsWith('http://') || link.startsWith('https://')) {
+                if (link.startsWith('http://')) {
+                    return { success: false, error: 'Subscription URL must use HTTPS (plain HTTP is not allowed)' }
+                }
                 const items = await vpn.fetchSubscription(link)
                 if (!items || items.length === 0) {
                     return { success: false, error: 'Configurations not found in subscription' }
@@ -132,8 +135,11 @@ function registerVpnIpc ({ getMainWindow }) {
                 if (win) win.webContents.send('vpn-download-progress', progress)
             })
 
-            // Подписка
+            // Подписка: только HTTPS
             if (link.startsWith('http://') || link.startsWith('https://')) {
+                if (link.startsWith('http://')) {
+                    return { success: false, error: 'Subscription URL must use HTTPS (plain HTTP is not allowed)' }
+                }
                 const items = await vpn.fetchSubscription(link)
                 if (!items || items.length === 0) {
                     return { success: false, error: 'Configurations not found in subscription' }

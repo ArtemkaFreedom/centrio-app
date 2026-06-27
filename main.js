@@ -133,6 +133,40 @@ safeHandle('store:delete', async (_event, key) => {
     }
 })
 
+// ── Encrypted store (safeStorage) ────────────────────────────────────────────
+const { encryptValue, decryptValue } = require('./main/services/secureStore')
+
+safeHandle('store:secure-set', async (_event, key, value) => {
+    try {
+        store.set(key, encryptValue(value))
+        return { success: true }
+    } catch (error) {
+        console.error(`store:secure-set error for key "${key}"`, error)
+        return { success: false, error: error.message }
+    }
+})
+
+safeHandle('store:secure-get', async (_event, key, def) => {
+    try {
+        const raw = store.get(key, null)
+        if (raw === null || raw === undefined) return def ?? null
+        return decryptValue(raw) ?? def ?? null
+    } catch (error) {
+        console.error(`store:secure-get error for key "${key}"`, error)
+        return def ?? null
+    }
+})
+
+safeHandle('store:secure-delete', async (_event, key) => {
+    try {
+        store.delete(key)
+        return { success: true }
+    } catch (error) {
+        console.error(`store:secure-delete error for key "${key}"`, error)
+        return { success: false, error: error.message }
+    }
+})
+
 const started = initApp({
     app,
     createWindow,

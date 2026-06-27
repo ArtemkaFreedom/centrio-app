@@ -34,7 +34,7 @@ function createMainBrowserWindow() {
             preload: path.resolve(__dirname, '..', '..', 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: false,
+            sandbox: true,
             webviewTag: true,
             spellcheck: false
         }

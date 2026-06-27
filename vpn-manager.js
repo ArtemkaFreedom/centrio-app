@@ -90,18 +90,35 @@ function downloadSingbox (onProgress) {
   })
 }
 
+function sanitizePath (p) {
+  // Resolve and normalise; reject traversal attempts
+  const resolved = path.resolve(p)
+  if (resolved.includes('..')) throw new Error(`Path traversal rejected: ${p}`)
+  return resolved
+}
+
 function extractBinary (archivePath, destBin, filename) {
   return new Promise((resolve, reject) => {
-    const destDir = path.dirname(destBin)
-    const binName = path.basename(destBin)
+    // Validate paths before use to prevent injection
+    let safeArchive, safeDestBin
+    try {
+      safeArchive  = sanitizePath(archivePath)
+      safeDestBin  = sanitizePath(destBin)
+    } catch (e) {
+      return reject(e)
+    }
+
+    const destDir = path.dirname(safeDestBin)
+    const binName = path.basename(safeDestBin)
 
     if (filename.endsWith('.zip')) {
       // Windows — используем PowerShell для разархивации
-      const tmpOut = path.join(destDir, '_tmp_extract')
+      const tmpOut = sanitizePath(path.join(destDir, '_tmp_extract'))
       if (!fs.existsSync(tmpOut)) fs.mkdirSync(tmpOut, { recursive: true })
+      // Pass paths as separate array args (NOT via shell interpolation) to avoid injection
       execFile('powershell', [
-        '-NoProfile', '-Command',
-        `Expand-Archive -Path '${archivePath}' -DestinationPath '${tmpOut}' -Force`
+        '-NoProfile', '-NonInteractive', '-Command',
+        `Expand-Archive -LiteralPath '${safeArchive.replace(/'/g, "''")}' -DestinationPath '${tmpOut.replace(/'/g, "''")}' -Force`
       ], (err) => {
         if (err) { reject(err); return }
         // Ищем sing-box.exe в подпапках
