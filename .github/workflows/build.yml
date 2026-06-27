@@ -152,13 +152,16 @@ jobs:
       - name: Show artifact tree
         run: find artifacts -type f | sort
 
-      - name: Install sshpass
-        run: sudo apt-get install -y sshpass
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       - name: Upload Windows
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
-            -o StrictHostKeyChecking=no \
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             artifacts/win-artifacts/*.exe \
             artifacts/win-artifacts/*.exe.blockmap \
             artifacts/win-artifacts/latest.yml \
@@ -166,16 +169,14 @@ jobs:
 
       - name: Upload macOS
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
-            -o StrictHostKeyChecking=no \
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             artifacts/mac-artifacts/*.dmg \
             artifacts/mac-artifacts/latest-mac.yml \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/centrio-downloads/mac/
 
       - name: Upload Linux
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" scp \
-            -o StrictHostKeyChecking=no \
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             artifacts/linux-artifacts/*.AppImage \
             artifacts/linux-artifacts/*.deb \
             artifacts/linux-artifacts/latest-linux.yml \
