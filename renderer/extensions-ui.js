@@ -53,6 +53,18 @@ function createExtensionsUiApi({
             border: 'rgba(139,92,246,.28)',
             titleKey: 'extensions.darkmode.title',
             descKey: 'extensions.darkmode.desc'
+        },
+        {
+            id: 'split',
+            icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="18" rx="2"/>
+                <line x1="12" y1="3" x2="12" y2="21"/>
+            </svg>`,
+            color: '#818cf8',
+            bg: 'rgba(129,140,248,.13)',
+            border: 'rgba(129,140,248,.28)',
+            titleKey: 'extensions.split.title',
+            descKey: 'extensions.split.desc'
         }
     ]
 

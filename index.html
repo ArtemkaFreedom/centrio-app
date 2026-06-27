@@ -333,18 +333,24 @@
                     <circle cx="12" cy="13" r="4"/>
                 </svg>
             </button>
-            <!-- Сплит-экран -->
-            <button id="splitBtn" class="activity-btn" title="Сплит-экран">
+            <!-- Сплит-экран (скрыт по умолчанию, включается через расширения) -->
+            <button id="splitBtn" class="activity-btn" title="Сплит-экран" style="display:none;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="2" y="3" width="20" height="18" rx="2"/>
                     <line x1="12" y1="3" x2="12" y2="21"/>
                 </svg>
             </button>
             <!-- VPN кнопка (активна = SVG зеленеет через .vpn-active) -->
-            <button id="vpnBtn" class="activity-btn vpn-btn" title="VPN">
+            <button id="vpnBtn" class="activity-btn vpn-btn" title="VPN" style="position:relative;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
+                <span id="vpnSidebarRefreshBtn" class="vpn-sidebar-refresh" title="Обновить подписки">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </span>
             </button>
             <!-- Иконка уведомлений приложения (от админа / changelog) -->
             <button id="appNotifBtn" class="activity-btn" data-i18n-title="notifications.appNotif" style="position:relative;">
@@ -1358,12 +1364,12 @@
                                 </div>
                                 <span data-i18n="settings.themeDark"></span>
                             </div>
-                            <div class="theme-item" data-theme="midnight">
-                                <div class="theme-preview midnight-preview">
+                            <div class="theme-item" data-theme="dock">
+                                <div class="theme-preview dock-preview">
                                     <div class="tp-sidebar"></div>
                                     <div class="tp-content"></div>
                                 </div>
-                                <span data-i18n="settings.themeMidnight"></span>
+                                <span data-i18n="settings.themeDock"></span>
                             </div>
                             <div class="theme-item" data-theme="light">
                                 <div class="theme-preview light-preview">
@@ -1378,13 +1384,6 @@
                                     <div class="tp-content"></div>
                                 </div>
                                 <span data-i18n="settings.themeAdaptive"></span>
-                            </div>
-                            <div class="theme-item" data-theme="dock">
-                                <div class="theme-preview dock-preview">
-                                    <div class="tp-sidebar"></div>
-                                    <div class="tp-content"></div>
-                                </div>
-                                <span data-i18n="settings.themeDock"></span>
                             </div>
                         </div>
                     </div>

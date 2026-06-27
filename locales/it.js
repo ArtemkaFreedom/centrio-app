@@ -465,7 +465,8 @@ module.exports = {
         translate:  { title: 'Traduttore',           desc: 'Seleziona testo e fai clic destro per tradurre' },
         grammarly:  { title: 'Grammarly',            desc: 'Controllo grammatica e stile del testo' },
         screenshot: { title: 'Screenshot',           desc: 'Clic destro per catturare la pagina' },
-        darkmode:   { title: 'Modalita scura',       desc: 'Clic destro per attivare il tema scuro' }
+        darkmode:   { title: 'Modalita scura',       desc: 'Clic destro per attivare il tema scuro' },
+        split:      { title: 'Schermo diviso',       desc: 'Apri due servizi affiancati in una finestra' }
     },
 
     webview: {

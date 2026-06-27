@@ -294,6 +294,7 @@ function createSettingsUiApi({
         if (!modal) return
 
         modal.classList.add('show')
+        document.body.classList.add('settings-open')
 
         const settings = getSettings()
 

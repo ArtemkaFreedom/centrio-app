@@ -1576,6 +1576,9 @@ webview.active { display: flex; }
 }
 .split-handle:hover::after { opacity: 0.5; }
 
+/* Скрываем handle когда открыты настройки */
+body.settings-open .split-handle { display: none !important; }
+
 /* ── Right-pane messenger picker ────────────────────────────────── */
 /* position:fixed + z-index are set by JS (appended to document.body) */
 .split-picker {
@@ -1715,7 +1718,8 @@ webview.active { display: flex; }
 }
 
 /* ╔══════════════════════════════════════════════════════════════════╗
- * ║  ТЕМА: DOCK (плавающие иконки, glow-кольца, глубина)            ║
+ * ║  ТЕМА: DOCK — полный редизайн сайдбара                          ║
+ * ║  Стекло · Воздух · Плавающие иконки · Компактность             ║
  * ╚══════════════════════════════════════════════════════════════════╝ */
 
 /* ── Переменные ──────────────────────────────────────────────────── */
@@ -1755,322 +1759,427 @@ webview.active { display: flex; }
     --glass-border:    rgba(255,255,255,0.04);
 }
 
-/* ── Titlebar ────────────────────────────────────────────────────── */
+/* ── Titlebar ─────────────────────────────────────────────────────── */
 [data-theme="dock"] .titlebar {
-    background: var(--titlebar-bg);
+    background: rgba(7, 7, 14, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(129,140,248,0.07);
-    box-shadow: 0 1px 24px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(129,140,248,0.05) inset;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.4);
 }
-[data-theme="dock"] .menu-label {
-    color: var(--text-secondary);
-}
-[data-theme="dock"] .menu-item:hover .menu-label {
-    color: var(--text-primary);
-}
+[data-theme="dock"] .menu-label { color: var(--text-secondary); }
+[data-theme="dock"] .menu-item:hover .menu-label { color: var(--text-primary); }
 
-/* ── Activity bar ────────────────────────────────────────────────── */
+/* ── Activity bar — стеклянный сайдбар ───────────────────────────── */
 [data-theme="dock"] .activity-bar {
-    width: 62px;
-    background: linear-gradient(180deg, #060610 0%, #07070e 100%);
-    border-right: 1px solid rgba(129,140,248,0.06);
-    box-shadow: 2px 0 20px rgba(0,0,0,0.5);
+    width: 64px;
+    background: rgba(6, 6, 12, 0.72);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    box-shadow:
+        inset -1px 0 0 rgba(129,140,248,0.04),
+        4px 0 30px rgba(0,0,0,0.35);
+    padding: 10px 0 14px;
 }
 
 [data-theme="dock"] .activity-top {
-    padding-top: 4px;
+    padding-top: 2px;
+    gap: 2px;
 }
 
 [data-theme="dock"] .activity-bottom {
-    gap: 3px;
-    padding-bottom: 8px;
+    gap: 2px;
+    padding-bottom: 4px;
 }
 
+/* Разделитель — еле видимый штрих */
 [data-theme="dock"] .activity-divider {
-    width: 18px;
+    width: 22px;
     height: 1px;
-    background: rgba(129,140,248,0.1);
-    margin: 10px 0;
+    background: rgba(255,255,255,0.07);
+    margin: 8px auto;
     opacity: 1;
+    border-radius: 1px;
 }
 
-/* ── Кнопки сайдбара (настройки, VPN, и др.) ────────────────────── */
-[data-theme="dock"] .activity-btn {
-    width: 44px;
-    height: 44px;
-    background: transparent;
-    color: var(--text-muted);
-    border-radius: var(--radius-md);
-    transition: color 0.2s ease,
-                transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-                filter 0.2s ease;
-}
-[data-theme="dock"] .activity-btn:hover {
-    background: transparent;
-    color: var(--accent);
-    transform: translateY(-3px);
-    filter: drop-shadow(0 5px 12px var(--accent-glow));
-}
-[data-theme="dock"] .activity-btn:active {
-    transform: translateY(0) scale(0.9);
-    filter: none;
-}
-
-/* Кнопка «+» — dashed ring */
+/* ── Кнопка «+» — dashed ring ────────────────────────────────────── */
 [data-theme="dock"] .add-btn {
     background: transparent !important;
-    color: var(--text-muted) !important;
-    border: 1.5px dashed rgba(129,140,248,0.25) !important;
+    color: rgba(255,255,255,0.2) !important;
+    border: 1.5px dashed rgba(255,255,255,0.12) !important;
     border-radius: 50% !important;
-    width: 38px !important;
-    height: 38px !important;
-    transition: color 0.2s ease,
-                border-color 0.2s ease,
-                transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-                filter 0.2s ease !important;
+    width: 36px !important;
+    height: 36px !important;
+    transition:
+        color 0.2s,
+        border-color 0.2s,
+        transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
+        filter 0.2s !important;
 }
 [data-theme="dock"] .add-btn:hover {
     background: transparent !important;
     color: var(--accent) !important;
     border-color: var(--accent) !important;
     box-shadow: none !important;
-    transform: translateY(-3px) !important;
-    filter: drop-shadow(0 5px 12px var(--accent-glow)) !important;
+    transform: translateY(-3px) rotate(90deg) !important;
+    filter: drop-shadow(0 4px 10px var(--accent-glow)) !important;
+}
+[data-theme="dock"] .add-btn:active {
+    transform: scale(0.9) !important;
 }
 
-/* ── Мессенджер в сайдбаре ───────────────────────────────────────── */
+/* ── Иконки мессенджеров ──────────────────────────────────────────── */
 
-/* Убираем левую полоску — dock использует glow-кольцо */
-[data-theme="dock"] .messenger-item::before {
-    display: none;
-}
+/* Убираем левую полоску */
+[data-theme="dock"] .messenger-item::before { display: none; }
 
 [data-theme="dock"] .messenger-item {
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     background: transparent;
-    border-radius: var(--radius-md);
-    margin: 2px 0;
-    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-                box-shadow 0.25s ease;
+    border-radius: 14px;
+    margin: 1px auto;
+    transition:
+        transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
+        box-shadow 0.25s ease;
 }
 [data-theme="dock"] .messenger-item:hover {
     background: transparent;
-    transform: translateY(-4px) scale(1.06);
-    box-shadow: none;
+    transform: translateY(-5px) scale(1.08);
 }
 [data-theme="dock"] .messenger-item:active {
-    transform: translateY(0) scale(0.9);
+    transform: scale(0.88);
+    transition-duration: 0.1s;
 }
 
-/* Активный элемент — glow-кольцо */
+/* Активный — яркое glow-кольцо */
 [data-theme="dock"] .messenger-item.active {
     background: transparent;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
     box-shadow:
         0 0 0 1.5px var(--accent),
-        0 0 18px var(--accent-glow),
-        0 0 40px rgba(129,140,248,0.12);
+        0 0 14px rgba(129,140,248,0.5),
+        0 0 36px rgba(129,140,248,0.15);
 }
 
-/* Иконки — floating drop-shadow */
+/* Иконки с тенью */
 [data-theme="dock"] .messenger-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-sm);
-    filter: drop-shadow(0 3px 8px rgba(0,0,0,0.75));
-    transition: filter 0.28s ease,
-                transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.8));
+    transition:
+        filter 0.3s ease,
+        transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
 }
 [data-theme="dock"] .messenger-item:hover .messenger-icon {
-    filter: drop-shadow(0 7px 18px rgba(0,0,0,0.9)) brightness(1.12);
-    transform: none; /* lift идёт через parent */
+    filter: drop-shadow(0 6px 16px rgba(0,0,0,0.9)) brightness(1.1);
 }
 [data-theme="dock"] .messenger-item.active .messenger-icon {
     filter:
-        drop-shadow(0 0 8px var(--accent-glow))
-        drop-shadow(0 4px 12px rgba(0,0,0,0.85));
+        drop-shadow(0 0 6px rgba(129,140,248,0.6))
+        drop-shadow(0 3px 10px rgba(0,0,0,0.9));
+    transform: translateY(-1px);
 }
 
 /* Бейдж */
 [data-theme="dock"] .messenger-badge {
-    border: 1.5px solid var(--sidebar-bg);
-    box-shadow: 0 0 10px var(--accent-glow), 0 2px 6px rgba(0,0,0,0.6);
+    top: 3px;
+    right: 3px;
+    border: 1.5px solid rgba(6,6,12,0.9);
+    box-shadow: 0 0 8px rgba(129,140,248,0.5);
     background: var(--accent);
 }
 
-/* ── Папки — то же dock-поведение ───────────────────────────────── */
-[data-theme="dock"] .folder-header::before {
-    display: none;
+/* ── Кнопки сайдбара (настройки, VPN, сплит и др.) ──────────────── */
+[data-theme="dock"] .activity-btn {
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    color: rgba(255,255,255,0.22);
+    border-radius: 10px;
+    margin: 1px auto;
+    transition:
+        color 0.2s,
+        transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
+        filter 0.2s;
 }
+[data-theme="dock"] .activity-btn svg {
+    width: 17px;
+    height: 17px;
+}
+[data-theme="dock"] .activity-btn:hover {
+    background: transparent;
+    color: var(--accent);
+    transform: translateY(-3px);
+    filter: drop-shadow(0 4px 10px var(--accent-glow));
+}
+[data-theme="dock"] .activity-btn:active {
+    transform: scale(0.88);
+    filter: none;
+    transition-duration: 0.1s;
+}
+
+/* ── Папки — dock-поведение ───────────────────────────────────────── */
+[data-theme="dock"] .folder-header::before { display: none; }
 [data-theme="dock"] .folder-header {
     background: transparent;
-    border-radius: var(--radius-md);
-    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-                box-shadow 0.25s ease;
+    border-radius: 14px;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s;
 }
 [data-theme="dock"] .folder-header:hover {
     background: transparent;
-    transform: translateY(-4px) scale(1.06);
+    transform: translateY(-5px) scale(1.08);
 }
 [data-theme="dock"] .folder-item.open .folder-header {
     background: transparent;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
     box-shadow:
         0 0 0 1.5px var(--accent),
-        0 0 18px var(--accent-glow),
-        0 0 40px rgba(129,140,248,0.12);
+        0 0 14px rgba(129,140,248,0.5),
+        0 0 36px rgba(129,140,248,0.15);
 }
 [data-theme="dock"] .folder-icon-wrap {
-    color: var(--text-secondary);
-    filter: drop-shadow(0 3px 8px rgba(0,0,0,0.75));
+    color: rgba(255,255,255,0.25);
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.8));
 }
 [data-theme="dock"] .folder-header:hover .folder-icon-wrap {
-    color: var(--text-bright);
-    filter: drop-shadow(0 7px 18px rgba(0,0,0,0.9)) brightness(1.12);
+    color: #fff;
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.9)) brightness(1.1);
 }
-[data-theme="dock"] .folder-item.open .folder-icon-wrap {
-    color: var(--accent);
-}
+[data-theme="dock"] .folder-item.open .folder-icon-wrap { color: var(--accent); }
 [data-theme="dock"] .folder-badge {
-    border: 1.5px solid var(--sidebar-bg);
-    box-shadow: 0 0 8px var(--accent-glow);
+    border: 1.5px solid rgba(6,6,12,0.9);
+    box-shadow: 0 0 8px rgba(129,140,248,0.4);
 }
 
 /* ── Folder panel (выезжающая) ───────────────────────────────────── */
 [data-theme="dock"] .folder-panel.open {
-    background: #070712;
-    border-right: 1px solid rgba(129,140,248,0.08);
-    box-shadow: 4px 0 30px rgba(0,0,0,0.6);
+    background: rgba(8,8,16,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    box-shadow: 4px 0 30px rgba(0,0,0,0.5);
 }
 [data-theme="dock"] .folder-panel-label {
-    background: linear-gradient(180deg, rgba(129,140,248,0.08) 0%, transparent 60%);
-    border-right: 1px solid rgba(129,140,248,0.15);
-    box-shadow: inset -1px 0 16px rgba(129,140,248,0.05), 1px 0 12px rgba(129,140,248,0.06);
+    background: linear-gradient(180deg, rgba(129,140,248,0.07) 0%, transparent 60%);
+    border-right: 1px solid rgba(129,140,248,0.1);
+    box-shadow: none;
 }
 
-/* ── Контент-зона ────────────────────────────────────────────────── */
-[data-theme="dock"] .content-area {
-    background: var(--bg-primary);
-}
+/* ── Контент + статусбар ─────────────────────────────────────────── */
+[data-theme="dock"] .content-area { background: var(--bg-primary); }
 
-/* ── Статусбар ───────────────────────────────────────────────────── */
 [data-theme="dock"] .statusbar {
-    background: var(--statusbar-bg);
-    border-top: 1px solid rgba(129,140,248,0.07);
-    box-shadow: 0 -1px 20px rgba(0,0,0,0.4);
+    background: rgba(6,6,12,0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,255,255,0.04);
 }
 
-/* ── Меню (контекстное + titlebar dropdown) ──────────────────────── */
+/* ── Меню ────────────────────────────────────────────────────────── */
 [data-theme="dock"] .menu-dropdown {
-    background: #0f0f1a;
-    border: 1px solid rgba(129,140,248,0.12);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.8), 0 0 0 0.5px rgba(129,140,248,0.05);
+    background: rgba(12,12,22,0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(129,140,248,0.1);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.8);
     border-radius: var(--radius-md);
 }
 [data-theme="dock"] .menu-drop-item:hover {
     background: rgba(129,140,248,0.1);
     color: var(--accent);
 }
-[data-theme="dock"] .menu-drop-divider {
-    background: rgba(129,140,248,0.08);
-}
+[data-theme="dock"] .menu-drop-divider { background: rgba(255,255,255,0.06); }
 
 [data-theme="dock"] .context-menu {
-    background: #0f0f1a;
-    border: 1px solid rgba(129,140,248,0.12);
+    background: rgba(12,12,22,0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(129,140,248,0.1);
     box-shadow: 0 8px 40px rgba(0,0,0,0.8);
     border-radius: var(--radius-md);
 }
 [data-theme="dock"] .context-item:hover {
-    background: rgba(129,140,248,0.12);
+    background: rgba(129,140,248,0.1);
     color: var(--accent);
 }
-[data-theme="dock"] .context-divider {
-    background: rgba(129,140,248,0.08);
-}
+[data-theme="dock"] .context-divider { background: rgba(255,255,255,0.06); }
 
 /* ── Быстрый поиск ───────────────────────────────────────────────── */
 [data-theme="dock"] .quick-search-box {
-    background: #0f0f1a;
-    border: 1px solid rgba(129,140,248,0.14);
-    box-shadow: 0 16px 60px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(129,140,248,0.06);
+    background: rgba(10,10,20,0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(129,140,248,0.12);
+    box-shadow: 0 16px 60px rgba(0,0,0,0.85);
     border-radius: var(--radius-lg);
 }
-[data-theme="dock"] .quick-search-input {
-    background: transparent;
-    color: var(--text-primary);
-}
 [data-theme="dock"] .quick-item:hover,
-[data-theme="dock"] .quick-item.selected {
-    background: rgba(129,140,248,0.1);
-}
+[data-theme="dock"] .quick-item.selected { background: rgba(129,140,248,0.08); }
 
 /* ── Настройки ───────────────────────────────────────────────────── */
 [data-theme="dock"] .settings-panel {
-    background: #07070d;
-    border-right: 1px solid rgba(129,140,248,0.07);
+    background: rgba(6,6,12,0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid rgba(255,255,255,0.05);
 }
-[data-theme="dock"] .settings-content {
-    background: var(--bg-primary);
-}
+[data-theme="dock"] .settings-content { background: var(--bg-primary); }
 [data-theme="dock"] .settings-nav-item.active {
     background: rgba(129,140,248,0.1);
     color: var(--accent);
 }
 [data-theme="dock"] .settings-nav-item:hover {
-    background: rgba(129,140,248,0.06);
+    background: rgba(255,255,255,0.04);
     color: var(--text-primary);
-}
-[data-theme="dock"] .settings-group {
-    background: transparent;
 }
 
 /* ── Модалки ─────────────────────────────────────────────────────── */
 [data-theme="dock"] .modal-content {
-    background: #0f0f1a;
+    background: rgba(12,12,22,0.97);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(129,140,248,0.1);
-    box-shadow: 0 20px 80px rgba(0,0,0,0.9), 0 0 0 0.5px rgba(129,140,248,0.06);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.9);
     border-radius: var(--radius-lg);
 }
-[data-theme="dock"] .modal-header {
-    border-bottom-color: rgba(129,140,248,0.08);
-}
+[data-theme="dock"] .modal-header { border-bottom-color: rgba(255,255,255,0.06); }
 
-/* ── Split picker (dock стиль) ───────────────────────────────────── */
+/* ── Split picker ────────────────────────────────────────────────── */
 [data-theme="dock"] .split-picker {
-    background: rgba(9,9,15,0.97);
-    border-left: 1px solid rgba(129,140,248,0.08);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(8,8,16,0.94);
+    border-left: 1px solid rgba(255,255,255,0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
 }
 [data-theme="dock"] .split-picker-item {
-    background: rgba(129,140,248,0.05);
-    border: 1px solid rgba(129,140,248,0.08);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
     border-radius: var(--radius-md);
-    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-                box-shadow 0.25s ease,
-                border-color 0.2s ease;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s, border-color 0.2s;
 }
 [data-theme="dock"] .split-picker-item:hover {
     transform: translateY(-4px);
     border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent), 0 0 20px var(--accent-glow);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 20px rgba(129,140,248,0.35);
 }
 
-/* ── Tabs (вкладки браузерного стиля) ───────────────────────────── */
-[data-theme="dock"] .tab-item {
-    background: var(--tab-inactive);
+/* ── Tabs ────────────────────────────────────────────────────────── */
+[data-theme="dock"] .titlebar-tabs {
+    gap: 4px;
+    padding: 0 8px 0 4px;
 }
-[data-theme="dock"] .tab-item.active {
-    background: var(--tab-active);
-    box-shadow: 0 -1px 0 var(--accent) inset;
+[data-theme="dock"] .tab {
+    height: 26px;
+    min-height: 26px;
+    min-width: 60px !important;
+    max-width: 180px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 500;
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.35);
+    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+[data-theme="dock"] .tab:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.75);
+    border-color: rgba(255,255,255,0.1);
+}
+[data-theme="dock"] .tab.active {
+    background: rgba(129,140,248,0.12);
+    border-color: rgba(129,140,248,0.3);
+    color: #d0d5ff;
+    box-shadow: 0 0 0 1px rgba(129,140,248,0.15) inset,
+                0 2px 12px rgba(129,140,248,0.1) !important;
+}
+[data-theme="dock"] .tab-icon { filter: brightness(0.8); }
+[data-theme="dock"] .tab.active .tab-icon { filter: brightness(1.15); }
+
+/* ── VPN sidebar refresh badge ───────────────────────────────────── */
+.vpn-sidebar-refresh {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--bg-secondary, #0e0e17);
+    border: 1px solid var(--border, #1b1b2e);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.7);
+    transition: opacity 0.15s, transform 0.15s;
+    pointer-events: none;
+    z-index: 2;
+    color: var(--text-secondary);
+}
+.vpn-btn:hover .vpn-sidebar-refresh {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: all;
+}
+.vpn-sidebar-refresh:hover {
+    background: var(--accent, #818cf8) !important;
+    border-color: var(--accent, #818cf8) !important;
+    color: #fff !important;
+    transform: scale(1.15) !important;
+}
+.vpn-sidebar-refresh.vpn-sub-refreshing {
+    animation: spin 0.8s linear infinite;
+    pointer-events: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Папки в dock-теме — мини-превью иконок ──────────────────────── */
+[data-theme="dock"] .folder-mini-icons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    width: 28px;
+    height: 28px;
+    padding: 3px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+[data-theme="dock"] .folder-mini-icon {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: rgba(129,140,248,0.4);
 }
 
-/* ── Превью темы в настройках ────────────────────────────────────── */
+/* Декоративная вертикальная линия-акцент в левой части сайдбара */
+[data-theme="dock"] .activity-bar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 2px;
+    border-radius: 2px;
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        rgba(129,140,248,0.4) 30%,
+        rgba(129,140,248,0.6) 50%,
+        rgba(129,140,248,0.4) 70%,
+        transparent
+    );
+    pointer-events: none;
+}
+
+/* ── Превью в настройках ─────────────────────────────────────────── */
 .dock-preview { background: #09090f; }
 .dock-preview .tp-sidebar {
-    background: linear-gradient(180deg, #060610 0%, #07070e 100%);
-    box-shadow: 1px 0 6px rgba(129,140,248,0.1);
+    background: rgba(6,6,12,0.9);
+    box-shadow: 1px 0 8px rgba(129,140,248,0.08);
 }
 .dock-preview .tp-content { background: #09090f; }
 

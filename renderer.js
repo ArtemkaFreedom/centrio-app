@@ -1441,6 +1441,11 @@ function applyTabZoom(level) {
             ipcRenderer.send('update-adblock-state') // If we have a dedicated IPC
             // or just rely on store change if the main process watches it
         }
+        if (extId === 'split') {
+            const btn = document.getElementById('splitBtn')
+            if (btn) btn.style.display = isEnabled ? 'flex' : 'none'
+            if (!isEnabled && state.splitMode) splitApi?.exitSplitMode?.()
+        }
         // Force refresh context menus if needed
     }
 
@@ -1922,10 +1927,17 @@ function applyTabZoom(level) {
     window.addEventListener('online', updateStatusBar)
     window.addEventListener('offline', updateStatusBar)
       await advanceStartup('data', 82, { minStepTime: 300 })
+    // Slow creep so bar doesn't freeze at 82% during cloud sync
+    let _dataProgress = 82
+    const _dataCreep = setInterval(() => {
+        if (_dataProgress < 91) { _dataProgress += 0.4; setStartupProgress(_dataProgress) }
+    }, 200)
     try {
         await loadData()
     } catch (err) {
         console.error(err)
+    } finally {
+        clearInterval(_dataCreep)
     }
 
     // Обновляем уведомления после полной загрузки (на случай если при init токена ещё не было)

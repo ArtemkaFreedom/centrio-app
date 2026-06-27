@@ -26,6 +26,7 @@ function bindSettingsUi({
     if (closeSettingsBtn && settingsModal) {
         closeSettingsBtn.addEventListener('click', () => {
             settingsModal.classList.remove('show')
+            document.body.classList.remove('settings-open')
         })
     }
 
@@ -33,6 +34,7 @@ function bindSettingsUi({
         settingsModal.addEventListener('click', (e) => {
             if (e.target === settingsModal) {
                 settingsModal.classList.remove('show')
+                document.body.classList.remove('settings-open')
             }
         })
     }

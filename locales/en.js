@@ -491,6 +491,7 @@ module.exports = {
         grammarly:  { title: 'Grammarly',         desc: 'Grammar and style checking for text' },
         screenshot: { title: 'Screenshot',        desc: 'Right-click to capture the current page' },
         darkmode:   { title: 'Force Dark Mode',   desc: 'Right-click to enable dark theme on any service' },
+        split:      { title: 'Split Screen',      desc: 'Open two services side by side in one window' },
         uninstallTitle: 'Remove extension?',
         uninstallMsg:   'The extension will be removed. This action cannot be undone.',
         uninstallBtn:   'Remove',
