@@ -455,7 +455,10 @@ module.exports = {
         planProF2:           'До 5 устройств',
         planProF3:           'Статистика и аналитика',
         planProF4:           'Приоритетная поддержка',
-        planYearF1:          'Ранний доступ к функциям'
+        planYearF1:          'Ранний доступ к функциям',
+        subActiveUntil:      'Активна до',
+        extend:              'Продлить',
+        subNoExpiry:         'Бессрочно'
     },
 
     pro: {

@@ -455,6 +455,9 @@ module.exports = {
         planProF3:            'Statistics & analytics',
         planProF4:            'Priority support',
         planYearF1:           'Early access to features',
+        subActiveUntil:       'Active until',
+        extend:               'Extend',
+        subNoExpiry:          'Lifetime',
     },
 
     pro: {

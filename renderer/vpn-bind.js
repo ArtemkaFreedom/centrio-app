@@ -603,23 +603,11 @@ function bindVpnUi ({ invokeIpc, tGet }) {
     panel.style.display = 'none'
   }
 
-  // Экспортируем refresh для использования из сайдбара
-  window.__centrioVpnRefresh = () => refreshSubscription()
-
   btn.addEventListener('click', (e) => {
     e.stopPropagation()
     if (panel.style.display === 'none' || !panel.style.display) openPanel()
     else closePanel()
   })
-
-  // Кнопка быстрого обновления подписок на иконке VPN в сайдбаре
-  const sidebarRefreshBtn = document.getElementById('vpnSidebarRefreshBtn')
-  if (sidebarRefreshBtn) {
-    sidebarRefreshBtn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      refreshSubscription()
-    })
-  }
 
   document.addEventListener('click', (e) => {
     if (panel.style.display === 'none') return

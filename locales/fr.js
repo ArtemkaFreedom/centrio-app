@@ -430,6 +430,9 @@ module.exports = {
         planProF3:            'Statistiques & analyses',
         planProF4:            'Support prioritaire',
         planYearF1:           'Accès anticipé aux fonctionnalités',
+        subActiveUntil:       'Active jusqu\'au',
+        extend:               'Prolonger',
+        subNoExpiry:          'À vie',
     },
 
     pro: {

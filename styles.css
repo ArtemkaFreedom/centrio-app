@@ -1576,8 +1576,9 @@ webview.active { display: flex; }
 }
 .split-handle:hover::after { opacity: 0.5; }
 
-/* Скрываем handle когда открыты настройки */
+/* Скрываем handle когда открыты настройки или любой модал */
 body.settings-open .split-handle { display: none !important; }
+body:has(.modal.show) .split-handle { display: none !important; }
 
 /* ── Right-pane messenger picker ────────────────────────────────── */
 /* position:fixed + z-index are set by JS (appended to document.body) */
@@ -2099,41 +2100,6 @@ body.settings-open .split-handle { display: none !important; }
 [data-theme="dock"] .tab-icon { filter: brightness(0.8); }
 [data-theme="dock"] .tab.active .tab-icon { filter: brightness(1.15); }
 
-/* ── VPN sidebar refresh badge ───────────────────────────────────── */
-.vpn-sidebar-refresh {
-    position: absolute;
-    bottom: 1px;
-    right: 1px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--bg-secondary, #0e0e17);
-    border: 1px solid var(--border, #1b1b2e);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transform: scale(0.7);
-    transition: opacity 0.15s, transform 0.15s;
-    pointer-events: none;
-    z-index: 2;
-    color: var(--text-secondary);
-}
-.vpn-btn:hover .vpn-sidebar-refresh {
-    opacity: 1;
-    transform: scale(1);
-    pointer-events: all;
-}
-.vpn-sidebar-refresh:hover {
-    background: var(--accent, #818cf8) !important;
-    border-color: var(--accent, #818cf8) !important;
-    color: #fff !important;
-    transform: scale(1.15) !important;
-}
-.vpn-sidebar-refresh.vpn-sub-refreshing {
-    animation: spin 0.8s linear infinite;
-    pointer-events: none;
-}
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Папки в dock-теме — мини-превью иконок ──────────────────────── */
@@ -6385,6 +6351,76 @@ button:active {
     background: var(--border);
     flex-shrink: 0;
     margin: 0 4px;
+}
+
+/* ── PRO-блок активной подписки ── */
+.cp-pro-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.08) 100%);
+    border-bottom: 1px solid rgba(99,102,241,0.2);
+    border-top: 1px solid rgba(99,102,241,0.15);
+}
+.cp-pro-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.cp-pro-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(99,102,241,0.18);
+    border: 1px solid rgba(99,102,241,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #818cf8;
+    flex-shrink: 0;
+}
+.cp-pro-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.cp-pro-plan-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #a5b4fc;
+    line-height: 1;
+}
+.cp-pro-expiry {
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    white-space: nowrap;
+}
+.cp-pro-expiry span { color: var(--text-muted, rgba(255,255,255,0.45)); }
+.cp-pro-expiry span + span { color: rgba(255,255,255,0.65); font-weight: 600; }
+.cp-extend-btn {
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(99,102,241,0.18);
+    border: 1px solid rgba(99,102,241,0.35);
+    color: #a5b4fc;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.cp-extend-btn:hover {
+    background: rgba(99,102,241,0.3);
+    border-color: rgba(99,102,241,0.55);
+    color: #c7d2fe;
 }
 
 /* ── Сетка тарифов (горизонтальный ряд) ── */

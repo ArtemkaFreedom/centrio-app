@@ -1232,7 +1232,7 @@ function applyTabZoom(level) {
     // ==============================
     // SPLIT MODE
     // ==============================
-    splitApi = createSplitApi({ state, tabsContent, contentArea })
+    splitApi = createSplitApi({ state, tabsContent, contentArea, store })
 
     // Expose focus-tracker for webview-tabs-bind.js
     window.__centrioSplitFocus = (webview) => splitApi.onWebviewFocus(webview)
@@ -1938,6 +1938,18 @@ function applyTabZoom(level) {
         console.error(err)
     } finally {
         clearInterval(_dataCreep)
+    }
+
+    // ── Восстанавливаем сплит-режим если был открыт при закрытии ──
+    const _savedSplit = store.get('split.saved', null)
+    if (_savedSplit?.splitTabId && state.activeMessengers.length >= 2) {
+        const _splitTarget = state.activeMessengers.find(m => m.id === _savedSplit.splitTabId)
+        if (_splitTarget) {
+            state.splitLeftPct = _savedSplit.splitLeftPct || 50
+            if (splitApi.enterSplitMode()) {
+                splitApi.switchSplitTab(_savedSplit.splitTabId)
+            }
+        }
     }
 
     // Обновляем уведомления после полной загрузки (на случай если при init токена ещё не было)

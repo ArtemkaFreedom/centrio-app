@@ -231,6 +231,10 @@ function bindCloudUi({
         _doOpenUrl(DASHBOARD_URL)
     })
 
+    document.getElementById('proExtendBtn')?.addEventListener('click', () => {
+        _doOpenUrl(DASHBOARD_URL)
+    })
+
 }
 
 module.exports = {

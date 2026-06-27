@@ -341,16 +341,10 @@
                 </svg>
             </button>
             <!-- VPN кнопка (активна = SVG зеленеет через .vpn-active) -->
-            <button id="vpnBtn" class="activity-btn vpn-btn" title="VPN" style="position:relative;">
+            <button id="vpnBtn" class="activity-btn vpn-btn" title="VPN">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
-                <span id="vpnSidebarRefreshBtn" class="vpn-sidebar-refresh" title="Обновить подписки">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                </span>
             </button>
             <!-- Иконка уведомлений приложения (от админа / changelog) -->
             <button id="appNotifBtn" class="activity-btn" data-i18n-title="notifications.appNotif" style="position:relative;">
@@ -2173,8 +2167,8 @@
                 </div>
             </div>
 
-            <!-- Инфо-строки (мессенджеры / папки / последняя синхронизация) -->
-            <div class="cp-stats-row">
+            <!-- Инфо-строки (мессенджеры / папки / последняя синхронизация) — только для PRO -->
+            <div class="cp-stats-row" id="cpStatsRow">
                 <div class="cp-stat">
                     <span class="cp-stat-val" id="statMessengers">—</span>
                     <span class="cp-stat-lbl" data-i18n="cloud.statMessengers"></span>
@@ -2191,7 +2185,26 @@
                 </div>
             </div>
 
-            <!-- Тарифы -->
+            <!-- PRO: блок активной подписки (скрыт для FREE) -->
+            <div id="proSubSection" class="cp-pro-section" style="display:none;">
+                <div class="cp-pro-info">
+                    <div class="cp-pro-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="cp-pro-details">
+                        <div class="cp-pro-plan-name" id="proSubPlanName">Pro</div>
+                        <div class="cp-pro-expiry">
+                            <span data-i18n="cloud.subActiveUntil"></span>
+                            <span id="proSubExpiry">—</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="cp-extend-btn" id="proExtendBtn" data-i18n="cloud.extend"></button>
+            </div>
+
+            <!-- Тарифы (скрыты если PRO активен) -->
             <div class="cp-plans-section">
                 <div class="cp-section-label" data-i18n="cloud.plansSection"></div>
 

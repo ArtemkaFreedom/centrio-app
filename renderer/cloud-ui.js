@@ -138,6 +138,49 @@ function createCloudUiApi({
         document.getElementById('cloudPassword').value = ''
     }
 
+    // ── Форматирование даты подписки ──────────────────────────────
+    function _formatPlanExpiry(iso) {
+        if (!iso) return null
+        try {
+            const d = new Date(iso)
+            if (isNaN(d.getTime())) return null
+            return d.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })
+        } catch { return null }
+    }
+
+    // ── Обновляем PRO-секцию ──────────────────────────────────────
+    function _renderProSection(user, plan, isPro) {
+        const statsRow    = document.getElementById('cpStatsRow')
+        const proSection  = document.getElementById('proSubSection')
+        const plansSection = document.querySelector('.cp-plans-section')
+
+        if (isPro) {
+            // Показываем статистику и блок подписки, скрываем тарифы
+            if (statsRow)    statsRow.style.display    = ''
+            if (proSection)  proSection.style.display  = 'flex'
+            if (plansSection) plansSection.style.display = 'none'
+
+            // Имя плана
+            const planNameEl = document.getElementById('proSubPlanName')
+            if (planNameEl) {
+                planNameEl.textContent = plan === 'PRO_YEAR' ? 'Pro Год' : 'Pro'
+            }
+
+            // Дата окончания
+            const expiryEl = document.getElementById('proSubExpiry')
+            if (expiryEl) {
+                const expiry = user?.planExpiry || user?.expiresAt || user?.subscriptionExpiresAt || null
+                const formatted = _formatPlanExpiry(expiry)
+                expiryEl.textContent = formatted || (tGet('cloud.subNoExpiry') || '—')
+            }
+        } else {
+            // FREE: скрываем статистику и PRO-блок, показываем тарифы
+            if (statsRow)    statsRow.style.display    = 'none'
+            if (proSection)  proSection.style.display  = 'none'
+            if (plansSection) plansSection.style.display = ''
+        }
+    }
+
     // ── Открыть профиль ───────────────────────────────────────────
     function openCloudProfile() {
         const user  = cloudStore.getUser()
@@ -154,15 +197,17 @@ function createCloudUiApi({
         document.getElementById('cloudUserName').textContent  = user?.name  || ''
         document.getElementById('cloudUserEmail').textContent = user?.email || ''
 
-        const plan = (user?.plan || 'FREE').toUpperCase()
+        const plan  = (user?.plan || 'FREE').toUpperCase()
+        const isPro = _isPro(user)
         _applyPlanBadge(plan)
-        _applyProRing(_isPro(user))
+        _applyProRing(isPro)
         updateAvatarInModal(user?.avatar || null)
 
         document.getElementById('cloudEditNameWrap').style.display = 'none'
         document.getElementById('cloudEditNameBtn').style.display  = 'flex'
 
         _updatePlanCards(plan)
+        _renderProSection(user, plan, isPro)
         _renderLocalStats()
     }
 

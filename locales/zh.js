@@ -430,6 +430,9 @@ module.exports = {
         planProF3:            '统计与分析',
         planProF4:            '优先支持',
         planYearF1:           '提前体验新功能',
+        subActiveUntil:       '有效期至',
+        extend:               '续费',
+        subNoExpiry:          '永久',
     },
 
     pro: {

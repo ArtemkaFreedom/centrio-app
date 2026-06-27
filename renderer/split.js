@@ -8,7 +8,7 @@
 // mouse input within their bounds regardless of CSS z-index.
 'use strict'
 
-function createSplitApi ({ state, tabsContent, contentArea }) {
+function createSplitApi ({ state, tabsContent, contentArea, store }) {
     const splitHandle     = document.getElementById('splitHandle')
     const splitPicker     = document.getElementById('splitPicker')
     const splitPickerList = document.getElementById('splitPickerList')
@@ -212,6 +212,9 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         if (splitHandle) splitHandle.style.display = 'none'
         _clearWebviewInlineStyles()
         hidePicker()
+
+        // Сбрасываем сохранённое состояние
+        store?.delete?.('split.saved')
     }
 
     // ── Switch secondary tab ──────────────────────────────────────────────────
@@ -239,6 +242,9 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
 
         hidePicker()
         setSplitFocus('right')
+
+        // Сохраняем состояние в store
+        store?.set?.('split.saved', { splitTabId: id, splitLeftPct: state.splitLeftPct || 50 })
     }
 
     // ── Callbacks from renderer.js ────────────────────────────────────────────
@@ -299,6 +305,10 @@ function createSplitApi ({ state, tabsContent, contentArea }) {
         // Restore pointer events (unless picker is still open)
         if (splitPicker?.style.display === 'none') {
             _restoreWebviewPointerEvents()
+        }
+        // Обновляем сохранённый pct после перетаскивания
+        if (state.splitMode && state.splitTabId) {
+            store?.set?.('split.saved', { splitTabId: state.splitTabId, splitLeftPct: state.splitLeftPct || 50 })
         }
     })
 
