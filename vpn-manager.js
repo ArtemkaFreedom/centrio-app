@@ -8,10 +8,32 @@ const fs    = require('fs')
 const https = require('https')
 const http  = require('http')
 const net   = require('net')
+const crypto = require('crypto')
 const { spawn, execFile } = require('child_process')
 const store = require('./main/services/store')
+const { encryptValue, decryptValue } = require('./main/services/secureStore')
 const PROXY_PORT = 7890   // local SOCKS5 port sing-box будет слушать
 const SING_BOX_VERSION = '1.11.4'
+
+// sing-box не публикует checksums.txt/подписи для релиза, поэтому хэши
+// пинуются вручную (посчитаны из официальных ассетов GitHub-релиза v1.11.4).
+// Защищает от подмены бинарника при компрометации CDN/mirror или MITM.
+const SING_BOX_CHECKSUMS = {
+  'sing-box-1.11.4-windows-amd64.zip':  '8a681dbd6fa84f03d41e9e8637a8ff4df3d1d209556585ebf004b48325f9d70e',
+  'sing-box-1.11.4-darwin-amd64.tar.gz': 'ba5ee4d4630b6cb36c24f0f33d7f9b790b185eceebc74818ca6ff1283bd5e94b',
+  'sing-box-1.11.4-darwin-arm64.tar.gz': 'f4349633befd75c972a5a958cbfb6236a1e20b585425ae7c3ec73e5fa29217c5',
+  'sing-box-1.11.4-linux-amd64.tar.gz':  '0bb762ef286b36c2016d9107fc1f089be7a75f6d579b33f067d31e696c05927e'
+}
+
+function verifyChecksum (filePath, filename) {
+  const expected = SING_BOX_CHECKSUMS[filename]
+  if (!expected) throw new Error(`Нет доверенной контрольной суммы для ${filename} — отменяю установку`)
+  const data = fs.readFileSync(filePath)
+  const actual = crypto.createHash('sha256').update(data).digest('hex')
+  if (actual !== expected) {
+    throw new Error(`Контрольная сумма sing-box не совпадает (ожидалось ${expected}, получено ${actual}) — файл мог быть подменён`)
+  }
+}
 
 let singboxProcess = null
 let currentConfig  = null  // { name, link, outbound }
@@ -71,16 +93,25 @@ function downloadSingbox (onProgress) {
           }
         })
         res.on('end', () => {
-          dlFile.end()
-          onProgress && onProgress({ stage: 'extract', percent: 85, msg: 'Распаковка...' })
-          extractBinary(tmpFile, binPath, filename).then(() => {
-            fs.unlink(tmpFile, () => {})
-            if (process.platform !== 'win32') {
-              fs.chmodSync(binPath, '755')
+          dlFile.end(() => {
+            try {
+              onProgress && onProgress({ stage: 'verify', percent: 82, msg: 'Проверка целостности...' })
+              verifyChecksum(tmpFile, filename)
+            } catch (err) {
+              fs.unlink(tmpFile, () => {})
+              reject(err)
+              return
             }
-            onProgress && onProgress({ stage: 'done', percent: 100, msg: 'Готово' })
-            resolve(binPath)
-          }).catch(reject)
+            onProgress && onProgress({ stage: 'extract', percent: 85, msg: 'Распаковка...' })
+            extractBinary(tmpFile, binPath, filename).then(() => {
+              fs.unlink(tmpFile, () => {})
+              if (process.platform !== 'win32') {
+                fs.chmodSync(binPath, '755')
+              }
+              onProgress && onProgress({ stage: 'done', percent: 100, msg: 'Готово' })
+              resolve(binPath)
+            }).catch(reject)
+          })
         })
         res.on('error', reject)
       }).on('error', reject)
@@ -171,6 +202,12 @@ function parseVpnLink (link) {
   throw new Error('Неизвестный формат ссылки. Поддерживаются: vmess, vless, trojan, ss, hysteria2')
 }
 
+// TLS-проверка сертификата включена по умолчанию (защита от MITM на туннеле).
+// Отключить можно только если сама ссылка это явно просит через query-параметр.
+function isInsecureAllowed (params) {
+  return params.get('allowInsecure') === '1' || params.get('insecure') === '1'
+}
+
 function parseVmess (link) {
   const b64 = link.slice('vmess://'.length)
   const json = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'))
@@ -187,7 +224,10 @@ function parseVmess (link) {
     transport:  buildTransport(json)
   }
   if (json.tls === 'tls') {
-    outbound.tls = { enabled: true, server_name: json.sni || json.host || json.add, insecure: true }
+    // Проверка TLS-сертификата включена по умолчанию (защита от MITM на туннеле).
+    // Отключить можно только если сама ссылка это явно просит.
+    const insecure = json.allowInsecure === true || json.allowInsecure === '1' || json['skip-cert-verify'] === true
+    outbound.tls = { enabled: true, server_name: json.sni || json.host || json.add, insecure }
   }
   return { name, outbound }
 }
@@ -215,7 +255,7 @@ function parseVless (link) {
     outbound.tls = {
       enabled:     true,
       server_name: params.get('sni') || url.hostname,
-      insecure:    true
+      insecure:    isInsecureAllowed(params)
     }
   } else if (security === 'reality') {
     outbound.tls = {
@@ -245,7 +285,7 @@ function parseTrojan (link) {
     server:      url.hostname,
     server_port: parseInt(url.port || '443', 10),
     password:    decodeURIComponent(url.username),
-    tls:         { enabled: true, server_name: params.get('sni') || url.hostname, insecure: true }
+    tls:         { enabled: true, server_name: params.get('sni') || url.hostname, insecure: isInsecureAllowed(params) }
   }
   const transport = buildTransportFromParams(params)
   if (transport) outbound.transport = transport
@@ -307,7 +347,7 @@ function parseHysteria2 (link) {
     server:      url.hostname,
     server_port: parseInt(url.port || '443', 10),
     password:    url.username,
-    tls:         { enabled: true, server_name: params.get('sni') || url.hostname, insecure: true }
+    tls:         { enabled: true, server_name: params.get('sni') || url.hostname, insecure: isInsecureAllowed(params) }
   }
   return { name, outbound }
 }
@@ -568,26 +608,30 @@ function getStatus () {
 }
 
 // ── Сохранённые конфиги ───────────────────────────────────────────
+// VPN-ссылки содержат креды (UUID/пароль) в самом URI, поэтому поле
+// `link` шифруется через safeStorage (main/services/secureStore.js)
+// перед записью в electron-store, а не хранится как есть.
 function getSavedConfigs () {
-  return store.get('vpnConfigs', [])
+  const raw = store.get('vpnConfigs', [])
+  return raw.map(c => ({ ...c, link: decryptValue(c.link) }))
 }
 
 function saveConfig (name, link) {
-  const configs = getSavedConfigs()
-  const existing = configs.findIndex(c => c.link === link)
+  const raw = store.get('vpnConfigs', [])
+  const existing = raw.findIndex(c => decryptValue(c.link) === link)
   if (existing >= 0) {
-    configs[existing].name = name
+    raw[existing].name = name
   } else {
-    configs.push({ id: Date.now().toString(), name, link })
+    raw.push({ id: Date.now().toString(), name, link: encryptValue(link) })
   }
-  store.set('vpnConfigs', configs)
-  return configs
+  store.set('vpnConfigs', raw)
+  return getSavedConfigs()
 }
 
 function deleteConfig (id) {
-  const configs = getSavedConfigs().filter(c => c.id !== id)
-  store.set('vpnConfigs', configs)
-  return configs
+  const raw = store.get('vpnConfigs', []).filter(c => c.id !== id)
+  store.set('vpnConfigs', raw)
+  return getSavedConfigs()
 }
 
 // ── Пинг — TCP-соединение до хоста VPN-сервера ───────────────────

@@ -94,7 +94,39 @@ function safeHandle(channel, handler) {
     ipcMain.handle(channel, handler)
 }
 
+// ── SECURITY: settings-key schema for store:get/set/delete ──────────────────
+// The renderer can call these handlers with an arbitrary key string. Without
+// validation, a compromised/exploited renderer (or a bug in a bundled webview
+// preload) could read/write electron-store keys never meant to be renderer-
+// controlled, or attempt a prototype-pollution-style key (`__proto__`,
+// `constructor`, `prototype`) against the underlying conf/lodash path setter.
+// Allowlist is built from every store key actually read/written by renderer
+// code (renderer.js's `store` shim + renderer/*.js) — keep in sync when a new
+// setting is introduced. electron-store supports dot-notation for nested
+// values (e.g. "settings.language"), so we only need to allowlist the root
+// segment before the first dot.
+const ALLOWED_STORE_ROOTS = new Set([
+    'settings', 'security', 'cloud', 'extensionsState', 'foldersEnabled',
+    'menuCollapsed', 'messengers', 'mutedMessengers', 'globalMuteAll',
+    'globalProxy', 'sidebarOrder', 'vpnAppModes', 'vpnActiveLink',
+    'vpnSubUrl', 'vpnSubLinks', 'tabZoomLevel', 'appZoomLevel', 'folders',
+    'lockOnStartup', 'pinEnabled', 'pinHash', 'split'
+])
+
+const DANGEROUS_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype'])
+
+function isValidStoreKey(key) {
+    if (typeof key !== 'string' || key.length === 0) return false
+    const segments = key.split('.')
+    if (segments.some(seg => DANGEROUS_KEY_SEGMENTS.has(seg))) return false
+    return ALLOWED_STORE_ROOTS.has(segments[0])
+}
+
 safeHandle('store:get', async (_event, key, def) => {
+    if (!isValidStoreKey(key)) {
+        console.warn(`[store] Blocked store:get for disallowed key "${key}"`)
+        return def
+    }
     try {
         return store.get(key, def)
     } catch (error) {
@@ -104,6 +136,10 @@ safeHandle('store:get', async (_event, key, def) => {
 })
 
 safeHandle('store:set', async (_event, key, value) => {
+    if (!isValidStoreKey(key)) {
+        console.warn(`[store] Blocked store:set for disallowed key "${key}"`)
+        return { success: false, error: 'Disallowed key' }
+    }
     try {
         store.set(key, value)
         return { success: true }
@@ -124,6 +160,10 @@ safeHandle('store:clear-all', async () => {
 })
 
 safeHandle('store:delete', async (_event, key) => {
+    if (!isValidStoreKey(key)) {
+        console.warn(`[store] Blocked store:delete for disallowed key "${key}"`)
+        return { success: false, error: 'Disallowed key' }
+    }
     try {
         store.delete(key)
         return { success: true }
@@ -137,6 +177,10 @@ safeHandle('store:delete', async (_event, key) => {
 const { encryptValue, decryptValue } = require('./main/services/secureStore')
 
 safeHandle('store:secure-set', async (_event, key, value) => {
+    if (!isValidStoreKey(key)) {
+        console.warn(`[store] Blocked store:secure-set for disallowed key "${key}"`)
+        return { success: false, error: 'Disallowed key' }
+    }
     try {
         store.set(key, encryptValue(value))
         return { success: true }
@@ -147,6 +191,10 @@ safeHandle('store:secure-set', async (_event, key, value) => {
 })
 
 safeHandle('store:secure-get', async (_event, key, def) => {
+    if (!isValidStoreKey(key)) {
+        console.warn(`[store] Blocked store:secure-get for disallowed key "${key}"`)
+        return def ?? null
+    }
     try {
         const raw = store.get(key, null)
         if (raw === null || raw === undefined) return def ?? null
@@ -158,6 +206,10 @@ safeHandle('store:secure-get', async (_event, key, def) => {
 })
 
 safeHandle('store:secure-delete', async (_event, key) => {
+    if (!isValidStoreKey(key)) {
+        console.warn(`[store] Blocked store:secure-delete for disallowed key "${key}"`)
+        return { success: false, error: 'Disallowed key' }
+    }
     try {
         store.delete(key)
         return { success: true }

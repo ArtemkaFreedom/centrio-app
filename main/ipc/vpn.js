@@ -7,6 +7,7 @@ const { ipcMain, session } = require('electron')
 const fs   = require('fs')
 const { applyAllSessionsProxy, applyProxyToSession } = require('../services/proxy')
 const store = require('../services/store')
+const { encryptValue, decryptValue } = require('../services/secureStore')
 
 // Ленивая загрузка vpn-manager (находится в корне проекта)
 let vpnMgr = null
@@ -24,19 +25,22 @@ function errResult (e) {
 function vpnProxyOn  (port) { return { enabled: true, type: 'socks5', host: '127.0.0.1', port } }
 function vpnProxyOff ()     { return { enabled: false } }
 
-// Сохраняем ссылку активного конфига — чтобы восстановить после перезапуска
-function saveActiveLink (link) { store.set('vpnActiveLink', link || null) }
-function loadActiveLink ()     { return store.get('vpnActiveLink', null) }
+// Сохраняем ссылку активного конфига — чтобы восстановить после перезапуска.
+// Ссылки (vmess/vless/trojan/...) содержат креды в самом URI и подписочные
+// URL нередко несут токен доступа в query — шифруем через safeStorage
+// (main/services/secureStore.js) перед записью в electron-store.
+function saveActiveLink (link) { store.set('vpnActiveLink', link ? encryptValue(link) : null) }
+function loadActiveLink ()     { const v = store.get('vpnActiveLink', null); return v ? decryptValue(v) : null }
 
 // Подписка (subscription URL) — запоминаем, чтобы можно было обновлять список серверов.
 // vpnSubUrl   — последний введённый http(s) URL подписки
 // vpnSubLinks — список ссылок конфигов, полученных из этой подписки (для корректного обновления)
 function saveSubscription (url, links) {
-    store.set('vpnSubUrl', url || null)
-    store.set('vpnSubLinks', Array.isArray(links) ? links : [])
+    store.set('vpnSubUrl', url ? encryptValue(url) : null)
+    store.set('vpnSubLinks', Array.isArray(links) ? links.map(encryptValue) : [])
 }
-function getSubUrl ()   { return store.get('vpnSubUrl', null) }
-function getSubLinks () { return store.get('vpnSubLinks', []) || [] }
+function getSubUrl ()   { const v = store.get('vpnSubUrl', null); return v ? decryptValue(v) : null }
+function getSubLinks () { return (store.get('vpnSubLinks', []) || []).map(decryptValue) }
 
 // Per-app VPN modes: { [messengerId]: boolean }, true = use VPN (default)
 function getAppModes ()             { return store.get('vpnAppModes', {}) || {} }

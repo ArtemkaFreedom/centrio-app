@@ -11,7 +11,9 @@ async function _tryRestoreVpn(win) {
         const { session } = require('electron')
         const fs2 = require('fs')
         const vpn  = require('./services/store')
-        const link = vpn.get('vpnActiveLink', null)
+        const { decryptValue } = require('./services/secureStore')
+        const rawLink = vpn.get('vpnActiveLink', null)
+        const link = rawLink ? decryptValue(rawLink) : null
         if (!link) return
 
         const vpnMgr = require('../vpn-manager')

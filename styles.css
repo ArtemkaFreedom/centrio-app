@@ -9114,7 +9114,7 @@ body.startup-locked #lockScreen {
     min-width: 0;
 }
 
-/* Флаг — Twemoji-картинка */
+/* Флаг — локальный SVG (assets/flags) */
 .vpn-flag-img {
     width: 20px;
     height: 15px;

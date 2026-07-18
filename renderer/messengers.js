@@ -176,8 +176,8 @@ function createMessengersApi({
             <img src="https://www.google.com/s2/favicons?domain=${hostname}&sz=32"
                  onerror="this.style.display='none'" width="16" height="16"
                  style="border-radius:6px;flex-shrink:0;">
-            <span class="tab-name" style="overflow:hidden;text-overflow:ellipsis;">${messenger.name}</span>
-            <span class="tab-close" data-id="${messenger.id}">✕</span>
+            <span class="tab-name" style="overflow:hidden;text-overflow:ellipsis;">${escHtml(messenger.name)}</span>
+            <span class="tab-close" data-id="${escHtml(messenger.id)}">✕</span>
         `
 
         tab.addEventListener('click', (e) => {

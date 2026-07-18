@@ -1,7 +1,7 @@
 // VPN Panel — полный рефактор UI
 // UX: список конфигов с выбором → одна кнопка Connect/Disconnect сверху
 // Пинг: TCP-замер запускается фоном при открытии панели
-// Флаги: Twemoji-картинки через jsDelivr CDN
+// Флаги: локальные SVG из assets/flags (без внешнего CDN)
 // Таймер: отображает сколько подключены
 
 function bindVpnUi ({ invokeIpc, tGet }) {
@@ -40,13 +40,13 @@ function bindVpnUi ({ invokeIpc, tGet }) {
     return { emoji: '', label: raw }
   }
 
-  // ── Twemoji URL для emoji-флага ───────────────────────────────────
-  // jsDelivr: https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f1e9-1f1ea.png
+  // ── Локальный путь к SVG-флагу ────────────────────────────────────
+  // Regional Indicator Symbol (0x1F1E6 = 'A') → ISO 3166-1 alpha-2 код,
+  // картинки лежат в assets/flags/{code}.svg (пакет flag-icons, офлайн).
   function flagImgUrl (emoji) {
     const chars = [...emoji]
-    const h1 = chars[0].codePointAt(0).toString(16)
-    const h2 = chars[1].codePointAt(0).toString(16)
-    return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${h1}-${h2}.png`
+    const code = chars.map(c => String.fromCharCode(c.codePointAt(0) - 0x1F1E6 + 65).toLowerCase()).join('')
+    return `assets/flags/${code}.svg`
   }
 
   // ── HTML имени конфига (флаг-картинка + текст) ───────────────────
@@ -655,7 +655,8 @@ function bindVpnSettings ({ invokeIpc, tGet, getActiveMessengers }) {
 
   function flagImgUrl (emoji) {
     const c = [...emoji]
-    return `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${c[0].codePointAt(0).toString(16)}-${c[1].codePointAt(0).toString(16)}.png`
+    const code = c.map(ch => String.fromCharCode(ch.codePointAt(0) - 0x1F1E6 + 65).toLowerCase()).join('')
+    return `assets/flags/${code}.svg`
   }
 
   function renderList (configs) {

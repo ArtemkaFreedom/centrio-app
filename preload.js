@@ -28,6 +28,63 @@ const sendChannelMap = {
     'open-url': 'open-url'
 }
 
+// SECURITY: enforced allowlists for the generic electronAPI.invoke()/send() passthrough
+// used by renderer.js's legacy ipcRenderer shim. Without this, any channel string
+// reachable from renderer JS (e.g. via a compromised webview/renderer or a bug in a
+// bundled dependency) could invoke/send to ANY ipcMain handler, including ones never
+// intended to be reachable from the renderer. Mirrors the existing validReceiveChannels
+// pattern above. Built from the full set of ipcMain.handle()/ipcMain.on() registrations
+// in main.js and main/ipc/*.js — keep in sync when adding new IPC handlers.
+const validInvokeChannels = new Set([
+    // main.js
+    'store:get', 'store:set', 'store:clear-all', 'store:delete',
+    'store:secure-set', 'store:secure-get', 'store:secure-delete',
+    // main/ipc/api.js
+    'get-webview-preload-path', 'api-login', 'api-register', 'api-me', 'api-refresh',
+    'api-sync-push', 'api-sync-pull', 'api-update-profile', 'api-get-stats', 'api-logout',
+    'api-get-notifications', 'api-read-all-notifications', 'api-yandex-desktop', 'api-vk-desktop',
+    'tracker:service-time', 'tracker:msg-sent', 'tracker:notif',
+    // main/ipc/vpn.js
+    'vpn-status', 'vpn-connect', 'vpn-download-and-connect', 'vpn-connect-saved',
+    'vpn-disconnect', 'vpn-ping', 'vpn-delete-config', 'vpn-get-subscription',
+    'vpn-refresh-subscription', 'vpn-get-app-modes', 'vpn-set-app-vpn',
+    // main/ipc/autoLaunch.js
+    'get-auto-launch',
+    // main/ipc/oauth.js
+    'oauth-google', 'oauth-yandex',
+    // main/ipc/proxy.js
+    'apply-global-proxy', 'apply-messenger-proxy', 'test-proxy',
+    // main/ipc/screenshot.js
+    'screenshot:capture',
+    // main/ipc/window.js
+    'open-popup-window', 'get-window-visibility-state', 'app:getVersion',
+    // main/ipc/downloads.js
+    'choose-download-dir', 'dialog:selectDirectory', 'get-save-image-path',
+    'copy-image-to-clipboard', 'copy-text-to-clipboard',
+    // main/ipc/updater.js
+    'install-update', 'check-for-updates', 'app:checkForUpdates'
+])
+
+const validSendChannels = new Set([
+    // main.js
+    'renderer-error-log', 'update-tray-menu',
+    // main/ipc/api.js
+    'update-adblock-state',
+    // main/ipc/notifications.js
+    'show-notification',
+    // main/ipc/badge.js
+    'update-badge', 'tray:update-menu', 'notification-clicked',
+    // main/ipc/autoLaunch.js
+    'set-auto-launch',
+    // main/ipc/sound.js
+    'play-sound',
+    // main/ipc/window.js
+    'minimize-window', 'maximize-window', 'close-window', 'quit-app', 'hide-window',
+    'toggle-fullscreen', 'set-app-zoom', 'open-url', 'open-translate-window',
+    // main/ipc/downloads.js
+    'set-download-dir', 'set-ask-download', 'save-page', 'save-image-data'
+])
+
 function mapInvokeChannel(channel) {
     return invokeChannelMap[channel] || channel
 }
@@ -67,11 +124,19 @@ const electronAPI = {
 
     invoke: (channel, ...args) => {
         const mapped = mapInvokeChannel(channel)
+        if (!validInvokeChannels.has(mapped)) {
+            console.warn(`[preload] Blocked invoke to channel: ${channel}`)
+            return Promise.reject(new Error(`Blocked invoke to channel: ${channel}`))
+        }
         return ipcRenderer.invoke(mapped, ...args)
     },
 
     send: (channel, ...args) => {
         const mapped = mapSendChannel(channel)
+        if (!validSendChannels.has(mapped)) {
+            console.warn(`[preload] Blocked send to channel: ${channel}`)
+            return
+        }
         return ipcRenderer.send(mapped, ...args)
     },
 
