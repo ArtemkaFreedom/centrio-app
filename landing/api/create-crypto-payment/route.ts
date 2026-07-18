@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isRateLimited, clientKeyFromRequest } from '../../lib/rateLimit';
 
 const NOWPAYMENTS_API_KEY = process.env.NOWPAYMENTS_API_KEY!;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -31,6 +32,14 @@ async function getAuthenticatedUserId(req: NextRequest): Promise<string | null> 
 
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: no rate limit previously — an authenticated user (or anyone
+    // with a stolen/valid session) could spam invoice creation against the
+    // NOWPayments API without limit.
+    const rl = isRateLimited(`create-crypto-payment:${clientKeyFromRequest(req)}`, 5 * 60 * 1000, 10);
+    if (rl.limited) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } });
+    }
+
     const userId = await getAuthenticatedUserId(req);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

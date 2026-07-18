@@ -159,7 +159,9 @@ function UsersTab({ token }: { token: string }) {
 
   async function deleteUser(u: AdminUser) {
     if (!window.confirm(`Удалить ${u.email}? Все данные будут стёрты.`)) return
-    await fetch(`${API}/api/admin/users/${u.id}`, { method: 'DELETE', headers: { 'x-admin-token': token } })
+    const res = await fetch(`${API}/api/admin/users/${u.id}`, { method: 'DELETE', headers: { 'x-admin-token': token } })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) { setMsg('❌ ' + (d.error || 'Ошибка удаления')); return }
     setUsers(prev => prev.filter(x => x.id !== u.id)); setTotal(t => t - 1)
   }
 

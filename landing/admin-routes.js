@@ -186,6 +186,26 @@ router.patch('/users/:id/active', async (req, res) => {
     }
 })
 
+// ── DELETE /api/admin/users/:id ──────────────────────────────────────────────
+// admin-server.tsx already calls this (fetch(`${API}/api/admin/users/${u.id}`,
+// { method: 'DELETE', ... })) — the route was missing here, so every click on
+// "Удалить пользователя" in the admin panel 404'd.
+router.delete('/users/:id', async (req, res) => {
+    try {
+        await prisma.user.delete({ where: { id: req.params.id } })
+        res.json({ ok: true })
+    } catch (err) {
+        if (err.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' })
+        // FK constraint: user still owns messengers/folders/sessions/payments
+        // that aren't set to cascade-delete at the schema level.
+        if (err.code === 'P2003') {
+            return res.status(409).json({ error: 'Нельзя удалить: у пользователя есть связанные данные (мессенджеры, платежи, сессии)' })
+        }
+        console.error('Admin DELETE /users/:id error:', err)
+        res.status(500).json({ error: 'Ошибка удаления пользователя' })
+    }
+})
+
 // ── GET /api/admin/stats ──────────────────────────────────────────────────────
 router.get('/stats', async (req, res) => {
     try {

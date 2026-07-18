@@ -2,8 +2,14 @@
 // Вызывается из Electron-приложения каждые 5 минут, если нет auth-токена.
 const router = require('express').Router()
 const prisma  = require('../utils/prisma')
+const { rateLimit } = require('../middleware/rateLimit')
 
-router.post('/ping', async (req, res) => {
+// SECURITY: unauthenticated write endpoints with no throttle previously —
+// anyone could flood these with random visitorIds and grow the visitors
+// table unbounded / spike DB load.
+const visitorLimiter = rateLimit({ name: 'visitors', windowMs: 60 * 1000, max: 30 })
+
+router.post('/ping', visitorLimiter, async (req, res) => {
     try {
         const { visitorId, platform, appVersion, messengersCount } = req.body
         if (!visitorId || typeof visitorId !== 'string' || visitorId.length > 64) {
@@ -43,7 +49,7 @@ router.post('/ping', async (req, res) => {
 })
 
 // POST /api/visitors/session — новая сессия (инкрементирует счётчик)
-router.post('/session', async (req, res) => {
+router.post('/session', visitorLimiter, async (req, res) => {
     try {
         const { visitorId, platform, appVersion } = req.body
         if (!visitorId || typeof visitorId !== 'string' || visitorId.length > 64) {
