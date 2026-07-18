@@ -2,6 +2,10 @@ const router = require('express').Router()
 const authMiddleware = require('../middleware/auth')
 const prisma = require('../utils/prisma')
 const bcrypt = require('bcryptjs')
+const { rateLimit } = require('../middleware/rateLimit')
+
+const deleteAccountLimiter = rateLimit({ name: 'user-delete-account', windowMs: 60 * 60 * 1000, max: 5 })
+const exportLimiter        = rateLimit({ name: 'user-export-data',    windowMs: 60 * 60 * 1000, max: 5 })
 
 // GET /api/user/profile
 router.get('/profile', authMiddleware, async (req, res) => {
@@ -130,6 +134,102 @@ router.delete('/devices', authMiddleware, async (req, res) => {
     res.json({ message: 'Все устройства отключены' })
   } catch (err) {
     res.status(500).json({ error: 'Ошибка отключения устройств' })
+  }
+})
+
+// GET /api/user/export — GDPR data export. Dumps everything we know is
+// attached to the user via existing, confirmed relations (messengers,
+// folders, sessions, payments). Session tokens/cookies themselves are
+// deliberately excluded — only session metadata (device/IP/timestamps),
+// same fields already exposed via GET /devices.
+router.get('/export', exportLimiter, authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true, email: true, name: true, avatar: true,
+        plan: true, planExpiresAt: true, autoRenew: true, createdAt: true,
+        messengers: true,
+        folders: true,
+        sessions: {
+          select: { id: true, deviceInfo: true, ipAddress: true, createdAt: true, expiresAt: true }
+        },
+        payments: {
+          select: { id: true, amount: true, currency: true, status: true, provider: true, plan: true, months: true, createdAt: true }
+        }
+      }
+    })
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' })
+
+    res.setHeader('Content-Disposition', 'attachment; filename="centrio-data-export.json"')
+    res.json({ exportedAt: new Date().toISOString(), user })
+  } catch (err) {
+    console.error('GDPR export error:', err.message)
+    res.status(500).json({ error: 'Ошибка экспорта данных' })
+  }
+})
+
+// DELETE /api/user/me — GDPR self-service account deletion.
+//
+// Deliberately anonymizes rather than hard-deletes: Payment rows are kept
+// (many jurisdictions require retaining financial/tax records for years —
+// see YooKassa receipt data above), but with `userId` no longer resolving
+// to any identifiable person after this runs. Sessions/messengers/folders
+// (the actual personal configuration data) are hard-deleted immediately.
+//
+// This also sidesteps a real risk: prisma.user.delete() on a live schema
+// we can't fully introspect from here would throw FK constraint errors
+// (P2003 — already observed on the admin delete route) for any relation
+// we don't know about, potentially leaving a half-deleted user. Anonymize
+// + explicit deleteMany on known relations is safe either way: on error
+// the request just fails, nothing is silently left inconsistent.
+router.delete('/me', deleteAccountLimiter, authMiddleware, async (req, res) => {
+  try {
+    const { password, confirmDelete } = req.body
+    if (confirmDelete !== true) {
+      return res.status(400).json({ error: 'Требуется подтверждение: confirmDelete: true' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' })
+
+    if (user.passwordHash) {
+      if (!password) return res.status(400).json({ error: 'Введите пароль для подтверждения' })
+      const ok = await bcrypt.compare(password, user.passwordHash)
+      if (!ok) return res.status(401).json({ error: 'Неверный пароль' })
+    }
+
+    const anonymizedEmail = `deleted-${user.id}@deleted.centrio.me`
+
+    await prisma.$transaction([
+      prisma.session.deleteMany({ where: { userId: user.id } }),
+      prisma.messenger.deleteMany({ where: { userId: user.id } }),
+      prisma.folder.deleteMany({ where: { userId: user.id } }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          email: anonymizedEmail,
+          name: null,
+          avatar: null,
+          passwordHash: null,
+          googleId: null,
+          yandexId: null,
+          githubId: null,
+          telegramId: null,
+          vkId: null,
+          mailId: null,
+          isActive: false,
+          autoRenew: false,
+          autoRenewPayMethodId: null
+        }
+      })
+    ])
+
+    console.log(`[GDPR] User ${user.id} self-deleted (anonymized) at ${new Date().toISOString()}`)
+    res.json({ message: 'Аккаунт удалён' })
+  } catch (err) {
+    console.error('GDPR self-delete error:', err.message)
+    res.status(500).json({ error: 'Ошибка удаления аккаунта' })
   }
 })
 

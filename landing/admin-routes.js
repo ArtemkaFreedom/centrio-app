@@ -46,6 +46,22 @@ function adminAuth(req, res, next) {
 
 router.use(adminAuth)
 
+// ── Best-effort audit log ──────────────────────────────────────────
+// A real, queryable DB-backed audit log needs a new Prisma model
+// (AdminAuditLog) added to schema.prisma on the server — that requires
+// direct server access this session didn't have (SSH password auth is
+// disabled; only key-based access works, see centrio-hardening.plan.md).
+// Structured console logging is the safe interim step: every mutating
+// admin action below is captured in pm2 logs with actor IP + target,
+// queryable via `pm2 logs centrio-api | grep AUDIT` until the real table
+// lands. There's only a single shared TOTP admin identity right now (no
+// per-admin accounts), so there's no "who" beyond "the admin" — IP is the
+// closest available signal.
+function audit(req, action, target) {
+    const ip = req.headers['x-forwarded-for'] || req.ip || 'unknown'
+    console.log(`[AUDIT] action=${action} target=${JSON.stringify(target)} ip=${ip} at=${new Date().toISOString()}`)
+}
+
 // ── Определить метод входа ────────────────────────────────────────────────────
 function detectProvider(user) {
     if (user.googleId)     return 'Google'
@@ -163,6 +179,7 @@ router.patch('/users/:id/plan', async (req, res) => {
             where: { id: req.params.id }, data,
             select: { id: true, email: true, plan: true, planExpiresAt: true }
         })
+        audit(req, 'user.plan.update', { userId: req.params.id, plan, planExpiresAt: data.planExpiresAt })
         res.json({ ok: true, user })
     } catch (err) {
         if (err.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' })
@@ -179,6 +196,7 @@ router.patch('/users/:id/active', async (req, res) => {
             data:  { isActive: Boolean(isActive) },
             select: { id: true, email: true, isActive: true }
         })
+        audit(req, 'user.active.update', { userId: req.params.id, isActive: Boolean(isActive) })
         res.json({ ok: true, user })
     } catch (err) {
         if (err.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' })
@@ -193,6 +211,7 @@ router.patch('/users/:id/active', async (req, res) => {
 router.delete('/users/:id', async (req, res) => {
     try {
         await prisma.user.delete({ where: { id: req.params.id } })
+        audit(req, 'user.delete', { userId: req.params.id })
         res.json({ ok: true })
     } catch (err) {
         if (err.code === 'P2025') return res.status(404).json({ error: 'Пользователь не найден' })
@@ -267,6 +286,7 @@ router.get('/visitors', async (req, res) => {
 router.delete('/visitors/:id', async (req, res) => {
     try {
         await prisma.visitor.delete({ where: { id: req.params.id } })
+        audit(req, 'visitor.delete', { visitorId: req.params.id })
         res.json({ ok: true })
     } catch (err) {
         if (err.code === 'P2025') return res.status(404).json({ error: 'Не найден' })

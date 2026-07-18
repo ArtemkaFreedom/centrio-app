@@ -5,6 +5,7 @@ const cron = require('node-cron')
 const axios = require('axios')
 const { v4: uuidv4 } = require('uuid')
 const prisma = require('../utils/prisma')
+const { sendAutoRenewFailedEmail } = require('../lib/email')
 
 const YK_SHOP   = process.env.YUKASSA_SHOP_ID
 const YK_SECRET = process.env.YUKASSA_SECRET_KEY
@@ -112,6 +113,13 @@ async function runAutoRenew () {
           data:  { plan: 'PRO', planExpiresAt: exp }
         })
         console.log('[AutoRenew] Renewed ' + user.email + ' until ' + exp.toISOString())
+      } else if (yk.status === 'canceled') {
+        // Soft failure (e.g. declined card) — YooKassa returns a normal
+        // response here, not an error, so this never hit the catch block
+        // and the user was never told their card was declined.
+        console.log('[AutoRenew] Payment declined for ' + user.email + ' status=' + yk.status)
+        sendAutoRenewFailedEmail(user, yk.cancellation_details?.reason || 'payment declined')
+          .catch(e => console.error('[AutoRenew] failure email send failed:', e.message))
       } else {
         console.log('[AutoRenew] Payment created for ' + user.email + ' status=' + yk.status)
       }
@@ -121,6 +129,10 @@ async function runAutoRenew () {
       await prisma.autoRenewLog.create({
         data: { userId: user.id, status: 'ERROR', error: String(err.message).slice(0, 200) }
       }).catch(() => {})
+      // Previously silent beyond the log row — the user had no idea their
+      // subscription failed to renew until Pro access just stopped working.
+      sendAutoRenewFailedEmail(user, err.response?.data?.description || err.message)
+        .catch(e => console.error('[AutoRenew] failure email send failed:', e.message))
     }
   }
 

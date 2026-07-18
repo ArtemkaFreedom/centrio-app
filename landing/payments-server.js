@@ -5,12 +5,24 @@ const { v4: uuidv4 } = require('uuid')
 const authMiddleware = require('../middleware/auth')
 const prisma  = require('../utils/prisma')
 const { rateLimit } = require('../middleware/rateLimit')
+// NOTE on deploy path: this file is deployed to
+// /var/www/centrio-api/src/routes/payments.js (see scripts/deploy-*.js),
+// so `../lib/email` resolves to /var/www/centrio-api/src/lib/email.js.
+// landing/lib/email.js must be deployed there — update the deploy script
+// to add that upload step when wiring this up (not yet automated).
+const { sendPaymentReceiptEmail, sendRefundConfirmationEmail } = require('../lib/email')
 
 // SECURITY: these routes had no rate limiting at all — an attacker could
 // flood /create (DB-write + external payment-provider API amplification) or
 // spam the webhook endpoints without any throttle.
 const createPaymentLimiter = rateLimit({ name: 'payments-create',  windowMs: 5 * 60 * 1000, max: 10 })
 const webhookLimiter       = rateLimit({ name: 'payments-webhook', windowMs: 60 * 1000,     max: 60 })
+const refundLimiter        = rateLimit({ name: 'payments-refund',  windowMs: 60 * 60 * 1000, max: 5 })
+
+// Self-service refund requests are only accepted within this window of the
+// original payment date — mirrors a standard consumer-protection cooling-off
+// period. Older payments still show up in /my but must go through support.
+const REFUND_WINDOW_DAYS = 14
 
 const YK_SHOP   = process.env.YUKASSA_SHOP_ID
 const YK_SECRET = process.env.YUKASSA_SECRET_KEY
@@ -151,6 +163,7 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
 
       await prisma.user.update({ where: { id: payment.userId }, data: updateData })
       console.log('Payment OK: user=' + payment.userId + ' PRO until ' + exp.toISOString())
+      sendPaymentReceiptEmail(user, payment).catch(e => console.error('[email] receipt send failed:', e.message))
     }
 
     if (event === 'payment.canceled') {
@@ -345,6 +358,8 @@ router.post('/crypto-activate', webhookLimiter, async (req, res) => {
     }
 
     console.log('Crypto payment OK: user=' + userId + ' PRO until ' + exp.toISOString())
+    sendPaymentReceiptEmail(user, { amount: parseFloat(amount) || 0, currency: currency || 'USD', months: cfg.months })
+      .catch(e => console.error('[email] receipt send failed:', e.message))
     res.json({ ok: true, expiresAt: exp })
   } catch (err) {
     console.error('crypto-activate error:', err.message)
@@ -404,6 +419,7 @@ router.post('/fride-webhook', webhookLimiter, async (req, res) => {
 
       await prisma.user.update({ where: { id: payment.userId }, data: { plan: 'PRO', planExpiresAt: exp } })
       console.log('FRIDE payment OK: user=' + payment.userId + ' PRO until ' + exp.toISOString())
+      sendPaymentReceiptEmail(user, payment).catch(e => console.error('[email] receipt send failed:', e.message))
     }
 
     if (status === 'cancelled' || status === 'failed') {
@@ -414,6 +430,78 @@ router.post('/fride-webhook', webhookLimiter, async (req, res) => {
   } catch (err) {
     console.error('FRIDE webhook error:', err.message)
     res.status(500).json({ error: 'Internal error' })
+  }
+})
+
+// ── POST /api/payments/:paymentId/refund ──────────────────────────
+// Self-service refund request. Only handles YooKassa payments automatically
+// (it's the only provider with a documented, well-understood refund API
+// among the three integrated here) — FRIDE/NOWPayments payments are routed
+// to manual support instead of guessing at an undocumented refund flow.
+router.post('/:paymentId/refund', refundLimiter, authMiddleware, async (req, res) => {
+  try {
+    const payment = await prisma.payment.findFirst({
+      where: { providerPayId: req.params.paymentId, userId: req.user.id }
+    })
+    if (!payment) return res.status(404).json({ success: false, error: 'Платёж не найден' })
+
+    if (payment.status === 'REFUNDED') {
+      return res.status(409).json({ success: false, error: 'Уже возвращён' })
+    }
+    if (payment.status !== 'SUCCEEDED') {
+      return res.status(409).json({ success: false, error: 'Возврат возможен только для успешно оплаченных платежей' })
+    }
+
+    const ageMs = Date.now() - new Date(payment.createdAt).getTime()
+    if (ageMs > REFUND_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
+      return res.status(409).json({
+        success: false,
+        error: `Возврат доступен только в течение ${REFUND_WINDOW_DAYS} дней с момента оплаты. Обратитесь в поддержку: support@centrio.me`
+      })
+    }
+
+    if (payment.provider !== 'yookassa') {
+      return res.status(501).json({
+        success: false,
+        error: 'Автоматический возврат для этого способа оплаты пока не поддерживается. Напишите на support@centrio.me — оформим вручную.'
+      })
+    }
+
+    const ikey = uuidv4()
+    const { data: refund } = await axios.post(`${YK_API}/refunds`, {
+      payment_id: payment.providerPayId,
+      amount: { value: payment.amount.toFixed(2), currency: payment.currency }
+    }, {
+      auth:    ykAuth(),
+      headers: { 'Idempotence-Key': ikey }
+    })
+
+    await prisma.payment.update({ where: { id: payment.id }, data: { status: 'REFUNDED' } })
+    await prisma.user.update({ where: { id: req.user.id }, data: { autoRenew: false } }).catch(() => {})
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+    sendRefundConfirmationEmail(user, payment).catch(e => console.error('[email] refund confirmation failed:', e.message))
+
+    res.json({ success: true, data: { refundId: refund.id, status: refund.status } })
+  } catch (err) {
+    console.error('Refund error:', err.response?.data || err.message)
+    res.status(500).json({ success: false, error: 'Ошибка оформления возврата' })
+  }
+})
+
+// ── GET /api/payments/health ───────────────────────────────────────
+// Lightweight liveness/readiness probe for external uptime monitoring
+// (UptimeRobot/BetterStack/etc.) — checks the process is up and the DB is
+// reachable. Deliberately unauthenticated (monitoring services can't do
+// OAuth), so it must never leak anything beyond a boolean + latency.
+router.get('/health', async (_req, res) => {
+  const startedAt = Date.now()
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    res.json({ ok: true, db: 'up', latencyMs: Date.now() - startedAt })
+  } catch (err) {
+    console.error('[health] DB check failed:', err.message)
+    res.status(503).json({ ok: false, db: 'down' })
   }
 })
 
