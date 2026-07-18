@@ -20,11 +20,18 @@ router.get('/setup-qr', async (req, res) => {
 })
 
 // POST /api/admin/verify-totp  — проверить код, получить сессию
+// Rate limiting/lockout по IP реализован в admin-otp.js (verifyTotp) —
+// защита от брутфорса 6-значного TOTP-кода.
 router.post('/verify-totp', (req, res) => {
     const { code } = req.body
     if (!code) return res.status(400).json({ error: 'Код не передан' })
-    const result = verifyTotp(code)
-    if (!result.ok) return res.status(401).json({ error: result.error })
+    const clientKey = req.ip || req.headers['x-forwarded-for'] || 'unknown'
+    const result = verifyTotp(code, clientKey)
+    if (!result.ok) {
+        const status = result.locked ? 429 : 401
+        if (result.locked && result.retryAfterSec) res.set('Retry-After', String(result.retryAfterSec))
+        return res.status(status).json({ error: result.error })
+    }
     res.json({ ok: true, token: result.token })
 })
 
