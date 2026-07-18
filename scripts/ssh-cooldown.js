@@ -1,9 +1,10 @@
+require('dotenv').config()
 // Hypothesis: a per-source connlimit rule drops our connections because our
 // retry bursts keep us above the concurrent-connection threshold. Stay silent
 // for a cooldown window so old sockets drain, then make ONE single attempt.
 const { Client } = require('ssh2')
 const COOLDOWN = 80000
-const CFG = { host: '31.128.44.165', port: 22, username: 'root', password: 'j2KHHxjz5_A)', readyTimeout: 20000 }
+const CFG = { host: '31.128.44.165', port: 22, username: 'root', password: process.env.UPLOAD_PASSWORD, readyTimeout: 20000 }
 
 function connectOnce () {
   return new Promise(resolve => {

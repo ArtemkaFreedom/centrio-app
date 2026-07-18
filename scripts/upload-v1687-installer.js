@@ -4,7 +4,7 @@ const path = require('path');
 const sftp = new SftpClient();
 
 const host = process.env.UPLOAD_HOST || '31.128.44.165';
-const password = process.env.UPLOAD_PASSWORD || 'j2KHHxjz5_A)';
+const password = process.env.UPLOAD_PASSWORD;
 const config = { host, port: 22, username: 'root', password, readyTimeout: 30000 };
 const DL   = '/var/www/centrio-downloads';
 const DIST = path.join(__dirname, '..', 'dist');

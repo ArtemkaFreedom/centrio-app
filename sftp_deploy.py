@@ -1,10 +1,13 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
 import paramiko
 import time
 
 host = "31.128.44.165"
 port = 22
 username = "root"
-password = "j2KHHxjz5_A)"
+password = os.environ.get('UPLOAD_PASSWORD')
 
 local_path = r"C:\AngryNatal\app\bot\keyboards\natal.py"
 remote_path = "/var/www/angrynatal/app/bot/keyboards/natal.py"

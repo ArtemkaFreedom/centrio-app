@@ -1,3 +1,6 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
 import sys, io, paramiko
 
 # Force UTF-8 output so pm2's unicode symbols don't crash on Windows cp1251
@@ -7,7 +10,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="repla
 HOST     = "31.128.44.165"
 PORT     = 22
 USERNAME = "root"
-PASSWORD = "j2KHHxjz5_A)"
+PASSWORD = os.environ.get('UPLOAD_PASSWORD')
 
 COMMANDS = [
     "pm2 restart angrynatal-bot",

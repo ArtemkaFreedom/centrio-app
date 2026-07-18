@@ -1,7 +1,8 @@
+require('dotenv').config()
 // sshd is dropping connections under MaxStartups pressure (bot brute-force flood).
 // The drop is random, so retry the full SSH handshake until one slips through.
 const { Client } = require('ssh2')
-const CFG = { host: '31.128.44.165', port: 22, username: 'root', password: 'j2KHHxjz5_A)', readyTimeout: 20000 }
+const CFG = { host: '31.128.44.165', port: 22, username: 'root', password: process.env.UPLOAD_PASSWORD, readyTimeout: 20000 }
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 function attempt (i) {

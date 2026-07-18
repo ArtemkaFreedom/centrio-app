@@ -18,7 +18,7 @@ const SFTP_CONFIG = {
     host:        '31.128.44.165',
     port:        22,
     username:    'root',
-    password:    'j2KHHxjz5_A)',
+    privateKey:  require('fs').readFileSync(require('path').join(require('os').homedir(), '.ssh', 'id_ed25519_cliqly')),
     readyTimeout: 60000,
     retries:      3,
     retry_factor: 2,

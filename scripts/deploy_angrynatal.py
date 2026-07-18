@@ -1,6 +1,8 @@
 import paramiko
 import os
 import sys
+from dotenv import load_dotenv
+load_dotenv()
 
 # Force UTF-8 output on Windows consoles
 if sys.stdout.encoding != "utf-8":
@@ -11,7 +13,7 @@ if sys.stdout.encoding != "utf-8":
 HOST = "31.128.44.165"
 PORT = 22
 USERNAME = "root"
-PASSWORD = "j2KHHxjz5_A)"
+PASSWORD = os.environ.get('UPLOAD_PASSWORD')
 
 FILES = [
     (r"C:\AngryNatal\app\bot\keyboards\main.py",    "/var/www/angrynatal/app/bot/keyboards/main.py"),

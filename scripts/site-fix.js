@@ -1,3 +1,4 @@
+require('dotenv').config()
 // One-shot site recovery for centrio-web (HTTP 502).
 // Single SSH session: diagnose -> ensure swap -> rebuild .next -> restart pm2 -> verify.
 // Full output streamed to scripts/site-fix.out so progress survives flaky stdout.
@@ -7,7 +8,7 @@ const path = require('path')
 const LOG = path.join(__dirname, 'site-fix.out')
 let buf = ''
 function log (s) { buf += s + '\n'; try { fs.writeFileSync(LOG, buf) } catch (_) {} ; try { process.stdout.write(s + '\n') } catch (_) {} }
-const CFG = { host: '31.128.44.165', port: 22, username: 'root', password: 'j2KHHxjz5_A)', readyTimeout: 30000 }
+const CFG = { host: '31.128.44.165', port: 22, username: 'root', password: process.env.UPLOAD_PASSWORD, readyTimeout: 30000 }
 
 function exec (c, cmd, label, timeoutMs) {
   return new Promise((res) => {

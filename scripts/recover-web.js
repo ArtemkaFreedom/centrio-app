@@ -1,3 +1,4 @@
+require('dotenv').config()
 // Recover centrio-web after a failed/OOM-killed Next.js build (site is 502).
 // Sequentially retries SSH connect (handshake throttling), then in ONE session:
 //   - ensures swap exists (build was OOM-killed)
@@ -10,7 +11,7 @@ const path = require('path')
 const LOG = path.join(__dirname, 'recover-web.out')
 let buf = ''
 function log(s){ buf += s + '\n'; try { fs.writeFileSync(LOG, buf) } catch(_){} }
-const CFG = { host:'31.128.44.165', port:22, username:'root', password:'j2KHHxjz5_A)', readyTimeout:30000 }
+const CFG = { host:'31.128.44.165', port:22, username:'root', password:process.env.UPLOAD_PASSWORD, readyTimeout:30000 }
 
 function connectOnce(){
   return new Promise((resolve) => {

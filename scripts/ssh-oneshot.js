@@ -1,5 +1,6 @@
+require('dotenv').config()
 const { Client } = require('ssh2')
-const CFG = { host:'31.128.44.165', port:22, username:'root', password:'j2KHHxjz5_A)', readyTimeout:25000 }
+const CFG = { host:'31.128.44.165', port:22, username:'root', password:process.env.UPLOAD_PASSWORD, readyTimeout:25000 }
 const c = new Client()
 let settled=false
 const fin=(m)=>{ if(!settled){settled=true; console.log(m); try{c.end()}catch(_){}; process.exit(0)} }

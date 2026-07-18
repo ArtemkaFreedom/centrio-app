@@ -1,3 +1,4 @@
+require('dotenv').config()
 // Hypothesis: a DPI/IPS deterministically drops non-OpenSSH SSH clients.
 // Spoof the ssh2 client identification string to look like OpenSSH.
 const { Client } = require('ssh2')
@@ -14,4 +15,4 @@ c.on('ready', () => {
 })
 c.on('error', e => console.log((Date.now() - t0) + 'ms ERROR: ' + e.message))
 c.on('close', () => process.exit(0))
-c.connect({ host: '31.128.44.165', port: 22, username: 'root', password: 'j2KHHxjz5_A)', readyTimeout: 20000, ident: 'SSH-2.0-OpenSSH_9.6p1' })
+c.connect({ host: '31.128.44.165', port: 22, username: 'root', password: process.env.UPLOAD_PASSWORD, readyTimeout: 20000, ident: 'SSH-2.0-OpenSSH_9.6p1' })

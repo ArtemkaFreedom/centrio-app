@@ -11,8 +11,16 @@ const config = {
     readyTimeout: 30000
 }
 
-const SHOP_ID   = '1336526'
-const SECRET_KEY = 'live_Df_AQjHFzRui7UMyhOwW_2a7_r_KAyH1dSBx4LW40Hs'
+// SECURITY: this was a hardcoded live YooKassa secret key committed in
+// plaintext to the repo. Now read from env — set YUKASSA_SHOP_ID and
+// YUKASSA_SECRET_KEY before running this script. The exposed key should
+// be rotated from the YooKassa merchant dashboard regardless.
+const SHOP_ID    = process.env.YUKASSA_SHOP_ID
+const SECRET_KEY = process.env.YUKASSA_SECRET_KEY
+if (!SHOP_ID || !SECRET_KEY) {
+    console.error('Missing YUKASSA_SHOP_ID / YUKASSA_SECRET_KEY in environment — aborting')
+    process.exit(1)
+}
 
 const sftp = new SftpClient()
 
