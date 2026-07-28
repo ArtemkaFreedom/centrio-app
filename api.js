@@ -27,7 +27,23 @@ function parseResponseBody(raw) {
     }
 }
 
-function request(method, path, body, token) {
+// Requests previously had no timeout at all — a stalled TCP connection (dead
+// wifi, VPN interface torn down mid-request, server accepting but never
+// responding) meant the returned promise could hang forever. Anything awaiting
+// it — tracker.flush() on app quit, sync push/pull, login — would hang with
+// it, which for tracker.flush() specifically could block `before-quit`
+// indefinitely (see registerAppEvents.js). REQUEST_TIMEOUT_MS bounds every
+// call; a single retry covers transient connection-level failures (reset,
+// timeout) without retrying real HTTP error responses (4xx/5xx), so a bad
+// login attempt or a genuine validation error isn't retried pointlessly.
+const REQUEST_TIMEOUT_MS = 15000
+
+function isRetryableNetworkError(err) {
+    return err && (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' ||
+        err.code === 'ECONNREFUSED' || err.message === 'request-timeout')
+}
+
+function requestOnce(method, path, body, token) {
     return new Promise((resolve, reject) => {
         const url = new URL(API_URL + path)
         const isHttps = url.protocol === 'https:'
@@ -77,12 +93,32 @@ function request(method, path, body, token) {
 
         req.on('error', reject)
 
+        // No native connect/response timeout is configured anywhere else in
+        // this file's history, so a request could wait on a dead socket
+        // forever. `setTimeout` here fires if the socket is idle for the
+        // whole duration (no data either way) and we abort it ourselves.
+        req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+            req.destroy(new Error('request-timeout'))
+        })
+
         if (payload) {
             req.write(payload)
         }
 
         req.end()
     })
+}
+
+async function request(method, path, body, token) {
+    try {
+        return await requestOnce(method, path, body, token)
+    } catch (err) {
+        if (!isRetryableNetworkError(err)) throw err
+        // One retry only — enough to ride out a single dropped packet or a
+        // VPN interface flapping mid-request, without hammering a genuinely
+        // unreachable server.
+        return requestOnce(method, path, body, token)
+    }
 }
 
 module.exports = {

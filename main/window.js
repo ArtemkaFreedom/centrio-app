@@ -78,6 +78,51 @@ function _appendCrashLog(label, detail) {
     } catch {}
 }
 
+// Crash logs previously only ever landed in the local userData/crash.log —
+// nobody but the affected user could ever see them, so recurring crashes on
+// a particular OS/GPU/webview combo were invisible to us. Best-effort,
+// fire-and-forget report to the same already-deployed, already rate-limited,
+// unauthenticated /api/visitors/* route family (see landing/visitor-route.js
+// POST /crash-report) that visitor-tracker.js already posts anonymous pings
+// to. Never throws, never blocks, never retries — a lost crash report isn't
+// worth adding complexity for, the local crash.log remains the source of
+// truth for the affected user's own troubleshooting.
+function _reportCrashToServer(label, detail) {
+    try {
+        const { app } = require('electron')
+        const https = require('https')
+        const http  = require('http')
+        const { API_URL } = require('./config/constants')
+        const { getVisitorId } = require('./services/visitor-tracker')
+
+        const body = JSON.stringify({
+            visitorId:  getVisitorId(),
+            platform:   process.platform,
+            appVersion: app.getVersion(),
+            label:      String(label).slice(0, 100),
+            // Detail can contain arbitrary renderer-crash objects — cap size
+            // so a pathological payload can't be used to bloat the request.
+            detail:     JSON.stringify(detail || {}).slice(0, 4000)
+        })
+
+        const url = new URL(API_URL + '/api/visitors/crash-report')
+        const mod = url.protocol === 'https:' ? https : http
+
+        const req = mod.request({
+            hostname: url.hostname,
+            port: url.port || (url.protocol === 'https:' ? 443 : 80),
+            path: url.pathname,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+        }, (res) => { res.resume() })
+
+        req.on('error', () => {})
+        req.setTimeout(8000, () => req.destroy())
+        req.write(body)
+        req.end()
+    } catch {}
+}
+
 let mainWindow = null
 let isQuittingRef = { value: false }
 
@@ -122,6 +167,8 @@ function bindWindowEvents(win) {
 
         if (details.reason === 'clean-exit') return
 
+        _reportCrashToServer('render-process-gone', details)
+
         const now = Date.now()
         const sinceLastCrash = now - _lastCrashTime
         _lastCrashTime = now
@@ -148,8 +195,37 @@ function bindWindowEvents(win) {
         }, delay)
     })
 
+    // Previously this only logged a console.warn — no crash-log entry, no
+    // server visibility, and no way to tell an unresponsive window that
+    // recovered on its own from one that stayed hung. A window can go briefly
+    // unresponsive from legitimate heavy sync JS in a webview; forcing a
+    // reload here would risk destroying in-progress state in every messenger
+    // tab for what might just be a slow paint. So this only observes and
+    // reports — it does not force a reload (unlike render-process-gone, which
+    // reacts to an actual process crash, a fundamentally different signal).
+    let _unresponsiveSince = 0
+
     win.webContents.on('unresponsive', () => {
+        _unresponsiveSince = Date.now()
         console.warn('[window] main window became unresponsive')
+
+        setTimeout(() => {
+            // Still unresponsive after the threshold and hasn't recovered
+            // (responsive handler below would have reset _unresponsiveSince to 0)
+            if (_unresponsiveSince === 0) return
+            const stuckMs = Date.now() - _unresponsiveSince
+            console.error(`[window] still unresponsive after ${stuckMs}ms`)
+            _appendCrashLog('unresponsive', { stuckMs })
+            _reportCrashToServer('unresponsive', { stuckMs })
+        }, 10000)
+    })
+
+    win.webContents.on('responsive', () => {
+        if (_unresponsiveSince > 0) {
+            const recoveredAfterMs = Date.now() - _unresponsiveSince
+            console.info(`[window] recovered from unresponsive after ${recoveredAfterMs}ms`)
+            _unresponsiveSince = 0
+        }
     })
 
     win.once('ready-to-show', () => {
@@ -253,5 +329,7 @@ module.exports = {
     createWindow,
     getMainWindow,
     showMainWindow,
-    setIsQuittingRef
+    setIsQuittingRef,
+    appendCrashLog: _appendCrashLog,
+    reportCrashToServer: _reportCrashToServer
 }

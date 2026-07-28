@@ -33,8 +33,16 @@ function registerAppEvents({
         isQuittingRef._flushed = true
         isQuittingRef.value = true
         tracker.stop()
-        tracker.flush()
-            .catch(() => {})
+
+        // tracker.flush() makes a network call (see api.js/trackStats) that,
+        // before this fix, had no timeout anywhere in the chain — a stalled
+        // connection (dead network, VPN torn down mid-quit) meant `before-quit`
+        // could hang forever and the app would never actually exit. Race it
+        // against a hard deadline so quitting is never blocked on the network.
+        const FLUSH_DEADLINE_MS = 4000
+        const deadline = new Promise((resolve) => setTimeout(resolve, FLUSH_DEADLINE_MS))
+
+        Promise.race([tracker.flush().catch(() => {}), deadline])
             .finally(() => app.quit())
     })
 

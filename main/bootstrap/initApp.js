@@ -1,8 +1,9 @@
 const { registerShortcuts } = require('../services/shortcuts')
-const { initUpdater, checkForUpdates } = require('../services/updater')
+const { initUpdater, checkForUpdates, checkPendingUpdateOutcome } = require('../services/updater')
 const { APP_PROTOCOL } = require('../config/constants')
 const tracker        = require('../services/tracker')
 const visitorTracker = require('../services/visitor-tracker')
+const { appendCrashLog, reportCrashToServer } = require('../window')
 
 function initApp({
     app,
@@ -52,6 +53,7 @@ function initApp({
         visitorTracker.start()
 
         initUpdater(getMainWindow)
+        checkPendingUpdateOutcome({ appendCrashLog, reportCrashToServer })
 
         // Initial adblock application
         try { require('../services/adblock').updateAllSessions() } catch(e) {}
