@@ -2,6 +2,12 @@ require('dotenv').config()
 const SftpClient = require('ssh2-sftp-client')
 const path = require('path')
 
+// SUPERSEDED 2026-07-29: key-based SSH access was restored and this file's
+// UPLOADS list (plus the Phase 3 list below) was folded into
+// scripts/deploy-backend.js, which uses publickey auth via ssh2 directly
+// instead of UPLOAD_PASSWORD. Use that script for real deploys. Kept here
+// only as a historical record of the original Phase 2 file mapping.
+//
 // NOTE: as of 2026-07-18 this cannot actually be run — the server only
 // accepts SSH publickey auth (password auth was disabled around the
 // 2026-06-27 CI switch, see .github/workflows/build.yml + commit 3cbbdf2).

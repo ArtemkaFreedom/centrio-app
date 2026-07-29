@@ -2,6 +2,10 @@ require('dotenv').config()
 const SftpClient = require('ssh2-sftp-client')
 const path = require('path')
 
+// SUPERSEDED 2026-07-29: see scripts/deploy-backend.js (key-based auth,
+// includes this file's visitors.js mapping — confirmed correct via live
+// `ls`). Kept only as a historical record.
+//
 // NOTE: same blocker as scripts/deploy-phase2-backend.js — the server only
 // accepts SSH publickey auth (password auth disabled ~2026-06-27, see commit
 // 3cbbdf2 + .github/workflows/build.yml). No private key for this server

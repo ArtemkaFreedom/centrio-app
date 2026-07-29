@@ -294,4 +294,81 @@ router.delete('/visitors/:id', async (req, res) => {
     }
 })
 
+// ── Admin push notifications ─────────────────────────────────────────────────
+// Restored from the live server during the Phase 1-3 deploy reconciliation —
+// this repo's copy of admin-routes.js had never included these routes (they
+// were added directly on the server at some point outside this repo's
+// history), so a blind deploy of the hardened file would have silently
+// 404'd the admin panel's notifications tab. Kept as-is functionally, only
+// adding the same audit() logging already used for the other mutating routes
+// above.
+router.get('/notifications', async (req, res) => {
+    try {
+        const notifications = await prisma.appNotification.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: { _count: { select: { reads: true } } }
+        })
+        res.json({ notifications })
+    } catch (err) {
+        console.error('Admin GET /notifications error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.post('/notifications', async (req, res) => {
+    try {
+        const { title, body, imageUrl, actionLabel, actionUrl } = req.body
+        if (!title || !body) {
+            return res.status(400).json({ error: 'title and body required' })
+        }
+        const notif = await prisma.appNotification.create({
+            data: {
+                title:       String(title).slice(0, 255),
+                body:        String(body).slice(0, 2000),
+                imageUrl:    imageUrl    ? String(imageUrl).slice(0, 500)    : null,
+                actionLabel: actionLabel ? String(actionLabel).slice(0, 100) : null,
+                actionUrl:   actionUrl   ? String(actionUrl).slice(0, 500)   : null,
+            }
+        })
+        audit(req, 'notification.create', { id: notif.id, title: notif.title })
+        console.log('[Admin] Notification created:', notif.id, notif.title)
+        res.json({ ok: true, notification: notif })
+    } catch (err) {
+        console.error('Admin POST /notifications error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.delete('/notifications/:id', async (req, res) => {
+    try {
+        await prisma.appNotification.delete({ where: { id: req.params.id } })
+        audit(req, 'notification.delete', { id: req.params.id })
+        res.json({ ok: true })
+    } catch (err) {
+        if (err.code === 'P2025') return res.status(404).json({ error: 'Not found' })
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+// GET /api/admin/users/:id/payments — also restored from live (see note above).
+// Not a duplicate of anything else in this file.
+router.get('/users/:id/payments', async (req, res) => {
+    try {
+        const payments = await prisma.payment.findMany({
+            where: { userId: req.params.id },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, amount: true, currency: true, status: true, plan: true, months: true, createdAt: true }
+        })
+        res.json({ payments })
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+// NOTE: the live server also has a second, older, unaudited
+// `router.delete('/users/:id', ...)` defined after this point. It's dead
+// code — Express dispatches to the first matching route, and this file
+// already defines '/users/:id' DELETE above (line ~211) with audit logging
+// and FK-constraint handling — so it's intentionally not carried over here.
+
 module.exports = router

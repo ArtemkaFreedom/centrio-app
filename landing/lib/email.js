@@ -59,6 +59,24 @@ async function sendPaymentReceiptEmail(user, payment) {
   })
 }
 
+// Sent once, right after account creation — covers both password
+// registration (POST /register) and the first-time-login branch of every
+// OAuth provider (Google/Yandex/GitHub/Telegram). Deliberately fire-and-forget
+// like the other senders here: a broken email provider must never fail
+// or delay a registration/login response.
+async function sendWelcomeEmail(user) {
+  if (!user?.email) return { ok: false, reason: 'no_recipient' }
+  return sendEmail({
+    to: user.email,
+    subject: 'Добро пожаловать в Centrio',
+    html: `
+      <p>Здравствуйте${user.name ? ', ' + escapeHtml(user.name) : ''}!</p>
+      <p>Спасибо, что зарегистрировались в Centrio — все ваши мессенджеры в одном окне.</p>
+      <p>Если у вас появятся вопросы — просто ответьте на это письмо или напишите на support@centrio.me</p>
+    `
+  })
+}
+
 async function sendAutoRenewFailedEmail(user, reason) {
   if (!user?.email) return { ok: false, reason: 'no_recipient' }
   return sendEmail({
@@ -87,4 +105,4 @@ async function sendRefundConfirmationEmail(user, payment) {
   })
 }
 
-module.exports = { sendEmail, sendPaymentReceiptEmail, sendAutoRenewFailedEmail, sendRefundConfirmationEmail }
+module.exports = { sendEmail, sendPaymentReceiptEmail, sendWelcomeEmail, sendAutoRenewFailedEmail, sendRefundConfirmationEmail }

@@ -1,0 +1,114 @@
+// Consolidated backend deploy script — supersedes deploy-phase2-backend.js
+// and deploy-phase3-backend.js, which were written for SFTP+password auth
+// and could never actually run once the server moved to publickey-only SSH
+// (~2026-06-27, see commit 3cbbdf2). This version uses key-based auth from
+// the start.
+//
+// Usage:
+//   UPLOAD_SSH_KEY_PATH=/path/to/private_key node scripts/deploy-backend.js
+//
+// If UPLOAD_SSH_KEY_PATH is not set, falls back to ~/.ssh/centrio_deploy
+// (the conventional path — adjust if your key lives elsewhere). The
+// matching public key must already be in the server's
+// /root/.ssh/authorized_keys (or the relevant user's, if not deploying as
+// root) — this script never sends a password.
+//
+// File → remote path mapping was reconstructed by diffing this repo's
+// landing/*.js files against the live server on 2026-07-29 (see
+// centrio-hardening.plan.md, Phase 1-3 deploy reconciliation). Confirmed via
+// `ls /var/www/centrio-api/src/routes/` at that time — re-verify with the
+// same command before trusting this blindly if a lot of time has passed.
+require('dotenv').config()
+const { Client } = require('ssh2')
+const fs = require('fs')
+const path = require('path')
+const os = require('os')
+
+const HOST = process.env.UPLOAD_HOST || '31.128.44.165'
+const PORT = Number(process.env.UPLOAD_PORT || 22)
+const USER = process.env.UPLOAD_USER || 'root'
+const KEY_PATH = process.env.UPLOAD_SSH_KEY_PATH || path.join(os.homedir(), '.ssh', 'centrio_deploy')
+
+if (!fs.existsSync(KEY_PATH)) {
+    console.error(`Private key not found at ${KEY_PATH}`)
+    console.error('Set UPLOAD_SSH_KEY_PATH to the correct path, or generate one and install the .pub on the server first.')
+    process.exit(1)
+}
+
+const REMOTE_BASE = '/var/www/centrio-api'
+
+const UPLOADS = [
+    { local: path.join(__dirname, '..', 'landing', 'lib', 'email.js'),           remote: `${REMOTE_BASE}/src/lib/email.js` },
+    { local: path.join(__dirname, '..', 'landing', 'middleware', 'rateLimit.js'), remote: `${REMOTE_BASE}/src/middleware/rateLimit.js` },
+    { local: path.join(__dirname, '..', 'landing', 'payments-server.js'),        remote: `${REMOTE_BASE}/src/routes/payments.js` },
+    { local: path.join(__dirname, '..', 'landing', 'auth-server.js'),            remote: `${REMOTE_BASE}/src/routes/auth.js` },
+    { local: path.join(__dirname, '..', 'landing', 'user-route.js'),             remote: `${REMOTE_BASE}/src/routes/user.js` },
+    { local: path.join(__dirname, '..', 'landing', 'admin-routes.js'),           remote: `${REMOTE_BASE}/src/routes/admin.js` },
+    { local: path.join(__dirname, '..', 'landing', 'visitor-route.js'),          remote: `${REMOTE_BASE}/src/routes/visitors.js` },
+    { local: path.join(__dirname, '..', 'landing', 'auto-renew-cron.js'),        remote: `${REMOTE_BASE}/src/cron/autoRenew.js` },
+]
+
+function exec(conn, cmd) {
+    return new Promise((resolve, reject) => {
+        conn.exec(cmd, (err, stream) => {
+            if (err) return reject(err)
+            let out = ''
+            stream.on('data', d => { out += d.toString(); process.stdout.write(d.toString()) })
+            stream.stderr.on('data', d => { out += d.toString(); process.stderr.write(d.toString()) })
+            stream.on('close', code => resolve({ out, code }))
+        })
+    })
+}
+
+function putFile(sftp, local, remote) {
+    return new Promise((resolve, reject) => {
+        sftp.fastPut(local, remote, err => err ? reject(err) : resolve())
+    })
+}
+
+const conn = new Client()
+conn.on('ready', async () => {
+    console.log('=== Connected (publickey) ===\n')
+    try {
+        await exec(conn, `mkdir -p ${REMOTE_BASE}/src/lib ${REMOTE_BASE}/src/middleware`)
+
+        const sftp = await new Promise((resolve, reject) => {
+            conn.sftp((err, sftp) => err ? reject(err) : resolve(sftp))
+        })
+
+        for (const { local, remote } of UPLOADS) {
+            console.log(`Uploading ${path.basename(local)} → ${remote}`)
+            await putFile(sftp, local, remote)
+        }
+
+        console.log('\nSyntax-checking deployed files...')
+        const checkList = UPLOADS.map(u => u.remote).join(' ')
+        const { code: checkCode } = await exec(conn, `cd ${REMOTE_BASE} && for f in ${checkList}; do node --check "$f" || exit 1; done && echo ALL_SYNTAX_OK`)
+        if (checkCode !== 0) {
+            throw new Error('Syntax check failed on one or more deployed files — NOT restarting the service. Fix and redeploy.')
+        }
+
+        console.log('\nRestarting centrio-api (as webapps user, with --update-env)...')
+        await exec(conn, 'sudo -u webapps pm2 restart centrio-api --update-env')
+
+        console.log('\nHealth check...')
+        await exec(conn, "curl -s -o /dev/null -w 'plans: HTTP %{http_code}\\n' http://localhost:3001/api/payments/plans")
+
+        console.log('\n✅ Backend deploy done.')
+        conn.end()
+        process.exit(0)
+    } catch (err) {
+        console.error('\nError:', err.message)
+        conn.end()
+        process.exit(1)
+    }
+}).on('error', err => {
+    console.error('Connection error:', err.message)
+    process.exit(1)
+}).connect({
+    host: HOST,
+    port: PORT,
+    username: USER,
+    privateKey: fs.readFileSync(KEY_PATH),
+    readyTimeout: 30000
+})
