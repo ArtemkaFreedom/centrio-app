@@ -8,8 +8,8 @@ import { useLang } from '@/lib/i18n'
 // features/refund/blog pages, distinct from the newer combined SiteFooter
 // exported by site-shell.tsx used elsewhere) had never been tracked in this
 // repo, so its VERSION constant had drifted to '1.6.6' while the app itself
-// moved on to 1.7.9 — visibly wrong on every page that renders this footer.
-const VERSION = '1.7.9'
+// moved on to 1.8.0 — visibly wrong on every page that renders this footer.
+const VERSION = '1.8.0'
 
 export default function SiteFooter() {
   const { t } = useLang()
