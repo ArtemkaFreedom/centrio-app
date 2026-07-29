@@ -62,7 +62,9 @@ const validInvokeChannels = new Set([
     'choose-download-dir', 'dialog:selectDirectory', 'get-save-image-path',
     'copy-image-to-clipboard', 'copy-text-to-clipboard',
     // main/ipc/updater.js
-    'install-update', 'check-for-updates', 'app:checkForUpdates'
+    'install-update', 'check-for-updates', 'app:checkForUpdates',
+    // main/ipc/settingsPortability.js
+    'settings:export', 'settings:import'
 ])
 
 const validSendChannels = new Set([
@@ -205,6 +207,9 @@ const electronAPI = {
     checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
     selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
     openExternal: (url) => ipcRenderer.send('open-url', url),
+
+    exportSettings: () => ipcRenderer.invoke('settings:export'),
+    importSettings: () => ipcRenderer.invoke('settings:import'),
 
     // VPN progress events
     onVpnProgress: (listener) => {
