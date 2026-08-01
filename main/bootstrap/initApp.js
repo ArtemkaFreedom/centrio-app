@@ -66,13 +66,16 @@ function initApp({
             })
         }, delay)
 
-        // ── Повторная проверка каждые 12 часов ───────────────────
-        const TWELVE_HOURS = 12 * 60 * 60 * 1000
+        // ── Повторная проверка каждые несколько часов ────────────
+        // Раньше было раз в 12 часов — слишком редко для тех, кто держит
+        // приложение открытым сутками не закрывая: обновление могло висеть
+        // на сервере полдня, прежде чем клиент его вообще заметит.
+        const FEW_HOURS = 3 * 60 * 60 * 1000
         setInterval(() => {
             checkForUpdates().catch((err) => {
                 console.error('[initApp] Periodic update check failed:', err)
             })
-        }, TWELVE_HOURS)
+        }, FEW_HOURS)
 
         registerShortcuts({ getMainWindow, showMainWindow })
 

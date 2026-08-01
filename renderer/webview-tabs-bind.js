@@ -154,6 +154,22 @@ function createWebviewTabsApi({
 
     let _tabDragSrcId = null
 
+    // ── Порядок вкладок (персист, аналогично sidebarOrder в sidebar-dnd-bind.js) ──
+    function saveTabOrder() {
+        const order = Array.from(tabsBar.querySelectorAll(':scope > .tab'))
+            .map(t => t.id.replace('tab-', ''))
+        store.set('tabOrder', order)
+    }
+
+    function loadTabOrder() {
+        const order = store.get('tabOrder', [])
+        if (!order.length) return
+        order.forEach(id => {
+            const el = document.getElementById(`tab-${id}`)
+            if (el && el.parentElement === tabsBar) tabsBar.appendChild(el)
+        })
+    }
+
     function initTabDrag(tab, messengerId) {
         tab.setAttribute('draggable', 'true')
 
@@ -199,6 +215,7 @@ function createWebviewTabsApi({
             const insertBefore = e.clientX < rect.left + rect.width / 2
             if (insertBefore) tabsBar.insertBefore(srcTab, tab)
             else tabsBar.insertBefore(srcTab, tab.nextSibling)
+            saveTabOrder()
         })
     }
 
@@ -581,7 +598,9 @@ function createWebviewTabsApi({
         attachFindListener,
         attachContextMenu,
         addWebview,
-        bindWebviewContextMenuActions
+        bindWebviewContextMenuActions,
+        saveTabOrder,
+        loadTabOrder
     }
 }
 

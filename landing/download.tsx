@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
 import { useLang } from '@/lib/i18n'
 
-const VERSION = '1.8.0'
+const VERSION = '1.8.4'
 
 const URLS = {
   win:       `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`,
@@ -615,12 +615,12 @@ export default function DownloadPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12, maxWidth: 860, margin: '0 auto' }}>
               {[
-                { tag: 'i18n', color: '#a78bfa', text: 'PRO modal — 8 benefits, full i18n in 7 languages, new design with glow' },
-                { tag: 'fix', color: '#4ade80', text: 'Extensions toggle — non-PRO users can click and see the PRO modal' },
-                { tag: 'new', color: '#38bdf8', text: 'Linux auto-updates — platform-specific publish URL, latest-linux.yml' },
-                { tag: 'fix', color: '#4ade80', text: '"Ready to work" status badge — now i18n via tGet() in all 7 languages' },
-                { tag: 'new', color: '#38bdf8', text: 'deploy-site.js — one command updates all download links on the site' },
-                { tag: 'ui', color: '#f97316', text: 'Linux deeplink centrio:// — OAuth opens in browser, redirects back' },
+                { tag: 'fix', color: '#4ade80', text: 'LanguageTool — fixed "Cannot check text, confirm privacy policy first" showing almost always instead of the consent prompt' },
+                { tag: 'ui', color: '#f97316', text: 'Update banner redesigned — bigger, clearer, with accent glow and pulse when an update is ready' },
+                { tag: 'fix', color: '#4ade80', text: 'Onboarding tour no longer overlaps the PIN lock screen' },
+                { tag: 'new', color: '#38bdf8', text: 'Keyboard shortcuts list — quick access button on the toolbar' },
+                { tag: 'new', color: '#38bdf8', text: 'Search across all open messenger tabs at once, not just the active one' },
+                { tag: 'i18n', color: '#a78bfa', text: 'Google Translate — clear hint when source and target language are the same' },
               ].map((item, i) => (
                 <motion.div key={i} variants={fadeUpDelay(i * 0.07)} initial="hidden" whileInView="show" viewport={{ once: true }}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '16px 20px', background: 'rgba(255,255,255,0.025)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', transition: 'border-color .2s' }}>

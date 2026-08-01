@@ -1,7 +1,7 @@
 {
 	"name": "messengerapp",
 	"productName": "Centrio",
-	"version": "1.8.0",
+	"version": "1.8.4",
 	"description": "All messengers in one app",
 	"author": {
 		"name": "Centrio",
@@ -17,24 +17,34 @@
 		"build:win": "rimraf dist && npm run build:renderer && electron-builder --win",
 		"build:mac": "rimraf dist && npm run build:renderer && electron-builder --mac",
 		"build:linux": "rimraf dist && npm run build:renderer && electron-builder --linux",
-		"publish": "npm run build:win && node scripts/publish.js"
+		"publish": "npm run build:win && node scripts/publish.js",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
 	},
 	"devDependencies": {
+		"@eslint/js": "^10.0.1",
 		"electron": "^39.8.10",
 		"electron-builder": "^26.15.3",
 		"esbuild": "^0.25.12",
+		"eslint": "^10.8.0",
+		"eslint-config-prettier": "^10.1.8",
+		"globals": "^17.8.0",
+		"prettier": "^3.9.6",
+		"pg": "^8.21.0",
 		"rimraf": "^6.1.3",
+		"ssh2": "^1.17.0",
 		"ssh2-sftp-client": "^12.1.1"
 	},
 	"dependencies": {
+		"adm-zip": "^0.5.18",
 		"auto-launch": "^5.0.6",
 		"dotenv": "^17.4.1",
 		"electron-log": "^5.4.3",
 		"electron-store": "^10.0.1",
 		"electron-updater": "^6.8.3",
-		"pg": "^8.21.0",
 		"sound-play": "^1.1.0",
-		"ssh2": "^1.17.0",
 		"uuid": "^14.0.0"
 	},
 	"build": {
@@ -137,8 +147,7 @@
 			"shortcutName": "Centrio"
 		},
 		"asarUnpack": [
-			"assets/sounds/**/*",
-			"main/ext-bridge/**/*"
+			"assets/sounds/**/*"
 		],
 		"publish": {
 			"provider": "generic",

@@ -10,9 +10,11 @@ function bindSettingsUi({
     openPinDisableModal,
     updateLockBtn,
     requirePro,
-    openExtensionsSection
+    openExtensionsSection,
+    replayOnboardingTour
 }) {
     const settingsBtn = document.getElementById('settingsBtn')
+    const hotkeysBtn = document.getElementById('hotkeysBtn')
     const closeSettingsBtn = document.getElementById('closeSettingsBtn')
     const settingsModal = document.getElementById('settingsModal')
     const applySettingsBtn = document.getElementById('applySettingsBtn')
@@ -21,6 +23,36 @@ function bindSettingsUi({
 
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => openSettings())
+    }
+
+    // Кнопка на тулбаре — быстрый переход в Настройки → Горячие клавиши,
+    // минуя ручной клик по пункту навигации (тот же паттерн, что и у
+    // menuAbout в menu-bind.js: сначала открыть модалку, затем переключить
+    // активную секцию после того как DOM модалки отрендерился).
+    if (hotkeysBtn) {
+        hotkeysBtn.addEventListener('click', () => {
+            openSettings()
+            setTimeout(() => {
+                document.querySelectorAll('.settings-nav-item').forEach((i) => i.classList.remove('active'))
+                document.querySelectorAll('.settings-section').forEach((s) => s.classList.remove('active'))
+                document.querySelector('[data-section="shortcuts"]')?.classList.add('active')
+                document.getElementById('section-shortcuts')?.classList.add('active')
+            }, 100)
+        })
+    }
+
+    // Кнопка "Показать тур снова" в Настройки → Система — закрывает модалку
+    // настроек и форсированно перезапускает онбординг-тур (force=true в
+    // onboardingTourApi.start, минуя флаг settings.onboardingSeen).
+    const replayOnboardingBtn = document.getElementById('replayOnboardingBtn')
+    if (replayOnboardingBtn) {
+        replayOnboardingBtn.addEventListener('click', () => {
+            if (settingsModal) {
+                settingsModal.classList.remove('show')
+                document.body.classList.remove('settings-open')
+            }
+            if (typeof replayOnboardingTour === 'function') replayOnboardingTour()
+        })
     }
 
     if (closeSettingsBtn && settingsModal) {
@@ -449,6 +481,15 @@ function bindSettingsUi({
         settingLockOnHide.addEventListener('change', (e) => {
             const sec = store.get('security', {}) || {}
             store.set('security', { ...sec, lockOnHide: e.target.checked })
+        })
+    }
+
+    const settingLockOnIdle = document.getElementById('settingLockOnIdle')
+    if (settingLockOnIdle) {
+        settingLockOnIdle.addEventListener('change', (e) => {
+            const sec = store.get('security', {}) || {}
+            const minutes = parseInt(e.target.value, 10) || 0
+            store.set('security', { ...sec, lockOnIdleMinutes: minutes })
         })
     }
 

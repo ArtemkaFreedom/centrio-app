@@ -366,10 +366,12 @@ function createSettingsUiApi({
         const sec = store.get('security', {}) || {}
         const settingPasswordEnable = document.getElementById('settingPasswordEnable')
         const settingLockOnHide = document.getElementById('settingLockOnHide')
+        const settingLockOnIdle = document.getElementById('settingLockOnIdle')
         const passwordFields = document.getElementById('passwordFields')
 
         if (settingPasswordEnable) settingPasswordEnable.checked = !!sec.enabled
         if (settingLockOnHide) settingLockOnHide.checked = !!sec.lockOnHide
+        if (settingLockOnIdle) settingLockOnIdle.value = String(sec.lockOnIdleMinutes || 0)
 
         resetPinSetup()
 

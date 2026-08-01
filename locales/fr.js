@@ -70,6 +70,8 @@ module.exports = {
         },
         extensionsTitle:  'Outils intégrés',
         extensionsHint:   'Outils natifs intégrés à Centrio. Aucune installation requise.',
+        extensionsRealTitle: 'Extensions Chrome Web Store',
+        extensionsRealHint:  'Extensions officielles. Téléchargées directement depuis le Chrome Web Store lors de la première activation, elles ne fonctionnent que dans la session du messager sélectionné.',
         extAdblockName:   'AdBlock',
         extAdblockDesc:   'Bloque les publicités et traceurs dans tous les services',
         extTranslateName: 'Traducteur',
@@ -135,6 +137,13 @@ module.exports = {
         passwordMismatch: 'Les PINs ne correspondent pas',
         lockOnHide:       'Verrouiller en minimisant',
         lockOnHideHint:   'Demander le PIN à l\'ouverture depuis la barre système',
+        lockOnIdle:       'Verrouillage auto après inactivité',
+        lockOnIdleHint:   'Demander le PIN si l\'application est inactive',
+        lockOnIdleOff:    'Désactivé',
+        lockOnIdleMin1:   'Après 1 minute',
+        lockOnIdleMin5:   'Après 5 minutes',
+        lockOnIdleMin15:  'Après 15 minutes',
+        lockOnIdleMin30:  'Après 30 minutes',
         showNames:        'Afficher les étiquettes',
         showNamesHint:    'Étiquettes sous les icônes',
         density:          'Densité de l\'interface',
@@ -237,6 +246,7 @@ module.exports = {
         online:         'En ligne',
         offline:        'Inactif',
         noInternet:     'Hors ligne',
+        offlineBannerText: 'Aucune connexion Internet — certaines messageries peuvent ne pas se mettre à jour',
     },
 
     search: {
@@ -246,6 +256,9 @@ module.exports = {
         findPlaceholder: 'Rechercher sur la page...',
         findInPage:      'Rechercher sur la page',
         notFound:        'Non trouvé',
+        findAllTitle:    'Rechercher dans tous les onglets ouverts',
+        findAllSearching: 'Recherche dans tous les onglets...',
+        findAllEmpty:    'Aucun résultat dans les autres onglets',
     },
 
     welcome: {
@@ -270,6 +283,7 @@ module.exports = {
     },
 
     shortcuts: {
+        btnTitle:        'Raccourcis clavier',
         navigationTitle: 'Navigation',
         next:            'Messenger suivant',
         prev:            'Messenger précédent',
@@ -277,9 +291,36 @@ module.exports = {
         searchTitle:     'Recherche',
         quickSearch:     'Recherche rapide de messenger',
         findInPage:      'Rechercher sur la page',
+        escClose:        'Fermer la recherche',
         windowTitle:     'Fenêtre',
         hideShow:        'Masquer / afficher la fenêtre',
         reload:          'Recharger le messenger',
+        zoomTitle:       'Zoom',
+        appZoomIn:       'Zoom avant (application)',
+        appZoomOut:      'Zoom arrière (application)',
+        appZoomReset:    'Réinitialiser le zoom de l\'application',
+        contentZoomIn:   'Zoom avant (discussion)',
+        contentZoomOut:  'Zoom arrière (discussion)',
+    },
+
+    onboarding: {
+        step1Title:    'Ajouter un messenger',
+        step1Desc:     'Cliquez ici pour ajouter un nouveau messenger à l\'application.',
+        step2Title:    'Raccourcis clavier',
+        step2Desc:     'Ouvrez à tout moment la liste complète des raccourcis clavier.',
+        step3Title:    'Paramètres',
+        step3Desc:     'Configurez ici l\'apparence, la sécurité et d\'autres options.',
+        step4Title:    'VPN',
+        step4Desc:     'Activez le VPN si un messenger est bloqué dans votre région.',
+        step5Title:    'Version',
+        step5Desc:     'Consultez la version de l\'application et le journal des modifications ici.',
+        skip:          'Passer',
+        next:          'Suivant',
+        done:          'Terminé',
+        settingsTitle: 'Visite guidée',
+        replayLabel:   'Revoir la visite guidée',
+        replayHint:    'Relancer la visite guidée des principaux boutons de la barre d\'outils',
+        replayBtn:     'Afficher la visite',
     },
 
     errors: {
@@ -476,7 +517,14 @@ module.exports = {
         grammarly:  { title: 'Grammarly',           desc: 'Verification de la grammaire et du style' },
         screenshot: { title: 'Capture ecran',       desc: 'Clic droit pour capturer la page actuelle' },
         darkmode:   { title: 'Mode sombre force',   desc: 'Clic droit pour activer le theme sombre' },
-        split:      { title: 'Ecran partage',       desc: 'Ouvrez deux services cote a cote dans une fenetre' }
+        split:      { title: 'Ecran partage',       desc: 'Ouvrez deux services cote a cote dans une fenetre' },
+        translateExt: { title: 'Google Traduction',   desc: 'Extension officielle Google pour traduire pages et texte' },
+        languageToolExt: { title: 'LanguageTool', desc: 'Verification de la grammaire et de l\u2019orthographe dans vos messageries' },
+        install: 'Installer',
+        installing: 'Installation…',
+        installFailed: "Echec de l'installation",
+        uninstallBtn: 'Supprimer',
+        realBadge: 'Depuis le Chrome Web Store'
     },
 
     webview: {

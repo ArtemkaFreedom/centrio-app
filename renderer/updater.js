@@ -1,49 +1,8 @@
-// Список изменений по версиям (показывается в окне обновления)
-const CHANGELOG = {
-    '1.6.90': [
-        'Меню "Файл/Правка/Вид/Окно/Справка" переведено на все языки',
-        'Исправлена точка выбора цвета в палитре акцента',
-    ],
-    '1.6.89': [
-        'Язык сохраняется между запусками, облако его не затирает',
-        'Переключение на Русский язык теперь работает корректно',
-        'Tray-меню отображается на актуальном языке интерфейса',
-        'Окно обновлений: SVG-иконки, прокрутка длинных чейнжлогов',
-    ],
-    '1.6.88': [
-        'Удалены темы Glass, Pistachio и Pink — осталось 4 темы',
-        'Иконка адаптивной темы: радужный сайдбар показывает суть',
-        'Исправлен выпадающий список языка в настройках',
-        'Убрано системное меню (File/Edit) при нажатии Alt',
-    ],
-    '1.6.87': [
-        'Адаптивная тема: цвет подстраивается под мессенджер',
-        'Полностью переработано окно обновления с чейнжлогом',
-        'Исправлено переключение языка интерфейса',
-        'Улучшен внешний вид светлой темы в настройках',
-    ],
-    '1.6.86': [
-        'Zoom (Ctrl+/Ctrl−) теперь работает из фокуса мессенджера',
-        'Смена языка интерфейса работает надёжно',
-        'Светлая тема: более мягкие границы и контрасты',
-    ],
-    '1.6.85': [
-        'Горячие клавиши зума приложения (Ctrl+Shift+=/−)',
-        'Контекстное меню «Перевести страницу»',
-        'Чейнджлог в статусбаре',
-    ],
-}
-
-// Всегда показываем максимум N пунктов чейнжлога
-const MAX_CHANGES = 4
-
-function getChangelog(version) {
-    if (!version) return []
-    // Ищем точное совпадение, затем ближайший ключ
-    if (CHANGELOG[version]) return CHANGELOG[version].slice(0, MAX_CHANGES)
-    const keys = Object.keys(CHANGELOG).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
-    return keys.length ? CHANGELOG[keys[0]].slice(0, MAX_CHANGES) : []
-}
+// Список изменений в карточке обновления больше не показываем — полный
+// список версий и так доступен в попапе «История изменений» (#changelogPopup),
+// который открывается из настроек. Раньше здесь дублировался текст (сначала
+// захардкоженной копией, потом чтением из DOM попапа) — теперь карточка
+// обновления не завязана на чейнджлог вообще, дублирования нет по конструкции.
 
 function getUpdateContainer() {
     let container = document.getElementById('updateToastContainer')
@@ -72,10 +31,17 @@ const UPDATE_ICONS = {
     error:         '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="10" r="7.5"/><path d="M10 7v4M10 13.5v.5" stroke-linecap="round"/></svg>',
 }
 
-function createUpdateCard({ type = 'info', icon, title, version, changes = [], progress = null, button = null }) {
+function createUpdateCard({ type = 'info', icon, title, version, progress = null, button = null }) {
     const card = document.createElement('div')
     card.id = 'updateToast'
-    card.className = 'update-card'
+    // Модификатор типа — используется для акцентного свечения карточки.
+    const typeClass = type === 'success' ? 'update-card--success' : type === 'error' ? 'update-card--error' : 'update-card--info'
+    // «Внимание нужно» — карточки, требующие реакции пользователя (появилось
+    // обновление / оно готово к установке), получают пульсацию свечения,
+    // чтобы плашку было сложно не заметить. Прогресс/ошибка и так заметны
+    // прогресс-баром или тем, что не скрываются сами.
+    const isAttentionWorthy = icon === 'available' || icon === 'downloaded'
+    card.className = `update-card ${typeClass}${isAttentionWorthy ? ' update-card--attn' : ''}`
 
     // Stripe
     const stripe = document.createElement('div')
@@ -117,23 +83,6 @@ function createUpdateCard({ type = 'info', icon, title, version, changes = [], p
     head.appendChild(infoEl)
     head.appendChild(closeBtn)
     card.appendChild(head)
-
-    // Changelog
-    if (changes.length > 0) {
-        const divider = document.createElement('div')
-        divider.className = 'update-card-divider'
-        card.appendChild(divider)
-
-        const changelog = document.createElement('div')
-        changelog.className = 'update-card-changelog'
-        changes.forEach(text => {
-            const item = document.createElement('div')
-            item.className = 'update-card-change'
-            item.textContent = text
-            changelog.appendChild(item)
-        })
-        card.appendChild(changelog)
-    }
 
     // Progress bar
     if (progress !== null) {
@@ -198,11 +147,12 @@ function showUpdateCard(opts) {
     requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('show')))
 
     // Auto-dismiss informational cards without a button
+    // (чуть дольше, чем раньше, — плашка стала заметнее, но не мгновенная)
     if (!opts.button && opts.type !== 'error') {
         setTimeout(() => {
             card.classList.remove('show')
             setTimeout(() => { if (card.parentNode) card.remove() }, 400)
-        }, 6000)
+        }, 8000)
     }
 }
 
@@ -223,7 +173,6 @@ function showUpdateBanner(message, type = 'info', button = null) {
         icon: type === 'success' ? 'notAvailable' : type === 'error' ? 'error' : 'available',
         title: message,
         version: null,
-        changes: [],
         progress: null,
         button,
     })
@@ -243,13 +192,11 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
         if (status === 'checking') return
 
         if (status === 'available') {
-            const changes = getChangelog(version)
             showUpdateCard({
                 type: 'info',
                 icon: 'available',
                 title: tGet('updater.available'),
                 version,
-                changes,
             })
             return
         }
@@ -262,13 +209,11 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
                 _lastDownloadingPercent = p
                 return
             }
-            const changes = getChangelog(version)
             showUpdateCard({
                 type: 'info',
                 icon: 'downloading',
                 title: tGet('updater.downloading'),
                 version,
-                changes,
                 progress: p,
             })
             _lastDownloadingPercent = p
@@ -276,13 +221,11 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
         }
 
         if (status === 'downloaded') {
-            const changes = getChangelog(version)
             showUpdateCard({
                 type: 'success',
                 icon: 'downloaded',
                 title: tGet('updater.downloaded'),
                 version,
-                changes,
                 button: {
                     text: tGet('updater.installRestart'),
                     action: () => invokeIpc('install-update'),
@@ -297,7 +240,6 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
                 icon: 'notAvailable',
                 title: tGet('updater.notAvailable'),
                 version: null,
-                changes: [],
             })
             return
         }
@@ -309,7 +251,6 @@ function bindUpdater({ ipcRenderer, invokeIpc, showUpdateBanner: _compat, tGet }
                 icon: 'error',
                 title: tGet('updater.error'),
                 version: null,
-                changes: [],
             })
         }
     })

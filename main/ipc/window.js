@@ -1,4 +1,4 @@
-const { ipcMain, shell, app, BrowserWindow } = require('electron')
+const { ipcMain, shell, app, BrowserWindow, session, powerMonitor } = require('electron')
 
 let log
 try { log = require('electron-log') } catch { log = console }
@@ -125,16 +125,34 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
                 y = my + mh - h - 60
             }
 
+            // Расширения (напр. Translate popup) грузятся в per-messenger сессию
+            // (persist:<messengerId>), см. main/services/extensions.js. Без явного
+            // указания той же session partition popup открылся бы в defaultSession —
+            // расширение там не загружено, chrome.tabs не увидит webview мессенджера.
+            // Разрешаем кастомную session ТОЛЬКО для chrome-extension:// URL и только
+            // для partition реально существующего мессенджера — иначе игнорируем opts.partition,
+            // чтобы этот generic-канал нельзя было использовать для открытия произвольного
+            // URL в произвольной persisted-сессии.
+            const webPreferences = {
+                nodeIntegration: false,
+                contextIsolation: true,
+                sandbox: true
+            }
+
+            if (typeof url === 'string' && url.startsWith('chrome-extension://') && typeof opts.partition === 'string') {
+                const messengers = store.get('messengers', []) || []
+                const isKnownPartition = messengers.some((m) => m && m.id && `persist:${m.id}` === opts.partition)
+                if (isKnownPartition) {
+                    webPreferences.session = session.fromPartition(opts.partition)
+                }
+            }
+
             const popup = new BrowserWindow({
                 width: w, height: h, x, y,
                 title: opts.name || 'Centrio',
                 resizable: true, minimizable: false, maximizable: false,
                 alwaysOnTop: true, skipTaskbar: true, show: false,
-                webPreferences: {
-                    nodeIntegration: false,
-                    contextIsolation: true,
-                    sandbox: true
-                }
+                webPreferences
             })
 
             popup.setMenuBarVisibility(false)
@@ -223,6 +241,43 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
     safeHandle('app:getVersion', () => {
         return app.getVersion()
     })
+
+    // ── Автоблокировка при бездействии ────────────────────────────────────
+    // Используем powerMonitor.getSystemIdleTime() — это OS-level счётчик
+    // (секунды с последнего ввода мыши/клавиатуры во всей системе), а не
+    // DOM-события в renderer. Это принципиально важно: активность ВНУТРИ
+    // <webview> (переписка в мессенджере) не долетает до host-документа
+    // как обычное DOM-событие (webview — изолированный гостевой процесс),
+    // поэтому слушать mousemove/keydown на renderer document давало бы
+    // ложные блокировки прямо во время набора сообщения. OS-level idle
+    // time не имеет этой проблемы — он видит ввод независимо от того,
+    // какой процесс/фрейм принял фокус.
+    let lastIdleLockSentAt = 0
+    setInterval(() => {
+        try {
+            const security = store.get('security', {}) || {}
+            const minutes = Number(security.lockOnIdleMinutes) || 0
+            if (minutes <= 0) return
+            if (!security.enabled || !security.hash) return
+
+            const win = getMainWindow()
+            if (!win || win.isDestroyed()) return
+
+            const idleSeconds = powerMonitor.getSystemIdleTime()
+            if (idleSeconds < minutes * 60) return
+
+            // Не спамим show-lock-screen чаще раза в минуту — пока пользователь
+            // не пошевелит мышью, idleSeconds продолжит расти и мы будем сюда
+            // попадать на каждом тике интервала.
+            const now = Date.now()
+            if (now - lastIdleLockSentAt < 60000) return
+            lastIdleLockSentAt = now
+
+            win.webContents.send('show-lock-screen')
+        } catch (e) {
+            log.error('[idle-lock] check failed:', e.message)
+        }
+    }, 20000)
 }
 
 module.exports = registerWindowIpc

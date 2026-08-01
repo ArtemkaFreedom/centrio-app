@@ -14,7 +14,8 @@ const validReceiveChannels = new Set([
     'notification-clicked-id',
     'update-status',
     'ext:show-popup',
-    'vpn-restored'
+    'vpn-restored',
+    'show-lock-screen'
 ])
 
 const invokeChannelMap = {
@@ -64,7 +65,9 @@ const validInvokeChannels = new Set([
     // main/ipc/updater.js
     'install-update', 'check-for-updates', 'app:checkForUpdates',
     // main/ipc/settingsPortability.js
-    'settings:export', 'settings:import'
+    'settings:export', 'settings:import',
+    // main/ipc/extensions.js
+    'ext:list', 'ext:install', 'ext:uninstall', 'ext:toggle', 'ext:apply-to-session'
 ])
 
 const validSendChannels = new Set([

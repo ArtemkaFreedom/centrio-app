@@ -36,6 +36,7 @@ const { createSidebarDndApi } = require('./renderer/sidebar-dnd-bind')
 const { createWebviewNotifyApi } = require('./renderer/webview-notify')
 const { createWebviewTabsApi } = require('./renderer/webview-tabs-bind')
 const { createSplitApi } = require('./renderer/split')
+const { createOnboardingTourApi } = require('./renderer/onboarding-tour')
 
 const { bindSettingsUi } = require('./renderer/settings-bind')
 const { bindLockUi } = require('./renderer/lock-bind')
@@ -514,6 +515,8 @@ async function bootstrap() {
     const findBar = document.getElementById('findBar')
     const findInput = document.getElementById('findInput')
     const findCount = document.getElementById('findCount')
+    const findAllBtn = document.getElementById('findAllBtn')
+    const findAllResults = document.getElementById('findAllResults')
     const quickSearch = document.getElementById('quickSearch')
     const quickSearchInput = document.getElementById('quickSearchInput')
     const quickSearchResults = document.getElementById('quickSearchResults')
@@ -578,7 +581,19 @@ async function bootstrap() {
                         lockOnHide:    store.get('security', {}).lockOnHide || false,
                         lockOnStartup: store.get('lockOnStartup', false),
                         tabZoomLevel:  settings.tabZoomLevel || 1,
-                        activeTabId:   state.activeTabId || null
+                        activeTabId:   state.activeTabId || null,
+                        // Прокси синхронизируем без пароля — пароль хранится отдельно через
+                        // store.secureSet('globalProxy.password', ...) и никогда не попадает в облако
+                        globalProxy:     (() => {
+                            const { password, ...rest } = store.get('globalProxy', {}) || {}
+                            return rest
+                        })(),
+                        sidebarOrder:    store.get('sidebarOrder', []),
+                        menuCollapsed:   store.get('menuCollapsed', false),
+                        appZoomLevel:    store.get('appZoomLevel', 0),
+                        vpnAppModes:     store.get('vpnAppModes', {}) || {},
+                        // extensionsState включает состояние всех расширений, в т.ч. нативного 'split'
+                        extensionsState: store.get('extensionsState', {}) || {}
                     }
                 }
             }
@@ -630,6 +645,17 @@ async function bootstrap() {
                             })
                         }
                         if (extra.lockOnStartup !== undefined) await store.setAsync('lockOnStartup', extra.lockOnStartup)
+                        if (extra.globalProxy !== undefined) {
+                            // Пароль прокси никогда не приходит из облака — сохраняем текущий,
+                            // объединяя с остальными (безопасными) полями из облака
+                            const curProxy = store.get('globalProxy', {}) || {}
+                            await store.setAsync('globalProxy', { ...curProxy, ...extra.globalProxy })
+                        }
+                        if (extra.sidebarOrder !== undefined) await store.setAsync('sidebarOrder', extra.sidebarOrder)
+                        if (extra.menuCollapsed !== undefined) await store.setAsync('menuCollapsed', extra.menuCollapsed)
+                        if (extra.appZoomLevel !== undefined) await store.setAsync('appZoomLevel', extra.appZoomLevel)
+                        if (extra.vpnAppModes !== undefined) await store.setAsync('vpnAppModes', extra.vpnAppModes)
+                        if (extra.extensionsState !== undefined) await store.setAsync('extensionsState', extra.extensionsState)
                     }
                 }
                 const muted = {}
@@ -1161,11 +1187,15 @@ function switchTab(id) {
         findBar,
         findInput,
         findCount,
+        findAllBtn,
+        findAllResults,
         tGet,
         switchTab,
         isMessengerMuted,
         updateMuteAllBtn: () => updateMuteAllBtn()
     })
+
+    const onboardingTourApi = createOnboardingTourApi({ store, tGet })
 
     const {
         openFindBar,
@@ -1521,6 +1551,15 @@ function applyTabZoom(level) {
         if (btn) btn.style.display = 'flex'
     }
 
+    // Initial split button state — без этого кнопка остаётся скрытой (display:none
+    // из index.html) после каждого перезапуска, даже если сплит включён в настройках:
+    // onExtensionToggle('split', ...) вызывается только из обработчика change тумблера,
+    // а не при старте приложения.
+    if (initialExtState.split === true) {
+        const btn = document.getElementById('splitBtn')
+        if (btn) btn.style.display = 'flex'
+    }
+
     // ==============================
     // CHANGE ICON UI API
     // ==============================
@@ -1576,13 +1615,31 @@ function applyTabZoom(level) {
                         store.set('settings', merged)
                         // Restore extra settings (PIN, zoom, last active tab)
                         if (extra) {
-                            if (extra.pinEnabled  !== undefined) store.set('pinEnabled', extra.pinEnabled)
-                            if (extra.pinHash     !== undefined) store.set('pinHash', extra.pinHash)
+                            // Блокировка: пишем в 'security' (именно там читает lock.js),
+                            // а не в мёртвые верхнеуровневые ключи pinEnabled/pinHash
+                            if (extra.pinEnabled !== undefined || extra.pinHash !== undefined || extra.lockOnHide !== undefined) {
+                                const sec = store.get('security', {})
+                                store.set('security', {
+                                    ...sec,
+                                    enabled:    extra.pinEnabled  !== undefined ? extra.pinEnabled  : sec.enabled,
+                                    hash:       extra.pinHash     !== undefined ? extra.pinHash     : sec.hash,
+                                    lockOnHide: extra.lockOnHide  !== undefined ? extra.lockOnHide   : sec.lockOnHide
+                                })
+                            }
                             if (extra.lockOnStartup !== undefined) store.set('lockOnStartup', extra.lockOnStartup)
                             if (extra.tabZoomLevel !== undefined) {
                                 const s = store.get('settings', {}) || {}
                                 store.set('settings', { ...s, tabZoomLevel: extra.tabZoomLevel })
                             }
+                            if (extra.globalProxy !== undefined) {
+                                const curProxy = store.get('globalProxy', {}) || {}
+                                store.set('globalProxy', { ...curProxy, ...extra.globalProxy })
+                            }
+                            if (extra.sidebarOrder !== undefined) store.set('sidebarOrder', extra.sidebarOrder)
+                            if (extra.menuCollapsed !== undefined) store.set('menuCollapsed', extra.menuCollapsed)
+                            if (extra.appZoomLevel !== undefined) store.set('appZoomLevel', extra.appZoomLevel)
+                            if (extra.vpnAppModes !== undefined) store.set('vpnAppModes', extra.vpnAppModes)
+                            if (extra.extensionsState !== undefined) store.set('extensionsState', extra.extensionsState)
                         }
                     }
 
@@ -1609,6 +1666,7 @@ function applyTabZoom(level) {
             welcomeScreen.style.display = 'flex'
             tabsContent.style.pointerEvents = 'none'
             updateStatusBar()
+            setTimeout(() => onboardingTourApi.start(), 600)
             return
         }
 
@@ -1660,6 +1718,7 @@ function applyTabZoom(level) {
 
         loadOrder()
         initRootDropZone()
+        webviewTabsApi.loadTabOrder()
 
         state.activeMessengers.forEach(m => {
             state.rawUnreadCounts[m.id] = 0
@@ -1668,6 +1727,13 @@ function applyTabZoom(level) {
         })
 
         updateStatusBar()
+        // Тур — только для новых пользователей (см. ветку выше с пустым
+        // welcomeScreen). Раньше он запускался и здесь, безусловно, при
+        // каждом старте с уже настроенными мессенджерами — из-за этого все
+        // существующие пользователи (у которых settings.onboardingSeen ещё
+        // не было выставлено до этого релиза) видели тур поверх, а если
+        // приложение стартовало заблокированным — тур перекрывал экран PIN
+        // и блокировал вход целиком.
     }
 
     // ==============================
@@ -1676,6 +1742,7 @@ function applyTabZoom(level) {
     downloadsApi.bind()
     bindProxy()
     searchUiApi.bind()
+    onboardingTourApi.bind()
     bindWebviewContextMenuActions()
 
     bindSettingsUi({
@@ -1690,7 +1757,8 @@ function applyTabZoom(level) {
         openPinDisableModal,
         updateLockBtn,
         requirePro,
-        openExtensionsSection
+        openExtensionsSection,
+        replayOnboardingTour: () => onboardingTourApi.start(true)
     })
 
     bindLockUi({

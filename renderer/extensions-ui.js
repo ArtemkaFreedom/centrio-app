@@ -20,18 +20,6 @@ function createExtensionsUiApi({
             descKey: 'extensions.adblock.desc'
         },
         {
-            id: 'translate',
-            icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 8l6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/>
-                <path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>
-            </svg>`,
-            color: '#3b82f6',
-            bg: 'rgba(59,130,246,.13)',
-            border: 'rgba(59,130,246,.28)',
-            titleKey: 'extensions.translate.title',
-            descKey: 'extensions.translate.desc'
-        },
-        {
             id: 'screenshot',
             icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -67,6 +55,55 @@ function createExtensionsUiApi({
             descKey: 'extensions.split.desc'
         }
     ]
+
+    // Реальные расширения из Chrome Web Store — жёстко заданный список
+    // (main/services/extensions.js:CATALOG). В отличие от NATIVE_EXTENSIONS это не
+    // просто built-in фича с тумблером, а внешний бинарник: install -> toggle -> uninstall.
+    //
+    // Пароль-менеджеры (LastPass, Bitwarden, RoboForm) сюда сознательно не включены —
+    // их background service worker падает на chrome.windows/chrome.webNavigation,
+    // которые Electron не реализует полностью (см. main/services/extensions.js).
+    const REAL_EXTENSIONS = [
+        {
+            key: 'translate-ext',
+            icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M2 12h20"/>
+                <path d="M12 2a15.3 15.3 0 0 1 0 20"/>
+                <path d="M12 2a15.3 15.3 0 0 0 0 20"/>
+            </svg>`,
+            color: '#0f9d58',
+            bg: 'rgba(15,157,88,.13)',
+            border: 'rgba(15,157,88,.28)',
+            titleKey: 'extensions.translateExt.title',
+            descKey: 'extensions.translateExt.desc'
+        },
+        {
+            key: 'languagetool-ext',
+            icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/>
+                <path d="M9 16.5l2.2-6.5 2.2 6.5"/>
+                <path d="M9.7 14.5h3"/>
+            </svg>`,
+            color: '#1a73e8',
+            bg: 'rgba(26,115,232,.13)',
+            border: 'rgba(26,115,232,.28)',
+            titleKey: 'extensions.languageToolExt.title',
+            descKey: 'extensions.languageToolExt.desc'
+        }
+    ]
+
+    // key -> true, пока install/uninstall в процессе (защита от двойного клика)
+    const realExtBusy = {}
+    // key -> текст последней ошибки install/toggle, показывается инлайн в карточке
+    const realExtErrors = {}
+
+    function escapeHtml(str) {
+        return String(str ?? '').replace(/[&<>"']/g, (ch) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[ch]))
+    }
 
     function isPro() {
         // requirePro returns true if PRO, false if not
@@ -155,12 +192,161 @@ function createExtensionsUiApi({
         })
     }
 
+    // Реальные Chrome-расширения (сейчас: Google Переводчик) — install/toggle/uninstall,
+    // в отличие от NATIVE_EXTENSIONS не просто built-in фича с тумблером.
+    async function renderRealExtensionsCatalog() {
+        const container = document.getElementById('extensionsRealCatalog')
+        if (!container) return
+
+        let catalog
+        try {
+            const res = await window.electronAPI?.extList?.()
+            catalog = (res && res.success && Array.isArray(res.catalog)) ? res.catalog : []
+        } catch {
+            catalog = []
+        }
+
+        const byKey = {}
+        catalog.forEach((c) => { if (c && c.key) byKey[c.key] = c })
+
+        container.innerHTML = ''
+        const state = getExtensionState()
+
+        REAL_EXTENSIONS.forEach(ext => {
+            const info = byKey[ext.key] || { installed: false }
+            const isInstalled = !!info.installed
+            const isEnabled = isInstalled && state[ext.key] === true
+            const isBusy = !!realExtBusy[ext.key]
+            const errorText = realExtErrors[ext.key]
+
+            const card = document.createElement('div')
+            card.className = `ext-card${isInstalled ? ' ext-installed' : ''}`
+
+            const actionsHtml = isInstalled
+                ? `
+                    <button class="ext-uninstall-btn" data-action="uninstall" title="${escapeHtml(tGet('extensions.uninstallBtn'))}" ${isBusy ? 'disabled' : ''}>✕</button>
+                    <label class="ext-toggle">
+                        <input type="checkbox" class="ext-toggle-check" data-action="toggle" ${isEnabled ? 'checked' : ''} ${isBusy ? 'disabled' : ''}>
+                        <span class="ext-toggle-slider"></span>
+                    </label>
+                `
+                : `
+                    <button class="ext-install-btn${isBusy ? ' loading' : ''}" data-action="install" ${isBusy ? 'disabled' : ''}>
+                        ${escapeHtml(isBusy ? tGet('extensions.installing') : tGet('extensions.install'))}
+                    </button>
+                `
+
+            card.innerHTML = `
+                <div class="ext-card-icon" style="background:${ext.bg};border-color:${ext.border};color:${ext.color}">
+                    ${ext.icon}
+                </div>
+                <div class="ext-card-info">
+                    <div class="ext-card-name">${escapeHtml(tGet(ext.titleKey))}</div>
+                    <div class="ext-card-desc">${escapeHtml(tGet(ext.descKey))}</div>
+                    <span class="ext-card-cat">${escapeHtml(tGet('extensions.realBadge'))}</span>
+                    ${errorText ? `<div class="ext-card-desc" style="color:#f44;margin-top:4px;">${escapeHtml(errorText)}</div>` : ''}
+                </div>
+                <div class="ext-card-actions">
+                    ${actionsHtml}
+                </div>
+            `
+
+            const installBtn = card.querySelector('[data-action="install"]')
+            if (installBtn) {
+                installBtn.addEventListener('click', async () => {
+                    if (realExtBusy[ext.key]) return
+                    realExtBusy[ext.key] = true
+                    delete realExtErrors[ext.key]
+                    renderRealExtensionsCatalog()
+
+                    try {
+                        const result = await window.electronAPI.extInstall(ext.key)
+                        if (!result || !result.success) {
+                            realExtErrors[ext.key] = `${tGet('extensions.installFailed')}: ${result?.error || '?'}`
+                        }
+                    } catch (err) {
+                        realExtErrors[ext.key] = `${tGet('extensions.installFailed')}: ${err?.message || err}`
+                    } finally {
+                        realExtBusy[ext.key] = false
+                        renderRealExtensionsCatalog()
+                    }
+                })
+            }
+
+            const uninstallBtn = card.querySelector('[data-action="uninstall"]')
+            if (uninstallBtn) {
+                uninstallBtn.addEventListener('click', async () => {
+                    if (realExtBusy[ext.key]) return
+                    realExtBusy[ext.key] = true
+                    delete realExtErrors[ext.key]
+                    renderRealExtensionsCatalog()
+
+                    try {
+                        // Выключаем везде ДО физического удаления файлов, чтобы ни одна
+                        // сессия не осталась ссылаться на путь, который вот-вот исчезнет.
+                        const newState = getExtensionState()
+                        if (newState[ext.key]) {
+                            newState[ext.key] = false
+                            store.set('extensionsState', newState)
+                            await window.electronAPI.extToggle(ext.key, false)
+                        }
+                        await window.electronAPI.extUninstall(ext.key)
+                    } catch (err) {
+                        realExtErrors[ext.key] = `${err?.message || err}`
+                    } finally {
+                        realExtBusy[ext.key] = false
+                        renderRealExtensionsCatalog()
+                    }
+                })
+            }
+
+            const toggleInput = card.querySelector('[data-action="toggle"]')
+            if (toggleInput) {
+                toggleInput.addEventListener('change', async (e) => {
+                    const checked = e.target.checked
+                    e.target.disabled = true
+
+                    const newState = getExtensionState()
+                    newState[ext.key] = checked
+                    store.set('extensionsState', newState)
+
+                    try {
+                        const result = await window.electronAPI.extToggle(ext.key, checked)
+                        if (!result || !result.success) {
+                            // Откатываем UI, если main реально не смог включить/выключить —
+                            // иначе тумблер будет врать о фактическом состоянии сессий.
+                            e.target.checked = !checked
+                            newState[ext.key] = !checked
+                            store.set('extensionsState', newState)
+                            realExtErrors[ext.key] = result?.error || ''
+                            renderRealExtensionsCatalog()
+                            return
+                        }
+                    } catch (err) {
+                        e.target.checked = !checked
+                        newState[ext.key] = !checked
+                        store.set('extensionsState', newState)
+                        realExtErrors[ext.key] = err?.message || String(err)
+                        renderRealExtensionsCatalog()
+                        return
+                    } finally {
+                        e.target.disabled = false
+                    }
+                })
+            }
+
+            container.appendChild(card)
+        })
+    }
+
     function openExtensionsSection() {
         renderExtensionsCatalog()
+        renderRealExtensionsCatalog()
     }
 
     return {
         renderExtensionsCatalog,
+        renderRealExtensionsCatalog,
         openExtensionsSection
     }
 }

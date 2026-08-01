@@ -6,7 +6,7 @@ import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { GlassPricingSection, type PricingCardProps } from '@/components/ui/animated-glassy-pricing'
 
-const VERSION = '1.8.0'
+const VERSION = '1.8.4'
 const WIN_DOWNLOAD = `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`
 
 /* ─── SVG icons ──────────────────────────────────────────────────────────── */

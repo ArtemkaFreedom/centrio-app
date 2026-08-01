@@ -22,8 +22,9 @@ function createStatusBarApi({ store, state, tGet, getCurrentLocale }) {
             document.getElementById('statusUnread')?.classList.toggle('status-accent', totalUnread > 0)
         }
 
+        const offlineNet = (typeof navigator !== 'undefined' && navigator.onLine === false)
+
         if (statusActiveText) {
-            const offlineNet = (typeof navigator !== 'undefined' && navigator.onLine === false)
             const statusActive = document.getElementById('statusActive')
             const statusDot = statusActive?.querySelector('.status-dot')
             if (offlineNet) {
@@ -37,6 +38,13 @@ function createStatusBarApi({ store, state, tGet, getCurrentLocale }) {
                 statusDot?.classList.remove('status-no-internet')
                 statusDot?.classList.add('status-online')
             }
+        }
+
+        const offlineOverlay = document.getElementById('offlineOverlay')
+        if (offlineOverlay) {
+            const textEl = offlineOverlay.querySelector('.offline-overlay-text')
+            if (textEl) textEl.textContent = tGet('status.offlineBannerText')
+            offlineOverlay.style.display = offlineNet ? 'flex' : 'none'
         }
 
         if (statusTime) {

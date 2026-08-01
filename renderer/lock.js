@@ -336,7 +336,12 @@ function createLockApi({
         `
 
         document.getElementById('confirmResetBtn')?.addEventListener('click', () => {
-            store.clear()
+            // Сбрасываем ТОЛЬКО PIN/security, а не весь store (мессенджеры, папки, настройки).
+            // Ранее здесь был store.clear() — метода clear() у renderer-шима store вообще нет
+            // (есть только get/set/delete), поэтому кнопка реально бросала исключение и не
+            // работала. store.delete('security') использует существующий IPC-канал store:delete
+            // (main.js, allowlist ALLOWED_STORE_ROOTS уже включает 'security').
+            store.delete('security')
             ipcRenderer.send('quit-app', true)
         })
 

@@ -23,6 +23,14 @@ function bindWindowUi({
         if (sec.enabled && sec.lockOnHide) showLockScreen()
     })
 
+    // Отправляется из main/ipc/window.js: при сворачивании/скрытии в трей (lockOnHide,
+    // дублирует проверку 'app-hidden' выше на случай другого пути скрытия окна) и при
+    // срабатывании автоблокировки по бездействию (powerMonitor.getSystemIdleTime()).
+    ipcRenderer.on('show-lock-screen', () => {
+        const sec = store.get('security', {})
+        if (sec.enabled && sec.hash) showLockScreen()
+    })
+
     ipcRenderer.on('switch-messenger-index', (index) => {
         if (state.activeMessengers[index]) switchTab(state.activeMessengers[index].id)
     })

@@ -19,6 +19,11 @@
 </head>
 <body>
 
+<div id="offlineOverlay" class="offline-overlay" style="display:none;" role="status" aria-live="polite">
+    <span class="offline-overlay-dot"></span>
+    <span class="offline-overlay-text" data-i18n="status.offlineBannerText"></span>
+</div>
+
 <div id="startupSplash" class="startup-splash">
     <div class="startup-splash-bg"></div>
     <div class="startup-splash-noise"></div>
@@ -354,6 +359,13 @@
                 </svg>
                 <span id="appNotifBadge" class="sidebar-notif-badge" style="display:none;"></span>
             </button>
+            <!-- Быстрый доступ к списку горячих клавиш (открывает Настройки → Горячие клавиши) -->
+            <button id="hotkeysBtn" class="activity-btn" data-i18n-title="shortcuts.btnTitle">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
             <button id="settingsBtn" class="activity-btn" data-i18n-title="settings.title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" stroke-width="1.8"/>
@@ -545,6 +557,23 @@
     </div>
 </div>
 
+<!-- Ознакомительный тур для новых пользователей (спотлайт по ключевым кнопкам) -->
+<div id="onboardingTour" class="onboarding-tour" style="display:none;">
+    <div class="onboarding-backdrop" id="onboardingBackdrop"></div>
+    <div class="onboarding-spotlight" id="onboardingSpotlight"></div>
+    <div class="onboarding-card" id="onboardingCard">
+        <div class="onboarding-card-title" id="onboardingTitle"></div>
+        <div class="onboarding-card-desc" id="onboardingDesc"></div>
+        <div class="onboarding-card-footer">
+            <div class="onboarding-dots" id="onboardingDots"></div>
+            <div class="onboarding-card-btns">
+                <button class="onboarding-skip-btn" id="onboardingSkipBtn" data-i18n="onboarding.skip"></button>
+                <button class="onboarding-next-btn" id="onboardingNextBtn" data-i18n="onboarding.next"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Попап с календарём -->
 <div id="calendarPopup" class="calendar-popup" style="display:none;">
     <div class="cal-header">
@@ -569,6 +598,47 @@
         <button class="changelog-popup-close" id="changelogPopupClose">✕</button>
     </div>
     <div class="changelog-popup-body">
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.8.4</div>
+            <ul class="changelog-list">
+                <li>LanguageTool: исправлена ошибка «Cannot check text — confirm privacy policy first» — окно согласия на проверку текста теперь появляется стабильно, а не изредка</li>
+                <li>Уточнение: язык проверки (например, русский) выбирается через встроенную панель LanguageTool — открывается кликом по круглому значку-счётчику ошибок рядом с полем ввода</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.8.3</div>
+            <ul class="changelog-list">
+                <li>Плашка обновления полностью переработана — стала крупнее и заметнее, с акцентным свечением и пульсацией, когда доступно обновление или оно готово к установке</li>
+                <li>Из плашки обновления убран список изменений — полная история версий по-прежнему доступна в этом окне «История изменений»</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.8.2</div>
+            <ul class="changelog-list">
+                <li>Исправлен критический баг: ознакомительный тур мог перекрывать экран блокировки (PIN) и мешать входу в приложение</li>
+                <li>Тур больше не показывается пользователям, у которых уже настроены мессенджеры</li>
+                <li>Плашка обновления показывает актуальный список изменений, а не устаревший</li>
+                <li>Проверка обновлений теперь происходит чаще — каждые несколько часов, а не раз в 12 часов</li>
+                <li>Из установщика убраны лишние компоненты, не используемые приложением — обновление скачивается быстрее</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.8.1</div>
+            <ul class="changelog-list">
+                <li>Новая кнопка на тулбаре — быстрый переход к списку горячих клавиш</li>
+                <li>В список горячих клавиш добавлены недостающие пункты: закрытие поиска по Esc, масштаб приложения и чата</li>
+                <li>Поиск теперь можно запустить сразу по всем открытым мессенджерам, а не только по активной вкладке</li>
+                <li>Добавлен ознакомительный тур для новых пользователей по ключевым кнопкам тулбара — доступен повторно из Настройки → Система</li>
+                <li>Исправлена плохо читаемая дата окончания Pro-подписки в светлой теме</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.8.0</div>
+            <ul class="changelog-list">
+                <li>Google Переводчик: если исходный и целевой язык совпадают, теперь показывается понятная подсказка вместо молчаливого бездействия расширения</li>
+                <li>Подсказка появляется по клику на иконку перевода — как и обычный перевод, а не сразу при выделении текста</li>
+            </ul>
+        </div>
         <div class="changelog-entry">
             <div class="changelog-version">v1.7.0</div>
             <ul class="changelog-list">
@@ -926,12 +996,22 @@
                 <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
         </button>
+        <!-- Поиск по всем открытым вкладкам сразу (не только активная) -->
+        <button id="findAllBtn" class="find-btn" data-i18n-title="search.findAllTitle">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="4" width="7" height="6" rx="1.2" stroke="currentColor" stroke-width="1.8"/>
+                <rect x="14" y="4" width="7" height="6" rx="1.2" stroke="currentColor" stroke-width="1.8"/>
+                <rect x="3" y="14" width="7" height="6" rx="1.2" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M17 15.5l3 3M15.5 17a3 3 0 1 0 4.24 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+        </button>
         <button id="findClose" class="find-btn find-close">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
         </button>
     </div>
+    <div id="findAllResults" class="find-all-results" style="display:none;"></div>
 </div>
 
 <!-- Контекстное меню мессенджера -->
@@ -1620,6 +1700,12 @@
                                     <span class="shortcut-key">F</span>
                                 </div>
                             </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.escClose"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Esc</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="settings-group">
@@ -1639,6 +1725,55 @@
                                     <span class="shortcut-key">Ctrl</span>
                                     <span class="shortcut-sep">+</span>
                                     <span class="shortcut-key">R</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="shortcuts.zoomTitle"></div>
+                        <div class="shortcut-list">
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.appZoomIn"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">Shift</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">+</span>
+                                </div>
+                            </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.appZoomOut"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">Shift</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">−</span>
+                                </div>
+                            </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.appZoomReset"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">0</span>
+                                </div>
+                            </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.contentZoomIn"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">+</span>
+                                </div>
+                            </div>
+                            <div class="shortcut-row">
+                                <span class="shortcut-label" data-i18n="shortcuts.contentZoomOut"></span>
+                                <div class="shortcut-keys">
+                                    <span class="shortcut-key">Ctrl</span>
+                                    <span class="shortcut-sep">+</span>
+                                    <span class="shortcut-key">−</span>
                                 </div>
                             </div>
                         </div>
@@ -1701,6 +1836,19 @@
                                     <input type="checkbox" id="settingLockOnHide">
                                     <span class="toggle-slider"></span>
                                 </label>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-label">
+                                    <span data-i18n="settings.lockOnIdle"></span>
+                                    <span class="settings-hint" data-i18n="settings.lockOnIdleHint"></span>
+                                </div>
+                                <select id="settingLockOnIdle" class="vsc-select">
+                                    <option value="0" data-i18n="settings.lockOnIdleOff"></option>
+                                    <option value="1" data-i18n="settings.lockOnIdleMin1"></option>
+                                    <option value="5" data-i18n="settings.lockOnIdleMin5"></option>
+                                    <option value="15" data-i18n="settings.lockOnIdleMin15"></option>
+                                    <option value="30" data-i18n="settings.lockOnIdleMin30"></option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -1830,6 +1978,11 @@
                         <div class="settings-hint" style="margin-bottom:16px" data-i18n="settings.extensionsHint"></div>
                         <div id="extensionsCatalog" class="ext-catalog"></div>
                     </div>
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="settings.extensionsRealTitle"></div>
+                        <div class="settings-hint" style="margin-bottom:16px" data-i18n="settings.extensionsRealHint"></div>
+                        <div id="extensionsRealCatalog" class="ext-catalog"></div>
+                    </div>
                 </div>
 
                 <!-- Система -->
@@ -1863,6 +2016,17 @@
                                 </div>
                             </div>
 
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title" data-i18n="onboarding.settingsTitle"></div>
+                        <div class="settings-row">
+                            <div class="settings-label">
+                                <span data-i18n="onboarding.replayLabel"></span>
+                                <span class="settings-hint" data-i18n="onboarding.replayHint"></span>
+                            </div>
+                            <button class="about-check-btn" id="replayOnboardingBtn" data-i18n="onboarding.replayBtn"></button>
                         </div>
                     </div>
 

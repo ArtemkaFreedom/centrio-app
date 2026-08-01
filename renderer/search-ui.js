@@ -6,6 +6,8 @@ function createSearchUiApi({
     findBar,
     findInput,
     findCount,
+    findAllBtn,
+    findAllResults,
     tGet,
     switchTab,
     isMessengerMuted,
@@ -15,12 +17,20 @@ function createSearchUiApi({
         findBar.classList.add('show')
         findInput.value = ''
         findCount.textContent = ''
+        if (findAllResults) {
+            findAllResults.style.display = 'none'
+            findAllResults.innerHTML = ''
+        }
         setTimeout(() => findInput.focus(), 50)
     }
 
     function closeFindBar() {
         findBar.classList.remove('show')
         stopFind()
+        if (findAllResults) {
+            findAllResults.style.display = 'none'
+            findAllResults.innerHTML = ''
+        }
     }
 
     function doFind(forward = true) {
@@ -35,6 +45,97 @@ function createSearchUiApi({
         const webview = document.getElementById(`webview-${state.activeTabId}`)
         if (webview) webview.stopFindInPage('clearSelection')
         findCount.textContent = ''
+    }
+
+    // ── Поиск по странице сразу во ВСЕХ открытых вкладках, а не только в активной ──
+    // Ctrl+F ищет только в текущем webview (findInPage работает исключительно с фокусной
+    // страницей внутри одного <webview>). Кнопка findAllBtn прогоняет тот же запрос по
+    // каждому мессенджеру из state.activeMessengers параллельно и показывает список
+    // совпадений — клик по пункту переключает вкладку и повторяет поиск уже там, чтобы
+    // подсветка реально появилась на экране.
+    function searchOneTab(messenger, query) {
+        return new Promise((resolve) => {
+            const webview = document.getElementById(`webview-${messenger.id}`)
+            if (!webview || typeof webview.findInPage !== 'function') {
+                resolve({ messenger, matches: 0 })
+                return
+            }
+
+            let settled = false
+            const finish = (matches) => {
+                if (settled) return
+                settled = true
+                webview.removeEventListener('found-in-page', onFound)
+                try { webview.stopFindInPage('clearSelection') } catch {}
+                resolve({ messenger, matches })
+            }
+
+            const onFound = (e) => finish(e.result?.matches || 0)
+            webview.addEventListener('found-in-page', onFound)
+
+            try {
+                webview.findInPage(query)
+            } catch {
+                finish(0)
+                return
+            }
+
+            // Мессенджер мог ещё не догрузиться / findInPage может никогда не ответить —
+            // не даём одному зависшему webview блокировать остальные результаты.
+            setTimeout(() => finish(0), 3000)
+        })
+    }
+
+    async function searchAllTabs(query) {
+        if (!findAllResults) return
+        const messengers = state.activeMessengers || []
+
+        if (!query || !messengers.length) {
+            findAllResults.style.display = 'none'
+            findAllResults.innerHTML = ''
+            return
+        }
+
+        findAllResults.style.display = 'block'
+        findAllResults.innerHTML = `<div class="find-all-searching">${tGet('search.findAllSearching')}</div>`
+
+        const results = await Promise.all(messengers.map(m => searchOneTab(m, query)))
+        renderAllTabsResults(results.filter(r => r.matches > 0), query)
+    }
+
+    function renderAllTabsResults(results, query) {
+        if (!findAllResults) return
+
+        // Запрос мог измениться/поле очиститься, пока шёл асинхронный поиск — не рисуем
+        // устаревший результат поверх уже другого состояния поля ввода.
+        if (findInput.value !== query) return
+
+        findAllResults.innerHTML = ''
+
+        if (!results.length) {
+            findAllResults.innerHTML = `<div class="find-all-empty">${tGet('search.findAllEmpty')}</div>`
+            return
+        }
+
+        results
+            .sort((a, b) => b.matches - a.matches)
+            .forEach((r) => {
+                const item = document.createElement('div')
+                item.className = 'find-all-result-item'
+                item.innerHTML = `
+                    <span class="find-all-result-name"></span>
+                    <span class="find-all-result-count">${r.matches}</span>
+                `
+                item.querySelector('.find-all-result-name').textContent = r.messenger.name
+                item.addEventListener('click', () => {
+                    switchTab(r.messenger.id)
+                    setTimeout(() => {
+                        const webview = document.getElementById(`webview-${r.messenger.id}`)
+                        webview?.findInPage(query)
+                    }, 80)
+                })
+                findAllResults.appendChild(item)
+            })
     }
 
     function openQuickSearch() {
@@ -151,6 +252,10 @@ function createSearchUiApi({
         document.getElementById('findPrev').addEventListener('click', () => doFind(false))
         document.getElementById('findClose').addEventListener('click', () => closeFindBar())
 
+        if (findAllBtn) {
+            findAllBtn.addEventListener('click', () => searchAllTabs(findInput.value.trim()))
+        }
+
         quickSearchInput.addEventListener('input', (e) => renderQuickSearchResults(e.target.value))
         quickSearchInput.addEventListener('keydown', (e) => {
             const items = quickSearchResults.querySelectorAll('.quick-search-item')
@@ -189,6 +294,7 @@ function createSearchUiApi({
         closeFindBar,
         doFind,
         stopFind,
+        searchAllTabs,
         openQuickSearch,
         closeQuickSearch,
         renderQuickSearchResults,

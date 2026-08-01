@@ -70,6 +70,8 @@ module.exports = {
         },
         extensionsTitle:  '内置工具',
         extensionsHint:   'Centrio 内置的原生工具，无需安装。',
+        extensionsRealTitle: 'Chrome 网上应用店扩展程序',
+        extensionsRealHint:  '官方扩展程序。首次启用时会直接从 Chrome 网上应用店下载，且仅在所选即时通讯工具的会话中运行。',
         extAdblockName:   'AdBlock',
         extAdblockDesc:   '拦截所有服务中的广告和追踪器',
         extTranslateName: '翻译',
@@ -135,6 +137,13 @@ module.exports = {
         passwordMismatch: 'PIN 不一致',
         lockOnHide:       '最小化时锁定',
         lockOnHideHint:   '从托盘打开时需要 PIN',
+        lockOnIdle:       '闲置后自动锁定',
+        lockOnIdleHint:   '应用闲置时需要 PIN',
+        lockOnIdleOff:    '关闭',
+        lockOnIdleMin1:   '1 分钟后',
+        lockOnIdleMin5:   '5 分钟后',
+        lockOnIdleMin15:  '15 分钟后',
+        lockOnIdleMin30:  '30 分钟后',
         showNames:        '显示标签',
         showNamesHint:    '图标下方的标签',
         density:          '界面密度',
@@ -237,6 +246,7 @@ module.exports = {
         online:         '在线',
         offline:        '不活跃',
         noInternet:     '离线',
+        offlineBannerText: '没有网络连接 — 部分聊天软件可能无法更新',
     },
 
     search: {
@@ -246,6 +256,9 @@ module.exports = {
         findPlaceholder: '在页面中搜索...',
         findInPage:      '在页面中搜索',
         notFound:        '未找到',
+        findAllTitle:    '搜索所有已打开的标签页',
+        findAllSearching: '正在搜索所有标签页...',
+        findAllEmpty:    '其他标签页中没有匹配项',
     },
 
     welcome: {
@@ -270,6 +283,7 @@ module.exports = {
     },
 
     shortcuts: {
+        btnTitle:        '快捷键',
         navigationTitle: '导航',
         next:            '下一个应用',
         prev:            '上一个应用',
@@ -277,9 +291,36 @@ module.exports = {
         searchTitle:     '搜索',
         quickSearch:     '快速搜索应用',
         findInPage:      '在页面中搜索',
+        escClose:        '关闭搜索',
         windowTitle:     '窗口',
         hideShow:        '隐藏 / 显示窗口',
         reload:          '刷新应用',
+        zoomTitle:       '缩放',
+        appZoomIn:       '放大（应用）',
+        appZoomOut:      '缩小（应用）',
+        appZoomReset:    '重置应用缩放',
+        contentZoomIn:   '放大（聊天）',
+        contentZoomOut:  '缩小（聊天）',
+    },
+
+    onboarding: {
+        step1Title:    '添加通讯软件',
+        step1Desc:     '点击此处添加新的通讯软件。',
+        step2Title:    '键盘快捷键',
+        step2Desc:     '随时打开完整的键盘快捷键列表。',
+        step3Title:    '设置',
+        step3Desc:     '在此配置外观、安全性和其他选项。',
+        step4Title:    'VPN',
+        step4Desc:     '如果某个通讯软件在您所在地区被屏蔽，请启用 VPN。',
+        step5Title:    '版本',
+        step5Desc:     '在此查看应用版本和更新日志。',
+        skip:          '跳过',
+        next:          '下一步',
+        done:          '完成',
+        settingsTitle: '新手引导',
+        replayLabel:   '再次显示引导',
+        replayHint:    '重新播放主工具栏按钮的新手引导',
+        replayBtn:     '显示引导',
     },
 
     errors: {
@@ -476,7 +517,14 @@ module.exports = {
         grammarly:  { title: 'Grammarly', desc: '文字语法和风格检查' },
         screenshot: { title: '截图',        desc: '右键截取当前页面' },
         darkmode:   { title: '深色模式',    desc: '右键为任意服务启用深色主题' },
-        split:      { title: '分屏模式',    desc: '在同一窗口中并排打开两个服务' }
+        split:      { title: '分屏模式',    desc: '在同一窗口中并排打开两个服务' },
+        translateExt: { title: '谷歌翻译',  desc: '谷歌官方翻译扩展，用于翻译网页和文字' },
+        languageToolExt: { title: 'LanguageTool', desc: '在聊天中直接检查语法和拼写' },
+        install: '安装',
+        installing: '正在安装…',
+        installFailed: '安装失败',
+        uninstallBtn: '删除',
+        realBadge: '来自 Chrome 网上应用店'
     },
 
     webview: {

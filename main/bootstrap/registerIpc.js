@@ -11,6 +11,7 @@ const registerSoundIpc = require('../ipc/sound')
 const registerVpnIpc = require('../ipc/vpn')
 const registerScreenshotIpc = require('../ipc/screenshot')
 const { registerSettingsPortabilityIpc } = require('../ipc/settingsPortability')
+const registerExtensionsIpc = require('../ipc/extensions')
 
 function registerIpc({ getMainWindow, showMainWindow, updateTrayMenu, isQuittingRef }) {
     registerWindowIpc({ getMainWindow, isQuittingRef })
@@ -26,6 +27,7 @@ function registerIpc({ getMainWindow, showMainWindow, updateTrayMenu, isQuitting
     registerVpnIpc({ getMainWindow })
     registerScreenshotIpc({ getMainWindow })
     registerSettingsPortabilityIpc({ getMainWindow })
+    registerExtensionsIpc()
 }
 
 module.exports = registerIpc

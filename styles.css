@@ -3282,6 +3282,182 @@ body:has(.modal.show) .split-handle { display: none !important; }
     color: var(--text-bright);
 }
 
+/* Результаты «поиска по всем вкладкам» — выпадающий список под find-bar */
+.find-all-results {
+    max-height: 280px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border-light);
+    padding: 4px;
+}
+
+.find-all-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: background 0.12s, color 0.12s;
+}
+
+.find-all-result-item:hover {
+    background: var(--bg-active);
+    color: var(--text-bright);
+}
+
+.find-all-result-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.find-all-result-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border-radius: 999px;
+    padding: 1px 7px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.find-all-empty {
+    padding: 10px 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.find-all-searching {
+    padding: 10px 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* ===== ОЗНАКОМИТЕЛЬНЫЙ ТУР ===== */
+.onboarding-tour {
+    position: fixed;
+    inset: 0;
+    z-index: 99997;
+    /* Тур может визуально оказаться поверх lock-screen, у которого вся
+       площадь — drag-зона окна (-webkit-app-region: drag). Без явного
+       no-drag клики по кнопкам тура (Пропустить/Далее) воспринимаются
+       Electron как попытку перетащить окно, а не как обычный клик —
+       кнопки визуально есть, но не реагируют на нажатие. */
+    -webkit-app-region: no-drag;
+}
+
+.onboarding-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+/* Прямоугольник-«вырез» над подсвечиваемым элементом. Позиция/размер выставляются
+   инлайн из JS (renderer/onboarding-tour.js) на основе getBoundingClientRect() цели —
+   сам вырез создаётся огромной box-shadow вокруг маленького прозрачного прямоугольника. */
+.onboarding-spotlight {
+    position: absolute;
+    border-radius: 10px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+    background: transparent;
+    border: 2px solid var(--accent);
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+    pointer-events: none;
+}
+
+.onboarding-card {
+    position: absolute;
+    width: 300px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+    padding: 16px;
+    transition: top 0.25s ease, left 0.25s ease;
+}
+
+.onboarding-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+}
+
+.onboarding-card-desc {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    margin-bottom: 14px;
+}
+
+.onboarding-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.onboarding-dots {
+    display: flex;
+    gap: 5px;
+}
+
+.onboarding-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.15s, transform 0.15s;
+}
+
+.onboarding-dot.active {
+    background: var(--accent);
+    transform: scale(1.3);
+}
+
+.onboarding-card-btns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.onboarding-skip-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s, background 0.15s;
+}
+
+.onboarding-skip-btn:hover {
+    color: var(--text-bright);
+    background: var(--bg-active);
+}
+
+.onboarding-next-btn {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    transition: filter 0.15s;
+}
+
+.onboarding-next-btn:hover {
+    filter: brightness(1.1);
+}
+
 /* ===== ГОРЯЧИЕ КЛАВИШИ ===== */
 .shortcut-list {
     display: flex;
@@ -6403,7 +6579,7 @@ button:active {
     white-space: nowrap;
 }
 .cp-pro-expiry span { color: var(--text-muted, rgba(255,255,255,0.45)); }
-.cp-pro-expiry span + span { color: rgba(255,255,255,0.65); font-weight: 600; }
+.cp-pro-expiry span + span { color: var(--text-primary); font-weight: 600; }
 .cp-extend-btn {
     padding: 5px 14px;
     font-size: 12px;
@@ -8185,85 +8361,116 @@ body.startup-locked #lockScreen {
 
 /* Rich update card */
 .update-card {
-    width: 360px;
+    width: 380px;
     position: relative;
     display: flex;
     flex-direction: column;
     background: var(--bg-secondary, #1a1b2e);
     border: 1px solid var(--border, rgba(255,255,255,0.08));
-    border-radius: 16px;
+    border-radius: 18px;
     box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03);
     overflow: hidden;
     pointer-events: auto;
     opacity: 0;
-    transform: translateX(110%) scale(0.96);
-    transition: opacity 0.32s cubic-bezier(0.34,1.56,0.64,1),
-                transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
+    transform: translateX(110%) scale(0.9);
+    transition: opacity 0.36s cubic-bezier(0.34,1.56,0.64,1),
+                transform 0.36s cubic-bezier(0.34,1.56,0.64,1),
+                box-shadow 0.3s ease;
 }
 .update-card.show {
     opacity: 1;
     transform: translateX(0) scale(1);
 }
-/* Accent gradient stripe at top */
+/* Заметное акцентное свечение по типу карточки — вместо нейтральной
+   чёрной тени, чтобы плашку было видно боковым зрением сразу. */
+.update-card--info.show  { box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(79,140,255,0.12), 0 8px 40px rgba(79,140,255,0.28); }
+.update-card--success.show { box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(34,197,94,0.14), 0 8px 40px rgba(34,197,94,0.3); }
+.update-card--error.show   { box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(239,68,68,0.14), 0 8px 40px rgba(239,68,68,0.3); }
+
+/* Пульсирующее свечение для карточек, требующих реакции пользователя
+   («доступно обновление» / «готово к установке») — несколько ударов
+   пульса после появления, затем затихает, чтобы не раздражать. */
+@keyframes updateCardAttnPulse {
+    0%, 100% { box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03), 0 0 0 0 rgba(79,140,255,0.45); }
+    50%      { box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03), 0 0 26px 6px rgba(79,140,255,0.45); }
+}
+@keyframes updateCardAttnPulseSuccess {
+    0%, 100% { box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03), 0 0 0 0 rgba(34,197,94,0.5); }
+    50%      { box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.03), 0 0 26px 6px rgba(34,197,94,0.5); }
+}
+.update-card--attn.update-card--info.show   { animation: updateCardAttnPulse 1.4s ease-in-out 4; }
+.update-card--attn.update-card--success.show { animation: updateCardAttnPulseSuccess 1.4s ease-in-out 4; }
+
+/* Accent gradient stripe at top — толще и с собственным свечением */
 .update-card-stripe {
-    height: 3px;
+    height: 4px;
     background: linear-gradient(90deg, #4f8cff 0%, #7b68ee 50%, #ec4899 100%);
     background-size: 200% 100%;
     animation: toastShimmer 3s linear infinite;
+    box-shadow: 0 0 12px rgba(123,104,238,0.6);
 }
-.update-card-stripe.success { background: linear-gradient(90deg, #22c55e 0%, #4ade80 50%, #22c55e 100%); }
-.update-card-stripe.error   { background: linear-gradient(90deg, #ef4444 0%, #f97316 50%, #ef4444 100%); }
+.update-card-stripe.success { background: linear-gradient(90deg, #22c55e 0%, #4ade80 50%, #22c55e 100%); box-shadow: 0 0 12px rgba(34,197,94,0.6); }
+.update-card-stripe.error   { background: linear-gradient(90deg, #ef4444 0%, #f97316 50%, #ef4444 100%); box-shadow: 0 0 12px rgba(239,68,68,0.6); }
 
 /* Header */
 .update-card-head {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 16px 16px 12px;
+    gap: 13px;
+    padding: 18px 18px 14px;
 }
 .update-card-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(79,140,255,0.18) 0%, rgba(123,104,238,0.18) 100%);
-    border: 1px solid rgba(123,104,238,0.25);
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    background: linear-gradient(135deg, rgba(79,140,255,0.22) 0%, rgba(123,104,238,0.22) 100%);
+    border: 1px solid rgba(123,104,238,0.3);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: rgba(123,104,238,0.9);
+    color: rgba(123,104,238,0.95);
 }
 .update-card-icon svg {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     display: block;
 }
 .update-card-icon.success {
-    background: linear-gradient(135deg, rgba(34,197,94,0.18) 0%, rgba(74,222,128,0.18) 100%);
-    border-color: rgba(34,197,94,0.25);
-    color: rgba(34,197,94,0.9);
+    background: linear-gradient(135deg, rgba(34,197,94,0.22) 0%, rgba(74,222,128,0.22) 100%);
+    border-color: rgba(34,197,94,0.3);
+    color: rgba(34,197,94,0.95);
 }
 .update-card-icon.error {
-    background: linear-gradient(135deg, rgba(239,68,68,0.18) 0%, rgba(249,115,22,0.18) 100%);
-    border-color: rgba(239,68,68,0.25);
-    color: rgba(239,68,68,0.9);
+    background: linear-gradient(135deg, rgba(239,68,68,0.22) 0%, rgba(249,115,22,0.22) 100%);
+    border-color: rgba(239,68,68,0.3);
+    color: rgba(239,68,68,0.95);
 }
 .update-card-info {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
     min-width: 0;
+    justify-content: center;
 }
 .update-card-title {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 14.5px;
+    font-weight: 800;
     color: var(--text-bright, #fff);
     line-height: 1.3;
+    letter-spacing: 0.005em;
 }
 .update-card-version {
+    display: inline-block;
+    align-self: flex-start;
     font-size: 11px;
-    color: var(--text-secondary, rgba(255,255,255,0.5));
+    font-weight: 600;
+    color: var(--accent, #7b68ee);
+    background: rgba(123,104,238,0.14);
+    border: 1px solid rgba(123,104,238,0.25);
+    padding: 1px 7px;
+    border-radius: 999px;
     font-family: monospace;
     letter-spacing: 0.04em;
 }
@@ -8283,33 +8490,6 @@ body.startup-locked #lockScreen {
     transition: background 0.15s, color 0.15s;
 }
 .update-card-close:hover { background: rgba(255,255,255,0.14); color: #fff; }
-
-/* Changelog section */
-.update-card-changelog {
-    padding: 0 16px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    max-height: 120px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.15) transparent;
-}
-.update-card-change {
-    font-size: 12px;
-    color: var(--text-secondary, rgba(255,255,255,0.6));
-    line-height: 1.5;
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
-}
-.update-card-change::before {
-    content: '›';
-    color: var(--accent, #7b68ee);
-    font-weight: 700;
-    flex-shrink: 0;
-    margin-top: 1px;
-}
 
 /* Divider */
 .update-card-divider {
@@ -8365,22 +8545,23 @@ body.startup-locked #lockScreen {
     border: none;
     outline: none;
     border-radius: 10px;
-    padding: 8px 16px;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 9px 18px;
+    font-size: 12.5px;
+    font-weight: 700;
     cursor: pointer;
     background: linear-gradient(135deg, #4f8cff 0%, #7b68ee 100%);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(79,140,255,0.35);
-    transition: filter 0.18s, transform 0.18s;
+    box-shadow: 0 4px 18px rgba(79,140,255,0.45);
+    transition: filter 0.18s, transform 0.18s, box-shadow 0.18s;
     letter-spacing: 0.01em;
 }
-.update-card-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.update-card-btn:hover { filter: brightness(1.12); transform: translateY(-1px); box-shadow: 0 6px 22px rgba(79,140,255,0.55); }
 .update-card-btn:active { filter: brightness(0.96); transform: none; }
 .update-card-btn.success {
     background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-    box-shadow: 0 4px 14px rgba(34,197,94,0.35);
+    box-shadow: 0 4px 18px rgba(34,197,94,0.45);
 }
+.update-card-btn.success:hover { box-shadow: 0 6px 22px rgba(34,197,94,0.55); }
 
 /* ── Base toast card ─────────────────────────────────────────── */
 .update-toast {
@@ -8937,6 +9118,44 @@ body.startup-locked #lockScreen {
 .status-dot.status-busy    { background: #f0b429; box-shadow: 0 0 6px #f0b429; }
 .status-dot.status-no-internet { background: #e5484d; box-shadow: 0 0 6px #e5484d; }
 #statusActive.status-no-internet-item { color: #e5484d; }
+
+/* ── Оверлей офлайн-режима (баннер сверху, не только точка в статус-баре) ── */
+.offline-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 7px 12px;
+    background: linear-gradient(90deg, #e5484d, #c53a3f);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    box-shadow: 0 2px 10px rgba(229, 72, 77, 0.35);
+    animation: offlineOverlaySlideIn 0.25s ease-out;
+    -webkit-app-region: no-drag;
+}
+.offline-overlay-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+    animation: offlineOverlayPulse 1.4s ease-in-out infinite;
+}
+@keyframes offlineOverlaySlideIn {
+    from { transform: translateY(-100%); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+}
+@keyframes offlineOverlayPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.35; }
+}
 
 /* Бейдж уведомлений на кнопке */
 .sidebar-notif-badge {

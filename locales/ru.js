@@ -71,6 +71,8 @@ module.exports = {
         },
         extensionsTitle: 'Встроенные инструменты',
         extensionsHint: 'Нативные инструменты, встроенные в Centrio. Работают без установки.',
+        extensionsRealTitle: 'Расширения Chrome Web Store',
+        extensionsRealHint: 'Официальные расширения. При первом включении скачиваются напрямую из Chrome Web Store и работают только в сессии выбранного мессенджера.',
         extAdblockName: 'AdBlock',
         extAdblockDesc: 'Блокирует рекламу и трекеры во всех сервисах',
         extTranslateName: 'Переводчик',
@@ -136,6 +138,13 @@ module.exports = {
         passwordMismatch: 'PIN-коды не совпадают',
         lockOnHide: 'Блокировать при сворачивании',
         lockOnHideHint: 'Запрашивать PIN при открытии из трея',
+        lockOnIdle: 'Автоблокировка при бездействии',
+        lockOnIdleHint: 'Запрашивать PIN, если приложение простаивает',
+        lockOnIdleOff: 'Выключено',
+        lockOnIdleMin1: 'Через 1 минуту',
+        lockOnIdleMin5: 'Через 5 минут',
+        lockOnIdleMin15: 'Через 15 минут',
+        lockOnIdleMin30: 'Через 30 минут',
         showNames: 'Показывать названия',
         showNamesHint: 'Подписи под иконками',
         density: 'Плотность интерфейса',
@@ -243,7 +252,8 @@ module.exports = {
         unread: ' {n} непрочитанных',
         online: 'Онлайн',
         offline: 'Не активно',
-        noInternet: 'Не в сети'
+        noInternet: 'Не в сети',
+        offlineBannerText: 'Нет подключения к интернету — некоторые мессенджеры могут не обновляться'
     },
 
     search: {
@@ -253,6 +263,9 @@ module.exports = {
         findPlaceholder: 'Поиск на странице...',
         findInPage: 'Поиск на странице',
         notFound: 'Не найдено',
+        findAllTitle: 'Искать по всем открытым вкладкам',
+        findAllSearching: 'Поиск по всем вкладкам...',
+        findAllEmpty: 'Совпадений в других вкладках нет',
         commandsTitle:   'Команды',
         commandReload:   'Перезагрузить все вкладки',
         commandSettings: 'Открыть настройки',
@@ -282,6 +295,7 @@ module.exports = {
     },
 
     shortcuts: {
+        btnTitle: 'Горячие клавиши',
         navigationTitle: 'Навигация',
         next: 'Следующий мессенджер',
         prev: 'Предыдущий мессенджер',
@@ -289,9 +303,36 @@ module.exports = {
         searchTitle: 'Поиск',
         quickSearch: 'Быстрый поиск мессенджера',
         findInPage: 'Поиск по странице',
+        escClose: 'Закрыть поиск',
         windowTitle: 'Окно',
         hideShow: 'Скрыть / показать окно',
-        reload: 'Перезагрузить мессенджер'
+        reload: 'Перезагрузить мессенджер',
+        zoomTitle: 'Масштаб',
+        appZoomIn: 'Увеличить масштаб (приложение)',
+        appZoomOut: 'Уменьшить масштаб (приложение)',
+        appZoomReset: 'Сбросить масштаб приложения',
+        contentZoomIn: 'Увеличить масштаб (чат)',
+        contentZoomOut: 'Уменьшить масштаб (чат)'
+    },
+
+    onboarding: {
+        step1Title: 'Добавить мессенджер',
+        step1Desc: 'Нажмите здесь, чтобы добавить новый мессенджер в приложение',
+        step2Title: 'Горячие клавиши',
+        step2Desc: 'Открыть полный список горячих клавиш в любой момент',
+        step3Title: 'Настройки',
+        step3Desc: 'Здесь настраивается внешний вид, безопасность и другие параметры',
+        step4Title: 'VPN',
+        step4Desc: 'Включите VPN, если мессенджер заблокирован в вашем регионе',
+        step5Title: 'Версия',
+        step5Desc: 'Здесь можно посмотреть версию приложения и историю изменений',
+        skip: 'Пропустить',
+        next: 'Далее',
+        done: 'Готово',
+        settingsTitle: 'Ознакомительный тур',
+        replayLabel: 'Показать тур снова',
+        replayHint: 'Повторно запустить ознакомительный тур по ключевым кнопкам тулбара',
+        replayBtn: 'Показать тур'
     },
 
     errors: {
@@ -502,7 +543,14 @@ module.exports = {
         grammarly:  { title: 'Grammarly',    desc: 'Проверка грамматики и стиля текста' },
         screenshot: { title: 'Скриншот',     desc: 'Правый клик — снимок текущей страницы' },
         darkmode:   { title: 'Тёмная тема',  desc: 'Правый клик — тёмная тема для любого сервиса' },
-        split:      { title: 'Сплит-экран',  desc: 'Открывайте два сервиса рядом в одном окне' }
+        split:      { title: 'Сплит-экран',  desc: 'Открывайте два сервиса рядом в одном окне' },
+        translateExt: { title: 'Google Переводчик', desc: 'Официальное расширение Google для перевода страниц и текста' },
+        languageToolExt: { title: 'LanguageTool', desc: 'Проверка грамматики и орфографии прямо в мессенджерах' },
+        install: 'Установить',
+        installing: 'Устанавливается…',
+        installFailed: 'Не удалось установить',
+        uninstallBtn: 'Удалить расширение',
+        realBadge: 'Из Chrome Web Store'
     },
 
     webview: {

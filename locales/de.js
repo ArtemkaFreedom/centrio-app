@@ -70,6 +70,8 @@ module.exports = {
         },
         extensionsTitle:  'Integrierte Tools',
         extensionsHint:   'Native Tools, die in Centrio eingebaut sind. Keine Installation erforderlich.',
+        extensionsRealTitle: 'Chrome Web Store Erweiterungen',
+        extensionsRealHint:  'Offizielle Erweiterungen. Werden beim ersten Aktivieren direkt aus dem Chrome Web Store geladen und laufen nur in der Sitzung des ausgewaehlten Messengers.',
         extAdblockName:   'AdBlock',
         extAdblockDesc:   'Blockiert Werbung und Tracker in allen Diensten',
         extTranslateName: 'Übersetzer',
@@ -135,6 +137,13 @@ module.exports = {
         passwordMismatch: 'PINs stimmen nicht überein',
         lockOnHide:       'Bei Minimieren sperren',
         lockOnHideHint:   'PIN beim Öffnen aus dem Tray verlangen',
+        lockOnIdle:       'Automatisch sperren bei Inaktivität',
+        lockOnIdleHint:   'PIN verlangen, wenn die App inaktiv ist',
+        lockOnIdleOff:    'Aus',
+        lockOnIdleMin1:   'Nach 1 Minute',
+        lockOnIdleMin5:   'Nach 5 Minuten',
+        lockOnIdleMin15:  'Nach 15 Minuten',
+        lockOnIdleMin30:  'Nach 30 Minuten',
         showNames:        'Beschriftungen anzeigen',
         showNamesHint:    'Labels unter Symbolen',
         density:          'Schnittstellendichte',
@@ -237,6 +246,7 @@ module.exports = {
         online:         'Online',
         offline:        'Inaktiv',
         noInternet:     'Offline',
+        offlineBannerText: 'Keine Internetverbindung — einige Messenger werden möglicherweise nicht aktualisiert',
     },
 
     search: {
@@ -246,6 +256,9 @@ module.exports = {
         findPlaceholder: 'Auf Seite suchen...',
         findInPage:      'Auf Seite suchen',
         notFound:        'Nicht gefunden',
+        findAllTitle:    'Alle offenen Tabs durchsuchen',
+        findAllSearching: 'Alle Tabs werden durchsucht...',
+        findAllEmpty:    'Keine Treffer in anderen Tabs',
     },
 
     welcome: {
@@ -270,6 +283,7 @@ module.exports = {
     },
 
     shortcuts: {
+        btnTitle:        'Tastenkürzel',
         navigationTitle: 'Navigation',
         next:            'Nächster Messenger',
         prev:            'Vorheriger Messenger',
@@ -277,9 +291,36 @@ module.exports = {
         searchTitle:     'Suche',
         quickSearch:     'Schnelle Messenger-Suche',
         findInPage:      'Auf Seite suchen',
+        escClose:        'Suche schließen',
         windowTitle:     'Fenster',
         hideShow:        'Fenster ein-/ausblenden',
         reload:          'Messenger neu laden',
+        zoomTitle:       'Zoom',
+        appZoomIn:       'Vergrößern (App)',
+        appZoomOut:      'Verkleinern (App)',
+        appZoomReset:    'App-Zoom zurücksetzen',
+        contentZoomIn:   'Vergrößern (Chat)',
+        contentZoomOut:  'Verkleinern (Chat)',
+    },
+
+    onboarding: {
+        step1Title:    'Messenger hinzufügen',
+        step1Desc:     'Hier klicken, um einen neuen Messenger hinzuzufügen.',
+        step2Title:    'Tastenkombinationen',
+        step2Desc:     'Jederzeit die vollständige Liste der Tastenkombinationen öffnen.',
+        step3Title:    'Einstellungen',
+        step3Desc:     'Hier Erscheinungsbild, Sicherheit und weitere Optionen konfigurieren.',
+        step4Title:    'VPN',
+        step4Desc:     'VPN aktivieren, wenn ein Messenger in deiner Region blockiert ist.',
+        step5Title:    'Version',
+        step5Desc:     'Hier die App-Version prüfen und das Änderungsprotokoll ansehen.',
+        skip:          'Überspringen',
+        next:          'Weiter',
+        done:          'Fertig',
+        settingsTitle: 'Einführungstour',
+        replayLabel:   'Tour erneut anzeigen',
+        replayHint:    'Die Einführungstour zu den wichtigsten Symbolleisten-Schaltflächen erneut abspielen',
+        replayBtn:     'Tour anzeigen',
     },
 
     errors: {
@@ -476,7 +517,14 @@ module.exports = {
         grammarly:  { title: 'Grammarly',            desc: 'Grammatik- und Stilpruefung fuer Texte' },
         screenshot: { title: 'Screenshot',           desc: 'Rechtsklick zum Aufnehmen der aktuellen Seite' },
         darkmode:   { title: 'Dark Mode erzwingen',  desc: 'Rechtsklick zum Aktivieren des dunklen Themes' },
-        split:      { title: 'Geteilter Bildschirm', desc: 'Zwei Dienste nebeneinander in einem Fenster' }
+        split:      { title: 'Geteilter Bildschirm', desc: 'Zwei Dienste nebeneinander in einem Fenster' },
+        translateExt: { title: 'Google Uebersetzer', desc: 'Offizielle Google-Erweiterung zum Uebersetzen von Seiten und Text' },
+        languageToolExt: { title: 'LanguageTool', desc: 'Grammatik- und Rechtschreibpruefung direkt im Messenger' },
+        install: 'Installieren',
+        installing: 'Wird installiert…',
+        installFailed: 'Installation fehlgeschlagen',
+        uninstallBtn: 'Entfernen',
+        realBadge: 'Aus dem Chrome Web Store'
     },
 
     webview: {
