@@ -11,7 +11,7 @@ export const LANG_LABELS: Record<Lang, string> = {
 const d = {
   ru: {
     nav_features: 'Возможности', nav_messengers: 'Мессенджеры', nav_pricing: 'Тарифы',
-    nav_download: 'Скачать', nav_dashboard: 'Личный кабинет', nav_dl_btn: 'Скачать',
+    nav_download: 'Скачать', nav_blog: 'Блог', nav_dashboard: 'Личный кабинет', nav_dl_btn: 'Скачать',
     hero_badge: 'Windows · macOS · Linux',
     hero_h1a: 'Все мессенджеры.', hero_h1b: 'Одно окно.',
     hero_sub: 'Centrio объединяет Telegram, WhatsApp, Discord, VK и 100+ других сервисов в единое рабочее пространство. Никаких вкладок браузера — всё в одном месте.',
@@ -169,7 +169,7 @@ const d = {
   },
   en: {
     nav_features: 'Features', nav_messengers: 'Messengers', nav_pricing: 'Pricing',
-    nav_download: 'Download', nav_dashboard: 'Dashboard', nav_dl_btn: 'Download',
+    nav_download: 'Download', nav_blog: 'Blog', nav_dashboard: 'Dashboard', nav_dl_btn: 'Download',
     hero_badge: 'Windows · macOS · Linux',
     hero_h1a: 'All messengers.', hero_h1b: 'One window.',
     hero_sub: 'Centrio combines Telegram, WhatsApp, Discord, VK and 100+ other services into one workspace. No browser tabs — everything in one place.',
@@ -215,7 +215,7 @@ const d = {
     ft_terms_of_use: 'Terms of Use', ft_refund: 'Refund',
     dl_hero_badge: 'Download Centrio', dl_hero_h1a: 'Everything at hand.', dl_hero_h1b: 'One app.',
     dl_hero_sub: 'Telegram, WhatsApp, Discord, VK and 100+ services — in one window. Free, no ads, on all platforms.',
-    dl_hero_stable: 'Stable release', dl_hero_date: 'August 2026',
+    dl_hero_stable: 'Stable release', dl_hero_date: 'Август 2026',
     dl_detected: 'Detected platform:', dl_your_pc: 'YOUR PC', dl_or: 'or',
     dl_stat_platforms: 'platforms', dl_stat_free: 'basic plan', dl_stat_install: 'setup',
     dl_all_platforms: 'All platforms',
@@ -327,7 +327,7 @@ const d = {
   },
   zh: {
     nav_features: '功能', nav_messengers: '通讯工具', nav_pricing: '价格',
-    nav_download: '下载', nav_dashboard: '个人中心', nav_dl_btn: '下载',
+    nav_download: '下载', nav_blog: '博客', nav_dashboard: '个人中心', nav_dl_btn: '下载',
     hero_badge: 'Windows · macOS · Linux',
     hero_h1a: '所有通讯工具。', hero_h1b: '一个窗口。',
     hero_sub: 'Centrio 将 Telegram、WhatsApp、Discord、VK 和 100+ 其他服务整合到一个工作空间。无需切换浏览器标签——一切尽在一处。',
@@ -485,7 +485,7 @@ const d = {
   },
   fr: {
     nav_features: 'Fonctionnalités', nav_messengers: 'Messageries', nav_pricing: 'Tarifs',
-    nav_download: 'Télécharger', nav_dashboard: 'Mon compte', nav_dl_btn: 'Télécharger',
+    nav_download: 'Télécharger', nav_blog: 'Blog', nav_dashboard: 'Mon compte', nav_dl_btn: 'Télécharger',
     hero_badge: 'Windows · macOS · Linux',
     hero_h1a: 'Toutes vos messageries.', hero_h1b: 'Une seule fenêtre.',
     hero_sub: "Centrio réunit Telegram, WhatsApp, Discord, VK et 100+ autres services dans un seul espace de travail. Fini les onglets — tout au même endroit.",
@@ -531,7 +531,7 @@ const d = {
     ft_terms_of_use: "Conditions d'utilisation", ft_refund: 'Remboursement',
     dl_hero_badge: 'Télécharger Centrio', dl_hero_h1a: 'Tout à portée.', dl_hero_h1b: 'Une seule app.',
     dl_hero_sub: 'Telegram, WhatsApp, Discord, VK et 100+ services — dans une seule fenêtre. Gratuit, sans pub, sur toutes les plateformes.',
-    dl_hero_stable: 'Version stable', dl_hero_date: 'Août 2026',
+    dl_hero_stable: 'Version stable', dl_hero_date: 'Август 2026',
     dl_detected: 'Plateforme détectée :', dl_your_pc: 'VOTRE PC', dl_or: 'ou',
     dl_stat_platforms: 'plateformes', dl_stat_free: 'plan de base', dl_stat_install: 'installation',
     dl_all_platforms: 'Toutes les plateformes',
@@ -643,7 +643,7 @@ const d = {
   },
   it: {
     nav_features: 'Funzionalità', nav_messengers: 'Messaggistica', nav_pricing: 'Prezzi',
-    nav_download: 'Scarica', nav_dashboard: 'Il mio account', nav_dl_btn: 'Scarica',
+    nav_download: 'Scarica', nav_blog: 'Blog', nav_dashboard: 'Il mio account', nav_dl_btn: 'Scarica',
     hero_badge: 'Windows · macOS · Linux',
     hero_h1a: 'Tutte le app di messaggistica.', hero_h1b: 'Una sola finestra.',
     hero_sub: "Centrio unisce Telegram, WhatsApp, Discord, VK e 100+ altri servizi in un unico spazio di lavoro. Niente schede del browser — tutto in un unico posto.",
@@ -689,7 +689,7 @@ const d = {
     ft_terms_of_use: 'Termini di utilizzo', ft_refund: 'Rimborso',
     dl_hero_badge: 'Scarica Centrio', dl_hero_h1a: 'Tutto a portata.', dl_hero_h1b: "Un'app.",
     dl_hero_sub: 'Telegram, WhatsApp, Discord, VK e 100+ servizi — in una sola finestra. Gratis, senza pubblicità, su tutte le piattaforme.',
-    dl_hero_stable: 'Versione stabile', dl_hero_date: 'Agosto 2026',
+    dl_hero_stable: 'Versione stabile', dl_hero_date: 'Август 2026',
     dl_detected: 'Piattaforma rilevata:', dl_your_pc: 'IL TUO PC', dl_or: 'o',
     dl_stat_platforms: 'piattaforme', dl_stat_free: 'piano base', dl_stat_install: 'installazione',
     dl_all_platforms: 'Tutte le piattaforme',

@@ -60,11 +60,46 @@ export const metadata: Metadata = {
   },
 }
 
+const JSONLD_ORG = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Centrio',
+  url: SITE_URL,
+  logo: `${SITE_URL}/logo.png`,
+  email: 'support@centrio.me',
+  sameAs: [],
+}
+
+const JSONLD_APP = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Centrio',
+  operatingSystem: 'Windows, macOS, Linux',
+  applicationCategory: 'CommunicationApplication',
+  description:
+    'Centrio — десктопное приложение, объединяющее Telegram, WhatsApp, Discord, VK, Slack, Notion и 100+ сервисов в одном окне. Встроенный VPN, облачная синхронизация, папки.',
+  url: SITE_URL,
+  downloadUrl: `${SITE_URL}/download`,
+  softwareVersion: '1.8.4',
+  offers: [
+    { '@type': 'Offer', price: '0', priceCurrency: 'RUB', name: 'Free' },
+    { '@type': 'Offer', price: '199', priceCurrency: 'RUB', name: 'Pro (ежемесячно)' },
+  ],
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ru" className="dark">
       <head>
         <link rel="canonical" href={SITE_URL} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSONLD_ORG) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSONLD_APP) }}
+        />
       </head>
       <body className={inter.className} style={{ background: '#06060f', minHeight: '100vh' }}>
         {children}

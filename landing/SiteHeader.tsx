@@ -116,6 +116,7 @@ export default function SiteHeader() {
             <a href="/#messengers"  className="site-nav-link">{t.nav_messengers}</a>
             <a href="/pricing"      className="site-nav-link">{t.nav_pricing}</a>
             <a href="/download"     className="site-nav-link">{t.nav_download}</a>
+            <Link href="/blog"      className="site-nav-link">{t.nav_blog}</Link>
           </div>
 
           {/* Right */}

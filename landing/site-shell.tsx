@@ -68,6 +68,7 @@ export function SiteNav({ active }: { active?: string }) {
               [t.nav_messengers, '/#messengers'],
               [t.nav_pricing, '/pricing'],
               [t.nav_download, '/download'],
+              [t.nav_blog, '/blog'],
             ] as [string, string][]).map(([label, href]) => (
               <Link key={href} href={href} className="snav-link" style={linkStyle(href)}>{label}</Link>
             ))}
@@ -107,6 +108,7 @@ export function SiteFooter() {
               [t.nav_messengers, '/#messengers'],
               [t.nav_pricing, '/pricing'],
               [t.nav_download, '/download'],
+              [t.nav_blog, '/blog'],
               [t.footer_faq, '/faq'],
             ] as [string, string][]).map(([l, h]) => (
               <Link key={h} href={h} style={{ display: 'block', fontSize: 13.5, color: 'rgba(240,240,255,.38)', textDecoration: 'none', marginBottom: 9, transition: 'color .2s' }}>{l}</Link>

@@ -48,13 +48,14 @@ export default function SiteFooter() {
         { label: 'vs Rambox', href: '/blog/vs-rambox' },
         { label: 'vs Franz',  href: '/blog/vs-franz'  },
         { label: 'vs Wavebox',href: '/blog/vs-wavebox' },
+        { label: 'vs Ferdium',href: '/blog/vs-ferdium' },
       ],
     },
     {
       title: t.footer_col_resources ?? 'Ресурсы',
       links: [
         { label: t.footer_faq ?? 'FAQ', href: '/faq' },
-        { label: t.footer_blog ?? 'Блог', href: '/blog/vs-rambox' },
+        { label: t.footer_blog ?? 'Блог', href: '/blog' },
         { label: t.footer_support ?? 'Поддержка', href: 'mailto:support@centrio.me' },
       ],
     },
