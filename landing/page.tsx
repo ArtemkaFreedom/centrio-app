@@ -671,6 +671,7 @@ export default function LandingPage() {
               {([[t.nav_features,'#features'],[t.nav_messengers,'#messengers'],[t.nav_pricing,'#pricing'],[t.nav_download,'#download']] as [string,string][]).map(([l,h]) => (
                 <a key={h} href={h} className="nlink">{l}</a>
               ))}
+              <Link href="/blog" className="nlink">{t.nav_blog}</Link>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <LangSwitcher lang={lang} setLang={setLang} />
@@ -1044,6 +1045,7 @@ export default function LandingPage() {
               </div>
               <div>
                 <span className="flh">Ресурсы</span>
+                <Link href="/blog" className="fl">{t.nav_blog}</Link>
                 <Link href="/faq" className="fl">{t.footer_faq}</Link>
                 <Link href="/blog/top-apps" className="fl">Топ приложений</Link>
                 <Link href="/blog/vs-rambox" className="fl">vs Rambox</Link>
