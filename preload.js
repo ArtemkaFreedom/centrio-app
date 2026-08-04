@@ -15,7 +15,8 @@ const validReceiveChannels = new Set([
     'update-status',
     'ext:show-popup',
     'vpn-restored',
-    'show-lock-screen'
+    'show-lock-screen',
+    'deep-link-route'
 ])
 
 const invokeChannelMap = {
@@ -59,6 +60,7 @@ const validInvokeChannels = new Set([
     'screenshot:capture',
     // main/ipc/window.js
     'open-popup-window', 'get-window-visibility-state', 'app:getVersion',
+    'security:hash-pin', 'security:verify-pin',
     // main/ipc/downloads.js
     'choose-download-dir', 'dialog:selectDirectory', 'get-save-image-path',
     'copy-image-to-clipboard', 'copy-text-to-clipboard',

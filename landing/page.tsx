@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { GlassPricingSection, type PricingCardProps } from '@/components/ui/animated-glassy-pricing'
+import { COMPARE_LINKS } from '@/lib/site-nav'
 
-const VERSION = '1.8.4'
+const VERSION = '1.8.6'
 const WIN_DOWNLOAD = `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`
 
 /* ─── SVG icons ──────────────────────────────────────────────────────────── */
@@ -1048,9 +1049,9 @@ export default function LandingPage() {
                 <Link href="/blog" className="fl">{t.nav_blog}</Link>
                 <Link href="/faq" className="fl">{t.footer_faq}</Link>
                 <Link href="/blog/top-apps" className="fl">Топ приложений</Link>
-                <Link href="/blog/vs-rambox" className="fl">vs Rambox</Link>
-                <Link href="/blog/vs-franz" className="fl">vs Franz</Link>
-                <Link href="/blog/vs-wavebox" className="fl">vs Wavebox</Link>
+                {COMPARE_LINKS.map(c => (
+                  <Link key={c.href} href={c.href} className="fl">{c.label}</Link>
+                ))}
               </div>
               <div>
                 <span className="flh">Поддержка</span>
@@ -1058,7 +1059,7 @@ export default function LandingPage() {
                 <button onClick={() => setSupportOpen(true)} className="fl" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', fontFamily: 'inherit', display: 'block', marginBottom: 8 }}>{t.footer_support}</button>
                 <Link href="/privacy" className="fl">{t.footer_privacy}</Link>
                 <Link href="/terms" className="fl">{t.footer_terms}</Link>
-                <Link href="/refund" className="fl">Возврат</Link>
+                <Link href="/refund" className="fl">{t.ft_refund}</Link>
               </div>
             </div>
             <div className="div" style={{ marginBottom: 20 }} />

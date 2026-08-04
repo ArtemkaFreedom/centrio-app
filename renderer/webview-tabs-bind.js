@@ -1,3 +1,47 @@
+// ── Диплинки других мессенджеров (MAX / Telegram) ──────────────────────────
+// Классификация (какой href — деплинк какого сервиса) происходит ТОЛЬКО в
+// webview-preload.js, и только на настоящем клике пользователя (e.isTrusted)
+// — см. подробный комментарий там про то, почему авто-переключение вкладки
+// не должно быть доступно script-driven путям (window.open/will-navigate)
+// без верифицируемого user gesture. Сюда, в 'ipc-message' → 'deep-link'
+// (см. addWebview ниже), долетает уже классифицированный `{service, href}`;
+// эта функция лишь переводит его в конечный URL для загрузки в целевой
+// вкладке — и на всякий случай ре-валидирует href (defense-in-depth, не
+// доверяем каналу вслепую даже несмотря на то, что единственный отправитель
+// уже проверен).
+function translateDeepLinkUrl(special) {
+    if (!special || typeof special.href !== 'string') return null
+
+    if (special.service === 'max') {
+        // SECURITY (defense-in-depth): re-validate host-side against the
+        // same anchored pattern preload used to classify this link, rather
+        // than trusting `href` verbatim just because it arrived tagged
+        // `service: 'max'` on the deep-link channel. loadURL() is fed
+        // straight from this return value in routeDeepLink() below, so
+        // this is the last gate before an in-app webview navigation.
+        return /^https:\/\/max\.ru\/join\//i.test(special.href) ? special.href : null
+    }
+
+    if (special.service === 'telegram') {
+        // tg://resolve?domain=X → https://t.me/X — официальный универсальный
+        // редирект-домен Telegram, работает независимо от того, какой именно
+        // веб-клиент (k/a/z/web) настроен у пользователя в качестве вкладки.
+        const match = special.href.match(/[?&]domain=([^&]+)/i)
+        if (!match) return null
+        try {
+            const domain = decodeURIComponent(match[1])
+            // Только username-подобные значения — не даём decodeURIComponent
+            // результату протащить что-то похожее на путь/query в итоговый URL.
+            if (!/^[a-zA-Z0-9_]{1,64}$/.test(domain)) return null
+            return `https://t.me/${domain}`
+        } catch {
+            return null
+        }
+    }
+
+    return null
+}
+
 function createWebviewTabsApi({
     state,
     store,
@@ -22,6 +66,57 @@ function createWebviewTabsApi({
     if (webviewContextMenu && webviewContextMenu.parentElement !== document.body) {
         document.body.appendChild(webviewContextMenu)
     }
+
+    const DEEP_LINK_HOST_MATCHERS = {
+        telegram: /(^|\.)telegram\.org$|(^|\.)t\.me$/i,
+        max: /(^|\.)max\.ru$/i
+    }
+
+    function findMessengerForDeepLinkService(service) {
+        const re = DEEP_LINK_HOST_MATCHERS[service]
+        if (!re) return null
+
+        return state.activeMessengers.find((m) => {
+            try { return re.test(new URL(m.url).hostname) } catch { return false }
+        })
+    }
+
+    // Пытается открыть распознанный диплинк в уже существующей вкладке нужного
+    // сервиса. Возвращает true, если получилось (вкладка переключена и
+    // загружена) — false означает "подходящей вкладки нет", и вызывающий код
+    // должен откатиться на прежнее поведение (open-url → внешний браузер/ОС).
+    function routeDeepLink(special) {
+        const url = translateDeepLinkUrl(special)
+        if (!url) return false
+
+        const target = findMessengerForDeepLinkService(special.service)
+        if (!target) return false
+
+        switchTab(target.id)
+        const targetWebview = document.getElementById(`webview-${target.id}`)
+        if (targetWebview) {
+            try { targetWebview.loadURL(url) } catch {}
+        }
+        return true
+    }
+
+    // Диплинк, пришедший из ОС (клик по tg://resolve?domain=... в СТОРОННЕМ
+    // браузере/приложении — main/services/protocol.js регистрирует Centrio
+    // обработчиком tg:// и пересылает сюда через 'deep-link-route', см.
+    // preload.js validReceiveChannels). В отличие от клика внутри webview,
+    // тут нет "фолбэка на open-url тем же tg://" — раз ОС уже отдала эту
+    // ссылку НАМ как зарегистрированному обработчику, повторный
+    // shell.openExternal(tg://...) рисковал бы зациклиться обратно на
+    // Centrio. Если подходящей вкладки Telegram нет — открываем обычный
+    // https://t.me/<domain> во внешнем браузере как безопасный, не
+    // зацикливающийся фолбэк (ровно то же поведение, что было бы без этой
+    // фичи вообще).
+    function routeDeepLinkFromMain(special) {
+        if (routeDeepLink(special)) return
+        const url = translateDeepLinkUrl(special)
+        if (url) ipcRenderer.send('open-url', url)
+    }
+    ipcRenderer.on('deep-link-route', routeDeepLinkFromMain)
 
     function hideWebviewContextMenu() {
         if (!webviewContextMenu) return
@@ -487,6 +582,14 @@ function createWebviewTabsApi({
                 }).catch(() => {})
                 return
             }
+            // SECURITY: 'new-window' (like 'will-navigate' below) can be
+            // reached from page script with no verifiable real user
+            // gesture, so it deliberately does NOT auto-route into another
+            // tab — only the trusted-click path from webview-preload.js
+            // (delivered via the 'ipc-message' → 'deep-link' listener
+            // further down) is allowed to do that. This just keeps the
+            // pre-existing external-open fallback for everything else,
+            // recognized deep links included.
             ipcRenderer.send('open-url', url)
         })
 
@@ -501,6 +604,30 @@ function createWebviewTabsApi({
                     ipcRenderer.send('open-url', url)
                 }
             } catch {}
+        })
+
+        // Диплинк, распознанный и перехваченный ВНУТРИ гостевой страницы
+        // (webview-preload.js classifyDeepLink → ipcRenderer.sendToHost),
+        // и ТОЛЬКО когда клик был настоящим (e.isTrusted, см. preload) —
+        // единственный путь, по которому мы автоматически переключаем
+        // вкладку и грузим URL в чужом, уже залогиненном webview.
+        webview.addEventListener('ipc-message', (e) => {
+            if (e.channel !== 'deep-link') return
+            const special = e.args[0]
+            if (special && routeDeepLink(special)) return
+
+            // SECURITY: fallback must use the TRANSLATED URL (e.g.
+            // https://t.me/<domain>), never the raw special.href. tg: is
+            // an allowed external-open scheme (main/ipc/window.js
+            // ALLOWED_SCHEMES) and Centrio can be the OS's registered
+            // tg:// handler (see main/services/protocol.js) — sending the
+            // raw tg://resolve?... href back to open-url would bounce
+            // straight back into this same app via the second-instance/
+            // protocol-url path (one-hop refocus/relaunch flash on every
+            // click with no matching tab open). Mirrors the same
+            // loop-avoidance already used by routeDeepLinkFromMain below.
+            const url = translateDeepLinkUrl(special)
+            if (url) ipcRenderer.send('open-url', url)
         })
 
         webview.addEventListener('did-fail-load', (e) => {

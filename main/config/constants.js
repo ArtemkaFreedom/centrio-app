@@ -7,6 +7,13 @@ module.exports = {
     APP_NAME: 'Centrio',
     APP_USER_MODEL_ID: 'me.centrio.app',
     APP_PROTOCOL: 'centrio',
+    // 'tg' registers Centrio as an available OS-level handler for
+    // tg://resolve?domain=... links clicked outside the app (e.g. in a
+    // regular browser). This makes Centrio a *candidate* handler only —
+    // Windows still requires the user to explicitly pick it in
+    // Settings → Apps → Default apps if another app (e.g. real Telegram
+    // Desktop) already owns tg:// there. See main/services/protocol.js.
+    SUPPORTED_PROTOCOLS: ['centrio', 'tg'],
 
     API_URL: 'https://api.centrio.me',
 
@@ -35,6 +42,7 @@ module.exports = {
         APP_HIDDEN: 'app-hidden',
         APP_READY_TO_SHOW: 'app-ready-to-show',
         PROTOCOL_URL: 'protocol-url',
+        DEEP_LINK_ROUTE: 'deep-link-route',
         NOTIFICATION_CLICKED_ID: 'notification-clicked-id',
         SWITCH_MESSENGER_INDEX: 'switch-messenger-index',
         SWITCH_MESSENGER_NEXT: 'switch-messenger-next',

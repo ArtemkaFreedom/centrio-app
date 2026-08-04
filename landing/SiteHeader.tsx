@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
+import { MAIN_NAV } from '@/lib/site-nav'
 
-const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%201.8.4.exe'
+const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%201.8.6.exe'
 
 const IcoGlobe = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -110,13 +111,12 @@ export default function SiteHeader() {
             <span style={{ fontWeight: 700, fontSize: 19, color: '#fff', letterSpacing: '-.02em' }}>Centrio</span>
           </Link>
 
-          {/* Nav links */}
+          {/* Nav links — sourced from MAIN_NAV (lib/site-nav.ts) so every page's
+              header points to the same destinations. */}
           <div className="site-nav-links">
-            <a href="/#features"    className="site-nav-link">{t.nav_features}</a>
-            <a href="/#messengers"  className="site-nav-link">{t.nav_messengers}</a>
-            <a href="/pricing"      className="site-nav-link">{t.nav_pricing}</a>
-            <a href="/download"     className="site-nav-link">{t.nav_download}</a>
-            <Link href="/blog"      className="site-nav-link">{t.nav_blog}</Link>
+            {MAIN_NAV.map(item => (
+              <Link key={item.href} href={item.href} className="site-nav-link">{t[item.labelKey]}</Link>
+            ))}
           </div>
 
           {/* Right */}

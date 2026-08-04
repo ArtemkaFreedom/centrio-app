@@ -161,3 +161,8 @@ function registerApiIpc() {
 }
 
 module.exports = registerApiIpc
+// SECURITY: exported so main/bootstrap/registerAppEvents.js can pin the
+// expected <webview> preload path in its will-attach-webview validation
+// (see that file for why this matters) without duplicating the candidate-path
+// resolution logic here.
+module.exports.getWebviewPreloadPath = getWebviewPreloadPath

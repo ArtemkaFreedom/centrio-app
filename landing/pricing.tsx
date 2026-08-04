@@ -105,7 +105,7 @@ export default function PricingPage() {
                 </div>
                 <div style={{fontSize:14,color:'rgba(255,255,255,0.35)'}}>Навсегда бесплатно</div>
               </div>
-              <a href="/#download" className="btn-buy ghost" style={{marginBottom:28}}>Скачать бесплатно</a>
+              <Link href="/download" className="btn-buy ghost" style={{marginBottom:28}}>Скачать бесплатно</Link>
               <div style={{display:'flex',flexDirection:'column',gap:12}}>
                 {[
                   [true, 'До 5 мессенджеров'],
@@ -152,9 +152,9 @@ export default function PricingPage() {
                   }
                 </div>
               </div>
-              <a href="#buy" className="btn-buy primary" style={{marginBottom:28}}>
+              <Link href="/dashboard" className="btn-buy primary" style={{marginBottom:28}}>
                 {annual ? 'Купить на год — 1 590 ₽' : 'Купить на месяц — 199 ₽'}
-              </a>
+              </Link>
               <div style={{display:'flex',flexDirection:'column',gap:12}}>
                 {[
                   [true, 'Неограниченные мессенджеры', false],

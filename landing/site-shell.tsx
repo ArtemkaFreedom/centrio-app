@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
+import { MAIN_NAV } from '@/lib/site-nav'
 
 function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
   const [open, setOpen] = useState(false)
@@ -63,14 +64,8 @@ export function SiteNav({ active }: { active?: string }) {
             <span style={{ fontWeight: 800, fontSize: 18, color: '#f0f0ff', letterSpacing: '-.025em' }}>Centrio</span>
           </Link>
           <div className="snav-links" style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-            {([
-              [t.nav_features, '/features'],
-              [t.nav_messengers, '/#messengers'],
-              [t.nav_pricing, '/pricing'],
-              [t.nav_download, '/download'],
-              [t.nav_blog, '/blog'],
-            ] as [string, string][]).map(([label, href]) => (
-              <Link key={href} href={href} className="snav-link" style={linkStyle(href)}>{label}</Link>
+            {MAIN_NAV.map(item => (
+              <Link key={item.href} href={item.href} className="snav-link" style={linkStyle(item.href)}>{t[item.labelKey]}</Link>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -103,15 +98,8 @@ export function SiteFooter() {
           </div>
           <div>
             <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase' as const, color: 'rgba(240,240,255,.28)', display: 'block', marginBottom: 16 }}>{t.ft_product}</span>
-            {([
-              [t.nav_features, '/features'],
-              [t.nav_messengers, '/#messengers'],
-              [t.nav_pricing, '/pricing'],
-              [t.nav_download, '/download'],
-              [t.nav_blog, '/blog'],
-              [t.footer_faq, '/faq'],
-            ] as [string, string][]).map(([l, h]) => (
-              <Link key={h} href={h} style={{ display: 'block', fontSize: 13.5, color: 'rgba(240,240,255,.38)', textDecoration: 'none', marginBottom: 9, transition: 'color .2s' }}>{l}</Link>
+            {[...MAIN_NAV.map(item => ({ label: t[item.labelKey], href: item.href })), { label: t.footer_faq, href: '/faq' }].map(({ label, href }) => (
+              <Link key={href} href={href} style={{ display: 'block', fontSize: 13.5, color: 'rgba(240,240,255,.38)', textDecoration: 'none', marginBottom: 9, transition: 'color .2s' }}>{label}</Link>
             ))}
           </div>
           <div>

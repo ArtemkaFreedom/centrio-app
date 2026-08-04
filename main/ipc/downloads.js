@@ -19,6 +19,24 @@ function safeHandle(channel, handler) {
     ipcMain.handle(channel, handler)
 }
 
+// SECURITY: 'save-image-data' (below) used to fs.writeFileSync() to whatever
+// filePath the renderer passed it, with no validation at all — an arbitrary
+// file write primitive (attacker-controlled path + attacker-controlled base64
+// content) reachable from any code able to call window.electronAPI.send in
+// the main renderer context. Normal usage always passes back the exact path
+// this process itself just handed out via 'get-save-image-path' (see
+// renderer/webview-tabs-bind.js:560-567), so we track a short-lived,
+// single-use allowlist of paths we actually issued and refuse to write
+// anywhere else. This doesn't change behavior for the legitimate flow at all.
+const pendingSaveImagePaths = new Set()
+const PENDING_SAVE_PATH_TTL_MS = 5 * 60 * 1000
+
+function registerPendingSaveImagePath(filePath) {
+    if (!filePath) return
+    pendingSaveImagePaths.add(filePath)
+    setTimeout(() => pendingSaveImagePaths.delete(filePath), PENDING_SAVE_PATH_TTL_MS)
+}
+
 function updateDownloadHandler(getMainWindow) {
     const win = getMainWindow()
     if (!win || win.isDestroyed()) return
@@ -115,7 +133,9 @@ function registerDownloadsIpc({ getMainWindow }) {
         const fileName = `image_${Date.now()}.${ext}`
 
         if (downloadDir && !askDownload) {
-            return path.join(downloadDir, fileName)
+            const autoPath = path.join(downloadDir, fileName)
+            registerPendingSaveImagePath(autoPath)
+            return autoPath
         }
 
         const win = getMainWindow()
@@ -130,11 +150,19 @@ function registerDownloadsIpc({ getMainWindow }) {
             ]
         })
 
-        return result.canceled ? null : result.filePath
+        if (result.canceled) return null
+        registerPendingSaveImagePath(result.filePath)
+        return result.filePath
     })
 
     safeOn('save-image-data', (_event, dataUrl, filePath) => {
         if (!dataUrl || !filePath) return
+
+        if (!pendingSaveImagePaths.has(filePath)) {
+            console.warn('[security] save-image-data blocked — path was not issued by get-save-image-path:', filePath)
+            return
+        }
+        pendingSaveImagePaths.delete(filePath)
 
         try {
             const base64 = String(dataUrl).split(',')[1]

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
+import { DEFAULT_OG_IMAGE } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Блог Centrio — гиды, сравнения и советы про мессенджеры',
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
     description: 'Гиды, сравнения и советы про мессенджеры и Centrio.',
     url: 'https://centrio.me/blog',
     type: 'website',
+    images: [DEFAULT_OG_IMAGE],
   },
 };
 

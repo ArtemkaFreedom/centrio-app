@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useLang } from '@/lib/i18n'
+import { COMPARE_LINKS } from '@/lib/site-nav'
 
 // Restored from the live server 2026-07-29 — this component (used by
 // features/refund/blog pages, distinct from the newer combined SiteFooter
 // exported by site-shell.tsx used elsewhere) had never been tracked in this
 // repo, so its VERSION constant had drifted to '1.6.6' while the app itself
-// moved on to 1.8.4 — visibly wrong on every page that renders this footer.
-const VERSION = '1.8.4'
+// moved on to 1.8.6 — visibly wrong on every page that renders this footer.
+const VERSION = '1.8.6'
 
 export default function SiteFooter() {
   const { t } = useLang()
@@ -44,12 +45,7 @@ export default function SiteFooter() {
     },
     {
       title: t.footer_col_compare ?? 'Сравнение',
-      links: [
-        { label: 'vs Rambox', href: '/blog/vs-rambox' },
-        { label: 'vs Franz',  href: '/blog/vs-franz'  },
-        { label: 'vs Wavebox',href: '/blog/vs-wavebox' },
-        { label: 'vs Ferdium',href: '/blog/vs-ferdium' },
-      ],
+      links: COMPARE_LINKS,
     },
     {
       title: t.footer_col_resources ?? 'Ресурсы',

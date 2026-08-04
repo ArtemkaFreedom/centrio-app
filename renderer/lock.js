@@ -65,17 +65,29 @@ function createLockApi({
         document.body.classList.remove('startup-locked')
     }
 
-    function tryUnlock() {
+    // Verification runs in the main process (main/ipc/window.js →
+    // main/services/pinHash.js) because it needs Node's crypto.scryptSync,
+    // which this sandboxed renderer (nodeIntegration:false, contextIsolation:
+    // true) has no access to. The plaintext PIN only ever exists transiently
+    // here in memory; it's never hashed or compared client-side anymore.
+    // Old-format PINs are verified and transparently migrated server-side
+    // (main process) on first successful unlock — no UI changes needed here.
+    async function tryUnlock() {
         const input = document.getElementById('lockInput')
         if (!input) return
 
         const password = input.value
         if (password.length !== 4) return
 
-        const sec = store.get('security', {})
-        const hash = hashPassword(password)
+        let valid = false
+        try {
+            const result = await ipcRenderer.invoke('security:verify-pin', password)
+            valid = !!result?.valid
+        } catch (e) {
+            console.error('[lock] PIN verification failed:', e)
+        }
 
-        if (hash === sec.hash) {
+        if (valid) {
             hideLockScreen()
             input.value = ''
             updateLockDots('')
@@ -156,7 +168,7 @@ function createLockApi({
         }
     }
 
-    function savePinClick() {
+    async function savePinClick() {
         const status = document.getElementById('passwordStatus')
 
         if (state.pinNewVal.length !== 4) {
@@ -192,7 +204,18 @@ function createLockApi({
             return
         }
 
-        const hash = hashPassword(state.pinNewVal)
+        let hash
+        try {
+            hash = await ipcRenderer.invoke('security:hash-pin', state.pinNewVal)
+        } catch (e) {
+            console.error('[lock] PIN hashing failed:', e)
+            if (status) {
+                status.textContent = tGet('lock.error')
+                status.className = 'password-status error'
+            }
+            return
+        }
+
         store.set('security', {
             enabled: true,
             hash,
@@ -285,13 +308,18 @@ function createLockApi({
         }
     }
 
-    function tryDisablePin() {
+    async function tryDisablePin() {
         if (state.disableVal.length !== 4) return
 
-        const sec = store.get('security', {})
-        const hash = hashPassword(state.disableVal)
+        let valid = false
+        try {
+            const result = await ipcRenderer.invoke('security:verify-pin', state.disableVal)
+            valid = !!result?.valid
+        } catch (e) {
+            console.error('[lock] PIN verification failed:', e)
+        }
 
-        if (hash === sec.hash) {
+        if (valid) {
             store.set('security', { enabled: false, hash: null, lockOnHide: false })
             const fields = document.getElementById('passwordFields')
             if (fields) fields.style.display = 'none'

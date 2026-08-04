@@ -6,7 +6,14 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin', 'cyrillic'] })
 
 const SITE_URL = 'https://centrio.me'
-const OG_IMAGE = 'https://centrio.me/og-image.png'
+// Fixed 2026-08-03: this used to point at /og-image.png, which does not
+// exist on the server (404) — every social share (Telegram/VK/WhatsApp/
+// Twitter link preview) rendered a broken-image icon instead of a card.
+// /logo.png is a real, working 176x176 fallback. It's square, not the
+// ideal 1200x630 landscape banner most platforms prefer, but a working
+// square image beats a 404. Recommend commissioning a proper 1200x630
+// OG banner as a follow-up design task.
+const OG_IMAGE = 'https://centrio.me/logo.png'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -50,7 +57,7 @@ export const metadata: Metadata = {
     title: 'Centrio — Все мессенджеры в одном окне',
     description:
       'Бесплатное приложение для Windows, macOS и Linux. Telegram, WhatsApp, Discord, VK и 100+ сервисов в одном окне.',
-    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Centrio App' }],
+    images: [{ url: OG_IMAGE, width: 176, height: 176, alt: 'Centrio' }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -80,7 +87,7 @@ const JSONLD_APP = {
     'Centrio — десктопное приложение, объединяющее Telegram, WhatsApp, Discord, VK, Slack, Notion и 100+ сервисов в одном окне. Встроенный VPN, облачная синхронизация, папки.',
   url: SITE_URL,
   downloadUrl: `${SITE_URL}/download`,
-  softwareVersion: '1.8.4',
+  softwareVersion: '1.8.6',
   offers: [
     { '@type': 'Offer', price: '0', priceCurrency: 'RUB', name: 'Free' },
     { '@type': 'Offer', price: '199', priceCurrency: 'RUB', name: 'Pro (ежемесячно)' },
@@ -91,7 +98,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className="dark">
       <head>
-        <link rel="canonical" href={SITE_URL} />
+        {/* Canonical is intentionally NOT hardcoded here — it used to be a
+            static <link rel="canonical" href={SITE_URL}> that rendered on
+            every single page (blog posts, pricing, features, etc.),
+            producing two conflicting canonical tags per page since each
+            page's own `metadata.alternates.canonical` also renders one.
+            Two canonical tags is explicitly against Google's guidance and
+            can cause the signal to be ignored entirely. The Metadata API's
+            `alternates.canonical` above (default: SITE_URL, overridden per
+            page) is the single source of truth now. */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSONLD_ORG) }}

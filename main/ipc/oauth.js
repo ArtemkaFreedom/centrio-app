@@ -1,4 +1,5 @@
 const { ipcMain, shell } = require('electron')
+const crypto = require('crypto')
 const store = require('../services/store')
 const { OAUTH } = require('../config/constants')
 const { createModalWindow } = require('../factory/modalWindow')
@@ -7,12 +8,32 @@ const { wrapIpc } = require('../utils/ipc')
 
 // ── Shared pending-auth registry ──────────────────────────────────
 // When we open the system browser for OAuth, we store a resolve/reject
-// pair here. handleProtocolUrl (protocol.js) calls resolveOAuth() when
-// it receives centrio://auth?accessToken=...
+// pair here, plus a locally-generated `nonce` unique to this attempt.
+// handleProtocolUrl (protocol.js) calls resolveOAuth() when it receives
+// centrio://auth?accessToken=...&state=...
+//
+// SECURITY: the centrio:// protocol handler is registered OS-wide once the
+// app is installed — any other application, or a web page doing
+// `location.href = 'centrio://auth?accessToken=...'`, can invoke it. Without
+// this nonce check, an attacker who wins the race while a real login is
+// pending could inject their own accessToken and get the victim silently
+// logged into an attacker-controlled account (login CSRF). The nonce is
+// generated here, sent to the server as `client_nonce` when opening the
+// browser, and the server only echoes it back (as `state`) after verifying
+// the OAuth provider's own callback against a state value it itself issued
+// server-side — see landing/auth-server.js. A callback is only accepted if
+// its `state` matches the nonce for THIS specific in-flight attempt.
 let _pending = null
 
-function resolveOAuth(accessToken, refreshToken) {
+function resolveOAuth(accessToken, refreshToken, state) {
     if (!_pending) return false
+
+    if (!state || state !== _pending.nonce) {
+        console.warn('[oauth] Rejected centrio://auth callback: state/nonce mismatch ' +
+            '(no matching in-flight login attempt — possible spoofed or replayed deep link)')
+        return false
+    }
+
     const { resolve, timer } = _pending
     _pending = null
     clearTimeout(timer)
@@ -33,8 +54,9 @@ module.exports.resolveOAuth = resolveOAuth
 module.exports.rejectOAuth  = rejectOAuth
 
 // ── System-browser OAuth helper ───────────────────────────────────
-// Opens the given URL in the system browser and waits for the
-// centrio://auth?accessToken=... deep link to come back.
+// Opens the given URL (with a `client_nonce` query param appended) in the
+// system browser and waits for the centrio://auth?accessToken=...&state=...
+// deep link to come back with a matching state.
 function systemBrowserOAuth({ authUrl, timeoutMs = 5 * 60 * 1000 }) {
     return new Promise((resolve, reject) => {
         if (_pending) {
@@ -45,15 +67,20 @@ function systemBrowserOAuth({ authUrl, timeoutMs = 5 * 60 * 1000 }) {
             prev.reject(new Error('New auth started'))
         }
 
+        const nonce = crypto.randomBytes(16).toString('hex')
+
         const timer = setTimeout(() => {
             _pending = null
             reject(new Error(t('oauth.timeout')))
         }, timeoutMs)
 
-        _pending = { resolve, reject, timer }
+        _pending = { resolve, reject, timer, nonce }
+
+        const sep = authUrl.includes('?') ? '&' : '?'
+        const urlWithNonce = `${authUrl}${sep}client_nonce=${nonce}`
 
         // Open system browser — no Electron window needed
-        shell.openExternal(authUrl).catch((err) => {
+        shell.openExternal(urlWithNonce).catch((err) => {
             _pending = null
             clearTimeout(timer)
             reject(err)

@@ -338,6 +338,26 @@ function bindDownloadImageHandler() {
     })
 }
 
+// ── Диплинки других мессенджеров (MAX / Telegram) ──────────────────────────
+// Этот preload инжектится и исполняется ВНУТРИ произвольной чужой страницы
+// (Telegram Web, WhatsApp Web и т.п.), поэтому распознавание должно быть
+// максимально узким и явным (два конкретных паттерна) — всё нераспознанное
+// должно падать в старое поведение без изменений, чтобы не задеть клики по
+// ссылкам во всех остальных мессенджерах. Решение "есть ли уже открытая
+// вкладка нужного сервиса" здесь принять НЕЛЬЗЯ — у preload'а нет доступа к
+// списку вкладок (тот живёт в renderer/messengers.js). Поэтому распознанные
+// ссылки уходят через sendToHost() к host-документу (renderer/messengers.js
+// слушает 'ipc-message' на самом <webview>), а не напрямую в main процесс —
+// именно renderer решает, переключить вкладку или откатиться на open-url.
+function classifyDeepLink(href) {
+    if (!href) return null
+    // tg://resolve?domain=username — Telegram custom-protocol ссылки
+    if (/^tg:\/\//i.test(href)) return { service: 'telegram', href }
+    // https://max.ru/join/<token> — инвайт-ссылки мессенджера MAX
+    if (/^https:\/\/max\.ru\/join\//i.test(href)) return { service: 'max', href }
+    return null
+}
+
 function bindLinkInterception() {
     document.addEventListener('click', (e) => {
         const link = e.target?.closest && e.target.closest('a[href]')
@@ -345,6 +365,25 @@ function bindLinkInterception() {
 
         const href = link.getAttribute('href')
         if (!href || href.startsWith('#') || href.startsWith('javascript:')) return
+
+        // SECURITY: in-app deep-link routing (tab-switch + loadURL into a
+        // DIFFERENT, already-authenticated webview) only fires for a real,
+        // user-initiated click (e.isTrusted). Page script can dispatch a
+        // synthetic click on any <a> with zero user gesture — without this
+        // check, any guest page content (a compromised/malicious ad, a
+        // crafted message rendered as HTML, etc.) could silently force
+        // e.g. the user's logged-in Telegram tab to navigate, with no
+        // interaction at all. A synthetic click on a deep link still falls
+        // through to the ordinary open-url path below when possible
+        // (max.ru/join is https:// so it qualifies), same as before this
+        // feature existed.
+        const special = e.isTrusted ? classifyDeepLink(href) : null
+        if (special) {
+            e.preventDefault()
+            e.stopPropagation()
+            ipcRenderer.sendToHost('deep-link', special)
+            return
+        }
 
         if (
             href.startsWith('http://') ||
@@ -360,6 +399,12 @@ function bindLinkInterception() {
     const originalOpen = window.open
     window.open = function patchedOpen(url, ...args) {
         if (url && url !== 'about:blank') {
+            // SECURITY: window.open() can be invoked by page script with no
+            // user-gesture guarantee we can verify here (unlike the click
+            // listener above, there is no isTrusted-equivalent signal on a
+            // plain function call). So window.open never gets to auto-route
+            // into another tab — a recognized deep link just takes the
+            // ordinary external-open path, same as any other URL.
             ipcRenderer.send('open-url', url)
             return null
         }

@@ -1,4 +1,5 @@
 const { ipcMain, shell, app, BrowserWindow, session, powerMonitor } = require('electron')
+const pinHash = require('../services/pinHash')
 
 let log
 try { log = require('electron-log') } catch { log = console }
@@ -15,6 +16,19 @@ function safeHandle(channel, handler) {
     ipcMain.handle(channel, handler)
 }
 
+// BUGFIX (security regression): both call sites below used to do
+// `const { isPasswordEnabled } = require('../services/store')` — but
+// main/services/store.js only exports the raw electron-store instance, it has
+// no `isPasswordEnabled` export. That destructure silently evaluated to
+// `undefined`, so `isPasswordEnabled()` threw a TypeError inside an
+// ipcMain.on handler every time a user with "lock on minimize/hide" enabled
+// actually minimized or hid the window — meaning the lock screen never
+// appeared for them at all. Mirrors the equivalent (working) check in
+// renderer/lock.js's own isPasswordEnabled().
+function isPasswordEnabled(security) {
+    return security?.enabled === true && !!security?.hash
+}
+
 function registerWindowIpc({ getMainWindow, isQuittingRef }) {
     const store = require('../services/store')
     // expose getMainWindow for popup-window handler
@@ -25,11 +39,10 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
             win.minimize()
 
             // Check for lock on minimize
-            const { isPasswordEnabled } = require('../services/store')
             const settings = store.get('settings', {})
             const security = store.get('security', {})
 
-            if ((settings.lockOnHide || security.lockOnHide) && isPasswordEnabled()) {
+            if ((settings.lockOnHide || security.lockOnHide) && isPasswordEnabled(security)) {
                 win.webContents.send('show-lock-screen')
             }
         }
@@ -60,11 +73,10 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
             win.hide()
 
             // Check for lock on hide (tray behavior)
-            const { isPasswordEnabled } = require('../services/store')
             const settings = store.get('settings', {})
             const security = store.get('security', {})
 
-            if ((settings.lockOnHide || security.lockOnHide) && isPasswordEnabled()) {
+            if ((settings.lockOnHide || security.lockOnHide) && isPasswordEnabled(security)) {
                 win.webContents.send('show-lock-screen')
             }
         }
@@ -91,8 +103,14 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
     safeOn('open-url', async (_event, url) => {
         if (!url || typeof url !== 'string') return
 
-        // Only allow safe external protocols
-        const ALLOWED_SCHEMES = ['https:', 'http:', 'mailto:', 'tel:']
+        // Only allow safe external protocols.
+        // 'tg:' added for the deep-link fallback path (renderer/messengers.js,
+        // webview-preload.js): when a user clicks a tg://resolve?domain=...
+        // link and no Telegram tab is open in-app, we hand off to whatever the
+        // OS has registered for tg:// (mirrors normal browser behavior) instead
+        // of silently dropping it. Still an explicit allowlist entry, not a
+        // wildcard — every other scheme remains blocked exactly as before.
+        const ALLOWED_SCHEMES = ['https:', 'http:', 'mailto:', 'tel:', 'tg:']
         try {
             const parsed = new URL(url)
             if (!ALLOWED_SCHEMES.includes(parsed.protocol)) {
@@ -205,6 +223,11 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
+                    // SECURITY: sandbox wasn't set here (unlike the equivalent
+                    // open-popup-window handler above), leaving this renderer
+                    // running without Chromium's OS-level sandbox for no reason —
+                    // translate.google.com needs no Node/Electron API access.
+                    sandbox: true,
                     partition: 'persist:translate'
                 }
             })
@@ -240,6 +263,40 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
 
     safeHandle('app:getVersion', () => {
         return app.getVersion()
+    })
+
+    // ── Screen-lock PIN hashing (see main/services/pinHash.js) ─────────────
+    // Done here in the main process, not in the renderer, because the
+    // renderer runs with nodeIntegration:false + contextIsolation:true and
+    // has no way to reach Node's `crypto` module (scryptSync) for a real KDF.
+    // The renderer only ever handles the plaintext PIN transiently in memory
+    // during entry — it never computes or stores the hash itself.
+    safeHandle('security:hash-pin', (_event, pin) => {
+        if (typeof pin !== 'string' || pin.length === 0) {
+            throw new Error('Invalid PIN')
+        }
+        return pinHash.hashPin(pin)
+    })
+
+    // Verifies a PIN against store.get('security').hash. Transparently
+    // migrates old-format (pre-scrypt) hashes to the new format on a
+    // successful match — see verifyPin()'s `needsMigration` contract in
+    // pinHash.js. Never throws on a wrong PIN; returns { valid: false }.
+    safeHandle('security:verify-pin', (_event, pin) => {
+        if (typeof pin !== 'string' || pin.length === 0) return { valid: false }
+
+        const security = store.get('security', {}) || {}
+        const result = pinHash.verifyPin(pin, security.hash)
+
+        if (result.valid && result.needsMigration) {
+            try {
+                store.set('security', { ...security, hash: pinHash.hashPin(pin) })
+            } catch (e) {
+                log.error('[security] PIN hash migration failed:', e.message)
+            }
+        }
+
+        return { valid: result.valid }
     })
 
     // ── Автоблокировка при бездействии ────────────────────────────────────

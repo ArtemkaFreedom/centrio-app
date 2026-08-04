@@ -1,6 +1,6 @@
 const { registerShortcuts } = require('../services/shortcuts')
 const { initUpdater, checkForUpdates, checkPendingUpdateOutcome } = require('../services/updater')
-const { APP_PROTOCOL } = require('../config/constants')
+const { isProtocolUrl } = require('../services/protocol')
 const tracker        = require('../services/tracker')
 const visitorTracker = require('../services/visitor-tracker')
 const { appendCrashLog, reportCrashToServer } = require('../window')
@@ -82,10 +82,10 @@ function initApp({
         // Handle protocol URL passed as CLI arg at startup (Windows + Linux)
         // macOS uses the 'open-url' event instead
         if (process.platform !== 'darwin') {
-            const protocolPrefix = `${APP_PROTOCOL}://`
-            const deeplink = process.argv.find(
-                (arg) => typeof arg === 'string' && arg.startsWith(protocolPrefix)
-            )
+            // isProtocolUrl recognizes every scheme we register ourselves as
+            // a handler for (centrio:// and now tg://) — see
+            // SUPPORTED_PROTOCOLS in main/config/constants.js.
+            const deeplink = process.argv.find(isProtocolUrl)
             if (deeplink) {
                 setTimeout(() => {
                     handleProtocolUrl(deeplink, getMainWindow, showMainWindow)

@@ -10,6 +10,19 @@ The format is based on Keep a Changelog. This project does not currently follow 
 
 _No unreleased changes documented yet — add entries here as they land, then move them under a new version heading at release time._
 
+## [1.8.6]
+
+- Добавлена поддержка ссылок на Telegram-приглашения и чаты (`tg://resolve?domain=...`) — клик по такой ссылке переключает на уже открытую вкладку Telegram и сразу загружает в ней нужный чат, вместо перехода во внешний браузер
+- Работает как по клику внутри мессенджеров Centrio (webview click interception), так и по клику в других приложениях/браузере — если Centrio выбран обработчиком `tg://` в системе (OS-level protocol registration via `app.setAsDefaultProtocolClient`)
+
+## [1.8.5]
+
+- Исправлен критический баг: экран блокировки по PIN иногда не появлялся при сворачивании или скрытии окна (`isPasswordEnabled` destructure regression in `main/ipc/window.js`)
+- Проверка и хеширование PIN-кода перенесены из renderer в защищённый основной процесс (`main/services/pinHash.js`, IPC `security:hash-pin`/`security:verify-pin`)
+- Устранена уязвимость логин-CSRF во flow OAuth (Google/Yandex): добавлена проверка nonce/`state` при возврате `centrio://auth` колбэка (`main/ipc/oauth.js`)
+- `save-image-data` защищён от произвольной записи на диск через allowlist путей, реально выданных приложением (`main/ipc/downloads.js`)
+- Добавлена проверка `will-attach-webview` перед созданием любого `<webview>`: партиция и preload-скрипт валидируются, небезопасные `webPreferences` переопределяются (`main/bootstrap/registerAppEvents.js`)
+
 ## [1.8.4]
 
 - LanguageTool: исправлена ошибка «Cannot check text — confirm privacy policy first», из-за которой окно согласия на проверку текста показывалось лишь изредка вместо стабильного появления при первом использовании

@@ -31,6 +31,59 @@ const googleDesktopClient = new OAuth2Client(
   process.env.GOOGLE_DESKTOP_CLIENT_SECRET
 )
 
+// ── Desktop OAuth state/nonce store ───────────────────────────────────────
+// The browser-based desktop login (Google/Yandex "from=desktop") used to
+// hand the Electron app's centrio:// deep-link callback a hardcoded literal
+// state ('desktop') instead of a real per-attempt nonce. Since the centrio://
+// protocol handler is registered OS-wide once the app is installed, ANY
+// other app or web page could invoke `centrio://auth?accessToken=...` and
+// the old client had no way to tell that apart from a real callback — a
+// login-CSRF / token-injection risk. See main/ipc/oauth.js and
+// main/services/protocol.js in the desktop app repo for the matching
+// client-side half of this fix.
+//
+// New flow: the desktop app generates its own nonce and sends it here as
+// `client_nonce` when it opens this URL in the system browser. We mint a
+// fresh random `state`, map it to that nonce, and hand `state` to the OAuth
+// provider as the actual CSRF state param. On callback we look the state up
+// (single-use — deleted on lookup either way) and only redirect to
+// centrio://auth with a token if it's found and unexpired, echoing back the
+// original client_nonce as `state` so the app can confirm the callback
+// belongs to the attempt it itself started. An unknown/expired/missing
+// state falls back to the normal web success/error redirect instead of
+// ever handing a token to centrio:// — fail closed, not open.
+const oauthStateStore = new Map() // state -> { clientNonce, expiresAt }
+const OAUTH_STATE_TTL_MS = 5 * 60 * 1000 // 5 minutes, mirrors admin-otp.js's session TTL pattern
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [state, entry] of oauthStateStore) {
+    if (entry.expiresAt < now) oauthStateStore.delete(state)
+  }
+}, 60 * 1000)
+
+function issueDesktopState(clientNonce) {
+  const state = crypto.randomBytes(16).toString('hex')
+  oauthStateStore.set(state, {
+    clientNonce: typeof clientNonce === 'string' ? clientNonce.slice(0, 256) : '',
+    expiresAt: Date.now() + OAUTH_STATE_TTL_MS
+  })
+  return state
+}
+
+// Single-use lookup: always deletes the entry so a captured/replayed
+// callback URL can't be replayed a second time. Returns the original
+// client_nonce string on success, or null if the state is missing, unknown,
+// or expired (including: not a desktop flow at all).
+function consumeDesktopState(state) {
+  if (!state || typeof state !== 'string') return null
+  const entry = oauthStateStore.get(state)
+  oauthStateStore.delete(state)
+  if (!entry) return null
+  if (entry.expiresAt < Date.now()) return null
+  return entry.clientNonce
+}
+
 // ===== REGISTER =====
 router.post('/register', async (req, res) => {
   try {
@@ -126,9 +179,10 @@ router.get('/me', authMiddleware, async (req, res) => {
 // ===== GOOGLE =====
 router.get('/google', (req, res) => {
   const from = req.query.from || ''
+  const state = from === 'desktop' ? issueDesktopState(req.query.client_nonce) : undefined
   const url = googleWebClient.generateAuthUrl({
     access_type: 'offline', scope: ['email', 'profile'], prompt: 'consent',
-    state: from === 'desktop' ? 'desktop' : undefined
+    state
   })
   res.redirect(url)
 })
@@ -151,13 +205,14 @@ router.get('/google/callback', async (req, res) => {
     }
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
-    if (req.query.state === 'desktop') {
-      return res.redirect(`centrio://auth?accessToken=${accessToken}&refreshToken=${refreshToken}`)
+    const clientNonce = consumeDesktopState(req.query.state)
+    if (clientNonce !== null) {
+      return res.redirect(`centrio://auth?accessToken=${accessToken}&refreshToken=${refreshToken}&state=${encodeURIComponent(clientNonce)}`)
     }
     res.redirect(`${process.env.FRONTEND_URL}/auth/success?accessToken=${accessToken}&refreshToken=${refreshToken}`)
   } catch (err) {
     console.error('Google callback error:', err)
-    if (req.query.state === 'desktop') {
+    if (consumeDesktopState(req.query.state) !== null) {
       return res.redirect('centrio://auth?error=google_failed')
     }
     res.redirect(`${process.env.FRONTEND_URL}/auth/error`)
@@ -194,8 +249,8 @@ router.post('/google/electron-code', async (req, res) => {
 // ===== YANDEX =====
 router.get('/yandex', (req, res) => {
   const from = req.query.from || ''
-  const state = from === 'desktop' ? '&state=desktop' : ''
-  const url = `https://oauth.yandex.ru/authorize?response_type=code&client_id=${process.env.YANDEX_CLIENT_ID}&redirect_uri=${process.env.API_URL}/api/auth/yandex/callback${state}`
+  const stateParam = from === 'desktop' ? `&state=${issueDesktopState(req.query.client_nonce)}` : ''
+  const url = `https://oauth.yandex.ru/authorize?response_type=code&client_id=${process.env.YANDEX_CLIENT_ID}&redirect_uri=${process.env.API_URL}/api/auth/yandex/callback${stateParam}`
   res.redirect(url)
 })
 
@@ -222,13 +277,14 @@ router.get('/yandex/callback', async (req, res) => {
     }
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
-    if (req.query.state === 'desktop') {
-      return res.redirect(`centrio://auth?accessToken=${accessToken}&refreshToken=${refreshToken}`)
+    const clientNonce = consumeDesktopState(req.query.state)
+    if (clientNonce !== null) {
+      return res.redirect(`centrio://auth?accessToken=${accessToken}&refreshToken=${refreshToken}&state=${encodeURIComponent(clientNonce)}`)
     }
     res.redirect(`${process.env.FRONTEND_URL}/auth/success?accessToken=${accessToken}&refreshToken=${refreshToken}`)
   } catch (err) {
     console.error('Yandex callback error:', err)
-    if (req.query.state === 'desktop') {
+    if (consumeDesktopState(req.query.state) !== null) {
       return res.redirect('centrio://auth?error=yandex_failed')
     }
     res.redirect(`${process.env.FRONTEND_URL}/auth/error`)
@@ -363,7 +419,11 @@ router.post('/telegram/electron', async (req, res) => {
     const secretKey = crypto.createHash('sha256').update(process.env.TELEGRAM_BOT_TOKEN).digest()
     const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
 
-    if (hmac !== hash) return res.status(401).json({ error: 'Невалидная подпись Telegram' })
+    // Timing-safe compare (mirrors the FRIDE webhook signature check in payments.js)
+    const hmacBuf = Buffer.from(String(hmac), 'hex')
+    const hashBuf = Buffer.from(String(hash), 'hex')
+    const isValidHmac = hmacBuf.length === hashBuf.length && crypto.timingSafeEqual(hmacBuf, hashBuf)
+    if (!isValidHmac) return res.status(401).json({ error: 'Невалидная подпись Telegram' })
     if (Date.now() / 1000 - Number(rest.auth_date) > 86400) return res.status(401).json({ error: 'Данные авторизации устарели' })
 
     const telegramId = String(rest.id)
