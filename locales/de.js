@@ -223,6 +223,12 @@ module.exports = {
         vpnPreparing:        'Vorbereitung...',
         vpnError:            'Fehler',
         vpnDownloadError:    'Download-Fehler',
+        vpnErrTimeout:       'Verbindung zum Server konnte nicht rechtzeitig hergestellt werden. Prüfen Sie Ihre Internetverbindung oder versuchen Sie einen anderen Server',
+        vpnErrCrashed:       'VPN-Verbindung konnte nicht gestartet werden. Versuchen Sie es erneut oder wählen Sie einen anderen Server',
+        vpnErrNotInstalled:  'VPN-Komponenten werden noch vorbereitet. Bitte warten Sie und versuchen Sie es erneut',
+        vpnErrInvalidLink:   'Dieser Link ist ungültig oder wird nicht unterstützt. Überprüfen Sie ihn und versuchen Sie es erneut',
+        vpnErrSubHttpOnly:   'Der Abo-Link muss mit https:// beginnen',
+        vpnErrSubEmpty:      'In diesem Abo wurden keine Server gefunden',
         vpnConnectBtn:       'Verbinden',
         vpnDeleteBtn:        'Löschen',
         vpnAppsTitle:        'VPN für Anwendungen',
@@ -429,6 +435,7 @@ module.exports = {
 
     autoLaunch: {
         unavailable: 'Autostart nicht verfügbar',
+        error: 'Autostart-Einstellung konnte nicht geändert werden',
     },
 
     cloud: {

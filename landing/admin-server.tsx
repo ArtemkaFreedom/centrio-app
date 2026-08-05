@@ -25,6 +25,19 @@ interface Visitor {
   firstSeenAt: string; lastSeenAt: string; sessions: number; messengersCount: number
   online: boolean
 }
+interface PromoCode {
+  id: string; code: string; months: number; maxUses: number | null; usesCount: number
+  isActive: boolean; expiresAt: string | null; createdAt: string
+  _count?: { redemptions: number }
+}
+interface TicketMessage { id: string; isAdmin: boolean; body: string; createdAt: string }
+interface Ticket {
+  id: string; subject: string; status: 'OPEN' | 'ANSWERED' | 'CLOSED'
+  createdAt: string; updatedAt: string
+  user: { id: string; email: string; name: string | null }
+  _count?: { messages: number }
+  messages?: TicketMessage[]
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | null) {
@@ -541,6 +554,320 @@ function NotificationsTab({ token }: { token: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// TAB: PROMO CODES
+// ═══════════════════════════════════════════════════════════════════════════════
+function PromoCodesTab({ token }: { token: string }) {
+  const [codes, setCodes]       = useState<PromoCode[]>([])
+  const [loading, setLoading]   = useState(false)
+  const [showForm, setShowForm] = useState(false)
+
+  // Form state
+  const [code, setCode]         = useState('')
+  const [months, setMonths]     = useState('1')
+  const [maxUses, setMaxUses]   = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [saving, setSaving]     = useState(false)
+  const [saveMsg, setSaveMsg]   = useState('')
+
+  const headers = { 'x-admin-token': token, 'Content-Type': 'application/json' }
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`${API}/api/admin/promo-codes`, { headers: { 'x-admin-token': token } })
+      const d = await r.json()
+      setCodes(Array.isArray(d.codes) ? d.codes : [])
+    } catch { setCodes([]) } finally { setLoading(false) }
+  }, [token])
+
+  useEffect(() => { load() }, [load])
+
+  async function createCode(e: React.FormEvent) {
+    e.preventDefault()
+    if (!code.trim() || !months) return
+    setSaving(true); setSaveMsg('')
+    try {
+      const res = await fetch(`${API}/api/admin/promo-codes`, {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          code: code.trim(),
+          months: Number(months),
+          maxUses: maxUses.trim() || undefined,
+          expiresAt: expiresAt || undefined
+        })
+      })
+      if (res.ok) {
+        setSaveMsg('✓ Промокод создан')
+        setCode(''); setMonths('1'); setMaxUses(''); setExpiresAt('')
+        load()
+        setTimeout(() => { setSaveMsg(''); setShowForm(false) }, 2000)
+      } else { const d = await res.json(); setSaveMsg('❌ ' + (d.error || 'Ошибка')) }
+    } finally { setSaving(false) }
+  }
+
+  async function toggleActive(c: PromoCode) {
+    const res = await fetch(`${API}/api/admin/promo-codes/${c.id}/active`, {
+      method: 'PATCH', headers, body: JSON.stringify({ isActive: !c.isActive })
+    })
+    if (res.ok) setCodes(prev => prev.map(x => x.id === c.id ? { ...x, isActive: !x.isActive } : x))
+  }
+
+  async function deleteCode(c: PromoCode) {
+    if (!window.confirm(`Удалить промокод "${c.code}"?`)) return
+    const res = await fetch(`${API}/api/admin/promo-codes/${c.id}`, { method: 'DELETE', headers: { 'x-admin-token': token } })
+    if (res.ok) setCodes(prev => prev.filter(x => x.id !== c.id))
+    else { const d = await res.json(); window.alert(d.error || 'Ошибка удаления') }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Top bar */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button onClick={() => setShowForm(v => !v)}
+          style={{ ...S.btnPrimary, background: showForm ? '#4f46e5' : '#6366f1', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Новый промокод
+        </button>
+        <div style={{ flex: 1 }} />
+        {codes.length > 0 && <button onClick={load} style={S.btnGhost}>↺</button>}
+      </div>
+
+      {/* Create form */}
+      {showForm && (
+        <div style={{ background: '#0c0c14', border: '1px solid #1e1e2a', borderRadius: 16, padding: 24 }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: 15, color: '#fff', fontWeight: 700 }}>Новый промокод</h3>
+          <form onSubmit={createCode} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
+            <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="Код, напр. CENTRIO2026" required style={S.input} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <input type="number" min={1} max={24} value={months} onChange={e => setMonths(e.target.value)} placeholder="Месяцев Pro *" required style={S.input} />
+              <input type="number" min={1} value={maxUses} onChange={e => setMaxUses(e.target.value)} placeholder="Лимит активаций (пусто = безлимит)" style={S.input} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 4 }}>Действует до (необязательно)</label>
+              <input type="date" value={expiresAt} onChange={e => setExpiresAt(e.target.value)} style={S.input} />
+            </div>
+            {saveMsg && <div style={{ fontSize: 13, color: saveMsg.startsWith('✓') ? '#22c55e' : '#ef4444' }}>{saveMsg}</div>}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setShowForm(false)} style={S.btnGhost}>Отмена</button>
+              <button type="submit" disabled={saving || !code.trim()} style={{ ...S.btnPrimary, opacity: saving ? 0.6 : 1 }}>{saving ? 'Создание…' : 'Создать'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* List */}
+      {loading ? (
+        <div style={{ padding: 32, textAlign: 'center', color: '#333' }}>Загрузка…</div>
+      ) : codes.length === 0 ? (
+        <div style={{ padding: 48, textAlign: 'center', color: '#2a2a3a', fontSize: 14 }}>Промокодов нет</div>
+      ) : (
+        <div style={S.card}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #141420', color: '#555', textAlign: 'left' }}>
+                <th style={{ padding: '10px 16px' }}>Код</th>
+                <th style={{ padding: '10px 16px' }}>Месяцев</th>
+                <th style={{ padding: '10px 16px' }}>Активаций</th>
+                <th style={{ padding: '10px 16px' }}>Истекает</th>
+                <th style={{ padding: '10px 16px' }}>Статус</th>
+                <th style={{ padding: '10px 16px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {codes.map(c => (
+                <tr key={c.id} style={{ borderBottom: '1px solid #101018' }}>
+                  <td style={{ padding: '10px 16px', color: '#ddd', fontWeight: 700, fontFamily: 'monospace' }}>{c.code}</td>
+                  <td style={{ padding: '10px 16px', color: '#888' }}>{c.months}</td>
+                  <td style={{ padding: '10px 16px', color: '#888' }}>{c.usesCount}{c.maxUses != null ? ` / ${c.maxUses}` : ''}</td>
+                  <td style={{ padding: '10px 16px', color: '#888' }}>{c.expiresAt ? fmtDate(c.expiresAt) : '—'}</td>
+                  <td style={{ padding: '10px 16px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 20, ...(c.isActive ? { background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.35)' } : { background: '#1e1e1e', color: '#555', border: '1px solid #2a2a2a' }) }}>
+                      {c.isActive ? 'Активен' : 'Выключен'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button onClick={() => toggleActive(c)} style={{ ...S.btnGhost, marginRight: 8 }}>{c.isActive ? 'Выключить' : 'Включить'}</button>
+                    <button onClick={() => deleteCode(c)} style={S.btnDanger}>Удалить</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB: SUPPORT TICKETS
+// ═══════════════════════════════════════════════════════════════════════════════
+const TICKET_STATUS_LABEL: Record<string, string> = { OPEN: 'Открыто', ANSWERED: 'Отвечено', CLOSED: 'Закрыто' }
+const TICKET_STATUS_STYLE: Record<string, React.CSSProperties> = {
+  OPEN:     { background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.35)' },
+  ANSWERED: { background: 'rgba(34,197,94,0.15)',  color: '#22c55e', border: '1px solid rgba(34,197,94,0.35)' },
+  CLOSED:   { background: '#1e1e1e', color: '#555', border: '1px solid #2a2a2a' },
+}
+
+function TicketsTab({ token }: { token: string }) {
+  const [tickets, setTickets]   = useState<Ticket[]>([])
+  const [loading, setLoading]   = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'ANSWERED' | 'CLOSED'>('ALL')
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [active, setActive]     = useState<Ticket | null>(null)
+  const [loadingThread, setLoadingThread] = useState(false)
+  const [reply, setReply]       = useState('')
+  const [sending, setSending]   = useState(false)
+
+  const headers = { 'x-admin-token': token, 'Content-Type': 'application/json' }
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const qs = statusFilter !== 'ALL' ? `?status=${statusFilter}` : ''
+      const r = await fetch(`${API}/api/admin/tickets${qs}`, { headers: { 'x-admin-token': token } })
+      const d = await r.json()
+      setTickets(Array.isArray(d.tickets) ? d.tickets : [])
+    } catch { setTickets([]) } finally { setLoading(false) }
+  }, [token, statusFilter])
+
+  useEffect(() => { load() }, [load])
+
+  const openThread = useCallback(async (id: string) => {
+    setActiveId(id); setLoadingThread(true); setActive(null)
+    try {
+      const r = await fetch(`${API}/api/admin/tickets/${id}`, { headers: { 'x-admin-token': token } })
+      if (r.ok) setActive(await r.json())
+    } finally { setLoadingThread(false) }
+  }, [token])
+
+  async function sendReply(e: React.FormEvent) {
+    e.preventDefault()
+    if (!reply.trim() || !activeId) return
+    setSending(true)
+    try {
+      const res = await fetch(`${API}/api/admin/tickets/${activeId}/messages`, {
+        method: 'POST', headers, body: JSON.stringify({ body: reply.trim() })
+      })
+      if (res.ok) { setReply(''); openThread(activeId); load() }
+    } finally { setSending(false) }
+  }
+
+  async function setStatus(status: 'OPEN' | 'ANSWERED' | 'CLOSED') {
+    if (!activeId) return
+    const res = await fetch(`${API}/api/admin/tickets/${activeId}/status`, {
+      method: 'PATCH', headers, body: JSON.stringify({ status })
+    })
+    if (res.ok) { openThread(activeId); load() }
+  }
+
+  if (activeId) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <button onClick={() => { setActiveId(null); setActive(null) }} style={S.btnGhost}>← К списку обращений</button>
+
+        {loadingThread || !active ? (
+          <div style={{ padding: 32, textAlign: 'center', color: '#333' }}>Загрузка…</div>
+        ) : (
+          <div style={{ background: '#0c0c14', border: '1px solid #141420', borderRadius: 12, padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: 16, color: '#fff', fontWeight: 700 }}>{active.subject}</h3>
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 20, ...TICKET_STATUS_STYLE[active.status] }}>
+                {TICKET_STATUS_LABEL[active.status] || active.status}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: '#555', marginBottom: 18 }}>
+              {active.user.email}{active.user.name ? ` · ${active.user.name}` : ''}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {(active.messages || []).map(m => (
+                <div key={m.id} style={{
+                  alignSelf: m.isAdmin ? 'flex-end' : 'flex-start',
+                  maxWidth: '75%',
+                  background: m.isAdmin ? 'rgba(99,102,241,0.12)' : '#111119',
+                  border: `1px solid ${m.isAdmin ? 'rgba(99,102,241,0.3)' : '#1e1e2a'}`,
+                  borderRadius: 12, padding: '10px 14px'
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: m.isAdmin ? '#818cf8' : '#555', marginBottom: 4 }}>
+                    {m.isAdmin ? 'Админ' : active.user.email}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#ddd', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{m.body}</div>
+                  <div style={{ fontSize: 10, color: '#444', marginTop: 5 }}>{fmtDate(m.createdAt)}</div>
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={sendReply} style={{ display: 'flex', gap: 10, borderTop: '1px solid #141420', paddingTop: 16, marginBottom: 14 }}>
+              <textarea value={reply} onChange={e => setReply(e.target.value)} placeholder="Ответить пользователю..." rows={2} style={{ ...S.textarea, flex: 1 }} />
+              <button type="submit" disabled={sending || !reply.trim()} style={{ ...S.btnPrimary, opacity: sending ? 0.6 : 1, alignSelf: 'flex-end' }}>
+                {sending ? 'Отправка…' : 'Ответить'}
+              </button>
+            </form>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              {active.status !== 'CLOSED' && <button onClick={() => setStatus('CLOSED')} style={S.btnGhost}>Закрыть обращение</button>}
+              {active.status === 'CLOSED' && <button onClick={() => setStatus('OPEN')} style={S.btnGhost}>Открыть заново</button>}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {(['ALL', 'OPEN', 'ANSWERED', 'CLOSED'] as const).map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)}
+            style={{ ...S.btnGhost, ...(statusFilter === s ? { background: '#6366f1', color: '#fff', border: '1px solid #6366f1' } : {}) }}>
+            {s === 'ALL' ? 'Все' : TICKET_STATUS_LABEL[s]}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        {tickets.length > 0 && <button onClick={load} style={S.btnGhost}>↺</button>}
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 32, textAlign: 'center', color: '#333' }}>Загрузка…</div>
+      ) : tickets.length === 0 ? (
+        <div style={{ padding: 48, textAlign: 'center', color: '#2a2a3a', fontSize: 14 }}>Обращений нет</div>
+      ) : (
+        <div style={S.card}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #141420', color: '#555', textAlign: 'left' }}>
+                <th style={{ padding: '10px 16px' }}>Тема</th>
+                <th style={{ padding: '10px 16px' }}>Пользователь</th>
+                <th style={{ padding: '10px 16px' }}>Сообщений</th>
+                <th style={{ padding: '10px 16px' }}>Обновлено</th>
+                <th style={{ padding: '10px 16px' }}>Статус</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tickets.map(t => (
+                <tr key={t.id} onClick={() => openThread(t.id)} style={{ borderBottom: '1px solid #101018', cursor: 'pointer' }}>
+                  <td style={{ padding: '10px 16px', color: '#ddd', fontWeight: 600 }}>{t.subject}</td>
+                  <td style={{ padding: '10px 16px', color: '#888' }}>{t.user?.email}</td>
+                  <td style={{ padding: '10px 16px', color: '#888' }}>{t._count?.messages ?? 0}</td>
+                  <td style={{ padding: '10px 16px', color: '#888' }}>{fmtDate(t.updatedAt)}</td>
+                  <td style={{ padding: '10px 16px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 20, ...TICKET_STATUS_STYLE[t.status] }}>
+                      {TICKET_STATUS_LABEL[t.status] || t.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TAB: VISITORS
 // ═══════════════════════════════════════════════════════════════════════════════
 function VisitorsTab({ token }: { token: string }) {
@@ -673,12 +1000,314 @@ function VisitorsTab({ token }: { token: string }) {
   )
 }
 
+// ─── Card-link demo (TEMPORARY) ────────────────────────────────────────────────
+// Full 1:1 replica of the dashboard's "Подписка" screen (same plan cards,
+// same glass-card styling, same copy) — not a stripped-down button. The one
+// addition is the "Привязать карту сразу" checkbox (mirrors the pattern
+// used in Cliqly's billing.service.ts, where save_payment_method is gated
+// by a flag): checked → POST /api/admin/card-demo-payment sends
+// save_payment_method:true and the click opens YooKassa's own real hosted
+// checkout widget with card-saving enabled, the exact same page a real
+// customer reaches via dashboard's handleBuyPlan → POST /api/payments/create.
+// Uses the real plan prices (199₽/1590₽) for full fidelity — nothing here
+// is written to the Payment table and no admin session is tied to a real
+// user, so it can never grant Pro to anyone; it only opens YooKassa's page,
+// it never submits a card itself. Remove this tab once the YooKassa
+// application is approved.
+const CD_IcoCheck = ({ color = '#3b82f6' }: { color?: string }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+    <path d="M20 6L9 17L4 12" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+const CD_IcoArrow = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+    <path d="M7 17L17 7M17 7H7M17 7v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+const CD_IcoCard = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <rect x="1" y="4" width="22" height="16" rx="3" stroke="currentColor" strokeWidth="1.8"/>
+    <line x1="1" y1="10" x2="23" y2="10" stroke="currentColor" strokeWidth="1.8"/>
+  </svg>
+)
+
+type CardDemoSavedCard = { id?: string; last4: string; first6?: string; cardType?: string | null; isDemo?: boolean } | null
+
+function CardDemoTab({ token }: { token: string }) {
+  const [buying, setBuying]   = useState<'month' | 'year' | null>(null)
+  const [linkCard, setLinkCard] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
+  const [savedCard, setSavedCard] = useState<CardDemoSavedCard>(null)
+  const [polling, setPolling] = useState(false)
+  const [unlinking, setUnlinking] = useState(false)
+
+  // Purely visual — lets the owner reach the "card already linked, unlink
+  // button visible" screenshot instantly, without waiting on a real ЮKassa
+  // payment each time. No backend call: nothing was actually saved, so
+  // there is nothing to deactivate on ЮKassa's side either.
+  const showDemoCard = () => setSavedCard({ last4: '4242', first6: '555555', cardType: 'MasterCard', isDemo: true })
+
+  // Real cards (linked via an actual demo payment above) get really
+  // deactivated through ЮKassa's API — see the comment on
+  // POST /card-demo-payment/unlink-card on the backend. A locally-seeded
+  // demo card just clears from the screen.
+  const unlink = async () => {
+    if (!savedCard) return
+    if (savedCard.isDemo || !savedCard.id) { setSavedCard(null); return }
+    setUnlinking(true)
+    setError(null)
+    try {
+      const res  = await fetch(`${API}/api/admin/card-demo-payment/unlink-card`, {
+        method:  'POST',
+        headers: { 'x-admin-token': token }
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Не удалось отвязать карту')
+      setSavedCard(null)
+    } catch (e: any) {
+      setError(e?.message || 'Ошибка')
+    } finally {
+      setUnlinking(false)
+    }
+  }
+
+  // Restore whatever card (if any) was saved in a previous demo run — the
+  // backend keeps this in memory until the API process restarts.
+  useEffect(() => {
+    fetch(`${API}/api/admin/card-demo-payment/saved-card`, { headers: { 'x-admin-token': token } })
+      .then(r => r.json())
+      .then(d => { if (d?.card) setSavedCard(d.card) })
+      .catch(() => {})
+  }, [token])
+
+  // The admin tab never navigates away — YooKassa's checkout opens in a new
+  // tab — so we poll our own status proxy instead of relying on a
+  // return_url redirect to notice when the card gets saved.
+  const pollStatus = (paymentId: string) => {
+    setPolling(true)
+    let attempts = 0
+    const timer = setInterval(async () => {
+      attempts += 1
+      try {
+        const res  = await fetch(`${API}/api/admin/card-demo-payment/${paymentId}/status`, { headers: { 'x-admin-token': token } })
+        const data = await res.json()
+        if (data?.card) setSavedCard(data.card)
+        if (data?.status === 'succeeded' || data?.status === 'canceled' || attempts >= 40) {
+          clearInterval(timer)
+          setPolling(false)
+        }
+      } catch {
+        clearInterval(timer)
+        setPolling(false)
+      }
+    }, 3000)
+  }
+
+  const buy = async (plan: 'month' | 'year') => {
+    setBuying(plan)
+    setError(null)
+    try {
+      const res  = await fetch(`${API}/api/admin/card-demo-payment`, {
+        method:  'POST',
+        headers: { 'x-admin-token': token, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ plan, linkCard })
+      })
+      const data = await res.json()
+      if (!res.ok || !data?.confirmationUrl) throw new Error(data?.error || 'Не удалось создать платёж')
+      window.open(data.confirmationUrl, '_blank', 'noopener,noreferrer')
+      if (linkCard && data.paymentId) pollStatus(data.paymentId)
+    } catch (e: any) {
+      setError(e?.message || 'Ошибка')
+    } finally {
+      setBuying(null)
+    }
+  }
+
+  return (
+    <div style={{ paddingTop: 8, paddingBottom: 40 }}>
+      <div style={{ fontSize: 12, color: '#555', marginBottom: 22, textAlign: 'center', maxWidth: 620, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.5 }}>
+        Копия страницы «Подписка» из личного кабинета — те же тарифы и оформление. Кнопки «Купить» открывают настоящую страницу оплаты ЮKassa (новая вкладка); при включённой галочке ниже она откроется с опцией сохранения карты для автоплатежей. Демо-платёж нигде не сохраняется и не выдаёт Pro — для скриншота в заявку на рекуррентные платежи карту вводить не обязательно.
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 12, padding: '12px 18px', cursor: 'pointer', fontSize: 13.5, color: '#c7c7d6' }}>
+          <input type="checkbox" checked={linkCard} onChange={e => setLinkCard(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#6366f1' }} />
+          Привязать карту сразу
+        </label>
+      </div>
+
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div className="cd-plans">
+          {/* Free */}
+          <div className="cd-plan-card">
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>Free</div>
+              <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-.03em' }}>0 <span style={{ fontSize: 16, fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>₽/мес</span></div>
+            </div>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {['1 устройство', 'До 3 мессенджеров', 'Базовая синхронизация', 'Статистика'].map(f => (
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
+                  <CD_IcoCheck color="#64748b" /> {f}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pro — Месяц */}
+          <div className="cd-plan-card cd-pro">
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 10 }}>Pro · Месяц</div>
+              <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-.03em', color: '#fff' }}>199 <span style={{ fontSize: 16, fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>₽/мес</span></div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.28)', marginTop: 4 }}>Оплата каждый месяц</div>
+            </div>
+            <div style={{ borderTop: '1px solid rgba(59,130,246,0.15)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {['До 5 устройств', 'Неограниченно мессенджеров', 'Облачная синхронизация', 'Расширенная статистика', 'Приоритетная поддержка'].map(f => (
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                  <CD_IcoCheck color="#3b82f6" /> {f}
+                </div>
+              ))}
+            </div>
+            <button className="cd-btn-primary" onClick={() => buy('month')} disabled={buying !== null} style={{ marginTop: 'auto' }}>
+              {buying === 'month' ? '…' : <>Купить <CD_IcoArrow /></>}
+            </button>
+          </div>
+
+          {/* Pro — Год */}
+          <div className="cd-plan-card cd-pro">
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '.08em' }}>Pro · Год</div>
+                <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, padding: '1px 7px' }}>−34%</span>
+              </div>
+              <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-.03em', color: '#fff' }}>1 590 <span style={{ fontSize: 16, fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>₽/год</span></div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.28)', marginTop: 4 }}>≈ 132,5 ₽/мес при оплате раз в год</div>
+            </div>
+            <div style={{ borderTop: '1px solid rgba(59,130,246,0.15)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {['До 5 устройств', 'Неограниченно мессенджеров', 'Облачная синхронизация', 'Расширенная статистика', 'Приоритетная поддержка'].map(f => (
+                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                  <CD_IcoCheck color="#3b82f6" /> {f}
+                </div>
+              ))}
+            </div>
+            <button className="cd-btn-primary cd-btn-year" onClick={() => buy('year')} disabled={buying !== null} style={{ marginTop: 'auto' }}>
+              {buying === 'year' ? '…' : <>Купить <CD_IcoArrow /></>}
+            </button>
+          </div>
+        </div>
+
+        {error && <div style={{ fontSize: 12.5, color: '#ef4444', marginTop: 16, textAlign: 'center' }}>{error}</div>}
+
+        {/* Payment methods — same block as the dashboard */}
+        <div className="cd-glass" style={{ padding: '22px 26px', marginTop: 24 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ color: 'rgba(255,255,255,0.4)' }}><CD_IcoCard /></div>
+            Способы оплаты
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {[
+              { label: 'ЮKassa', sub: 'Карты РФ, СБП, ЮMoney', active: true },
+              { label: 'Криптовалюта', sub: 'BTC, ETH, USDT', active: false },
+              { label: 'Карты EU/US', sub: 'Скоро', active: false },
+            ].map(m => (
+              <div key={m.label} style={{ background: m.active ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.04)', border: m.active ? '1px solid rgba(59,130,246,0.3)' : '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 18px' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>{m.label}</div>
+                <div style={{ fontSize: 11.5, color: m.active ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)' }}>{m.sub}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 14, fontSize: 12, color: 'rgba(255,255,255,0.22)', lineHeight: 1.6 }}>
+            Платежи защищены · ЮKassa · ИП Козловский А.С. · ИНН: 501908743800
+          </div>
+        </div>
+
+        {/* Saved cards — populated once ЮKassa confirms a card was linked */}
+        <div className="cd-glass" style={{ padding: '22px 26px', marginTop: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ color: 'rgba(255,255,255,0.4)' }}><CD_IcoCard /></div>
+            Сохранённые карты
+            {polling && <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.35)' }}>· ждём подтверждения оплаты…</span>}
+          </div>
+          {!savedCard ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>Сохранённых карт нет</div>
+              <button className="cd-btn-ghost" onClick={showDemoCard}>Показать демо-карту</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 12, padding: '12px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ color: '#22c55e' }}><CD_IcoCard /></div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '.04em' }}>
+                    •••• •••• •••• {savedCard.last4}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+                    {savedCard.cardType || 'Карта'}{savedCard.first6 ? ` · ${savedCard.first6.slice(0, 4)}…` : ''} · привязана
+                  </div>
+                </div>
+              </div>
+              <button className="cd-btn-unlink" onClick={unlink} disabled={unlinking}>
+                {unlinking ? '…' : 'Отвязать карту'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes cdFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+        .cd-plans{display:flex;gap:16px}
+        .cd-glass, .cd-plan-card{
+          background:rgba(255,255,255,0.04);
+          backdrop-filter:blur(24px);
+          -webkit-backdrop-filter:blur(24px);
+          border:1px solid rgba(255,255,255,0.08);
+          border-radius:20px;
+          animation:cdFadeIn .4s ease both;
+        }
+        .cd-plan-card{padding:26px;flex:1;display:flex;flex-direction:column;gap:16px;transition:all .25s}
+        .cd-plan-card:hover{border-color:rgba(255,255,255,0.16);transform:translateY(-2px)}
+        .cd-plan-card.cd-pro{border-color:rgba(59,130,246,0.35);background:rgba(59,130,246,0.06);box-shadow:0 0 40px rgba(59,130,246,0.1)}
+
+        .cd-btn-primary{
+          background:linear-gradient(135deg,#2563eb,#3b82f6);
+          border:none;color:#fff;border-radius:12px;
+          padding:11px 16px;font-size:13px;font-weight:600;
+          cursor:pointer;transition:all .2s;font-family:inherit;
+          box-shadow:0 4px 20px rgba(59,130,246,0.35);
+          display:flex;align-items:center;justify-content:center;gap:7px;
+        }
+        .cd-btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(59,130,246,0.45)}
+        .cd-btn-primary:disabled{opacity:0.6;cursor:default;transform:none}
+        .cd-btn-year{background:linear-gradient(135deg,#1d4ed8,#2563eb);box-shadow:0 4px 16px rgba(37,99,235,0.3)}
+
+        .cd-btn-ghost{
+          background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);
+          color:rgba(255,255,255,0.6);border-radius:10px;padding:8px 16px;
+          font-size:12.5px;font-weight:600;cursor:pointer;transition:all .2s;
+          font-family:inherit;white-space:nowrap;
+        }
+        .cd-btn-ghost:hover{border-color:rgba(255,255,255,0.25);color:#fff}
+
+        .cd-btn-unlink{
+          background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);
+          color:#ef4444;border-radius:10px;padding:9px 18px;
+          font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;
+          font-family:inherit;white-space:nowrap;
+        }
+        .cd-btn-unlink:hover{background:rgba(239,68,68,0.16)}
+        .cd-btn-unlink:disabled{opacity:0.6;cursor:default}
+      `}</style>
+    </div>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminPage() {
   const [token, setToken] = useState<string | null>(null)
-  const [tab, setTab]     = useState<'users' | 'notifications' | 'visitors'>('users')
+  const [tab, setTab]     = useState<'users' | 'notifications' | 'visitors' | 'card-demo' | 'promo-codes' | 'tickets'>('users')
 
   useEffect(() => { const t = sessionStorage.getItem(SESSION_KEY); if (t) setToken(t) }, [])
 
@@ -690,6 +1319,9 @@ export default function AdminPage() {
     { key: 'users',         label: 'Пользователи', icon: '👥' },
     { key: 'notifications', label: 'Уведомления',  icon: '🔔' },
     { key: 'visitors',      label: 'Посетители',   icon: '👁' },
+    { key: 'card-demo',     label: 'Демо карты',   icon: '💳' },
+    { key: 'promo-codes',   label: 'Промокоды',    icon: '🎟' },
+    { key: 'tickets',       label: 'Обращения',    icon: '🎫' },
   ]
 
   return (
@@ -718,6 +1350,9 @@ export default function AdminPage() {
         {tab === 'users'         && <UsersTab         token={token} />}
         {tab === 'notifications' && <NotificationsTab token={token} />}
         {tab === 'visitors'      && <VisitorsTab      token={token} />}
+        {tab === 'card-demo'     && <CardDemoTab token={token} />}
+        {tab === 'promo-codes'   && <PromoCodesTab token={token} />}
+        {tab === 'tickets'       && <TicketsTab token={token} />}
       </div>
     </div>
   )

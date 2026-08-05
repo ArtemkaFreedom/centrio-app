@@ -18,7 +18,55 @@ const authMiddleware = require('../middleware/auth')
 const { OAuth2Client } = require('google-auth-library')
 const axios = require('axios')
 const crypto = require('crypto')
-const { sendWelcomeEmail } = require('../lib/email')
+const { sendWelcomeEmail, sendVerificationEmail } = require('../lib/email')
+const { rateLimit } = require('../middleware/rateLimit')
+
+// ── Email verification ──────────────────────────────────────────────────
+// Only password-registered users start unverified — every OAuth provider
+// branch below already sets emailVerified: true at creation (the provider
+// itself already confirmed the address), so this flow only ever applies to
+// the /register path and to re-sends triggered from the dashboard.
+const EMAIL_VERIFY_TOKEN_TTL_MS = 60 * 60 * 1000 // 1 hour
+const verifyEmailSendLimiter = rateLimit({ name: 'verify-email-send', windowMs: 60 * 60 * 1000, max: 5 })
+
+function hashVerifyToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
+
+// Mints a fresh single-use token, persists only its hash (so a DB read/log
+// leak can't hand out a working verification link), and fires the email.
+// Fire-and-forget by design, same as sendWelcomeEmail — a broken email
+// provider must never fail or delay the caller's response.
+async function issueAndSendVerification(user) {
+  const token = crypto.randomBytes(32).toString('hex')
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      emailVerifyTokenHash: hashVerifyToken(token),
+      emailVerifyTokenExpiresAt: new Date(Date.now() + EMAIL_VERIFY_TOKEN_TTL_MS)
+    }
+  })
+  await sendVerificationEmail(user, token)
+}
+
+// ── Login history ────────────────────────────────────────────────────────
+// Append-only log of successful logins, separate from Session (which is
+// deleted on logout/revoke or 30-day expiry — see /devices in user-route.js).
+// Unlike the "active devices" list, this survives logout, so a user can
+// still see "someone logged in from an unfamiliar IP" even after that
+// session ended. Deliberately fire-and-forget, same rationale as the email
+// senders above: a DB hiccup writing an audit-log row must never fail or
+// delay an actual login response.
+function recordLoginEvent(userId, provider, req) {
+  prisma.loginEvent.create({
+    data: {
+      userId,
+      provider,
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null
+    }
+  }).catch(e => console.error('[login-history] record failed:', e.message))
+}
 
 const googleWebClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -87,19 +135,34 @@ function consumeDesktopState(state) {
 // ===== REGISTER =====
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body
+    const { email, password, name, referralCode } = req.body
     if (!email || !password) return res.status(400).json({ error: 'Email и пароль обязательны' })
     if (password.length < 8) return res.status(400).json({ error: 'Пароль должен быть минимум 8 символов' })
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) return res.status(409).json({ error: 'Пользователь с таким email уже существует' })
     const passwordHash = await bcrypt.hash(password, 12)
+
+    // Referral link uses the referrer's own user id as the code — no separate
+    // code field/table needed. Invalid/missing codes are silently ignored
+    // (never block registration over a bad ?ref= param); self-referral is
+    // impossible here since the referrer must already exist before this user
+    // does. The actual +14 day bonus is granted later, on first real payment
+    // — see landing/lib/referral.js.
+    let referredById = null
+    if (referralCode && typeof referralCode === 'string') {
+      const referrer = await prisma.user.findUnique({ where: { id: referralCode }, select: { id: true } })
+      if (referrer) referredById = referrer.id
+    }
+
     const user = await prisma.user.create({
-      data: { email, name: name || email.split('@')[0], passwordHash },
-      select: { id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true }
+      data: { email, name: name || email.split('@')[0], passwordHash, referredById },
+      select: { id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true, emailVerified: true }
     })
     sendWelcomeEmail(user).catch(e => console.error('[email] welcome send failed:', e.message))
+    issueAndSendVerification(user).catch(e => console.error('[email] verification send failed:', e.message))
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
+    recordLoginEvent(user.id, 'password', req)
     res.status(201).json({ message: 'Регистрация успешна', user, accessToken, refreshToken })
   } catch (err) {
     console.error('Register error:', err)
@@ -119,9 +182,10 @@ router.post('/login', async (req, res) => {
     if (!isValid) return res.status(401).json({ error: 'Неверный email или пароль' })
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
+    recordLoginEvent(user.id, 'password', req)
     res.json({
       message: 'Вход выполнен успешно',
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, planExpiresAt: user.planExpiresAt },
+      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, planExpiresAt: user.planExpiresAt, emailVerified: user.emailVerified },
       accessToken,
       refreshToken
     })
@@ -168,11 +232,54 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true }
+      select: { id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true, emailVerified: true }
     })
     res.json({ user })
   } catch (err) {
     res.status(500).json({ error: 'Ошибка получения профиля' })
+  }
+})
+
+// ===== EMAIL VERIFICATION =====
+
+// POST /api/auth/verify-email/send — dashboard "Отправить письмо" button.
+// Rate-limited per IP: this triggers a real Resend API call per request.
+router.post('/verify-email/send', verifyEmailSendLimiter, authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' })
+    if (user.emailVerified) return res.json({ message: 'Email уже подтверждён', alreadyVerified: true })
+
+    await issueAndSendVerification(user)
+    res.json({ message: 'Письмо для подтверждения отправлено' })
+  } catch (err) {
+    console.error('verify-email/send error:', err)
+    res.status(500).json({ error: 'Ошибка отправки письма' })
+  }
+})
+
+// GET /api/auth/verify-email?token=... — the link clicked from the inbox.
+// Public (no authMiddleware — the token itself IS the credential, same
+// pattern as a password-reset link). Always redirects back to the web
+// dashboard rather than returning JSON, since this is only ever opened
+// directly in a browser tab from an email client.
+router.get('/verify-email', async (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : ''
+  const fail = () => res.redirect(`${process.env.FRONTEND_URL}/dashboard?emailVerified=0`)
+  if (!token) return fail()
+  try {
+    const user = await prisma.user.findFirst({ where: { emailVerifyTokenHash: hashVerifyToken(token) } })
+    if (!user || !user.emailVerifyTokenExpiresAt || user.emailVerifyTokenExpiresAt < new Date()) {
+      return fail()
+    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: true, emailVerifyTokenHash: null, emailVerifyTokenExpiresAt: null }
+    })
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard?emailVerified=1`)
+  } catch (err) {
+    console.error('verify-email error:', err)
+    fail()
   }
 })
 
@@ -205,6 +312,7 @@ router.get('/google/callback', async (req, res) => {
     }
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
+    recordLoginEvent(user.id, 'google', req)
     const clientNonce = consumeDesktopState(req.query.state)
     if (clientNonce !== null) {
       return res.redirect(`centrio://auth?accessToken=${accessToken}&refreshToken=${refreshToken}&state=${encodeURIComponent(clientNonce)}`)
@@ -239,6 +347,7 @@ router.post('/google/electron-code', async (req, res) => {
     }
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
+    recordLoginEvent(user.id, 'google', req)
     res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan }, accessToken, refreshToken })
   } catch (err) {
     console.error('Google electron-code error:', err)
@@ -277,6 +386,7 @@ router.get('/yandex/callback', async (req, res) => {
     }
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
+    recordLoginEvent(user.id, 'yandex', req)
     const clientNonce = consumeDesktopState(req.query.state)
     if (clientNonce !== null) {
       return res.redirect(`centrio://auth?accessToken=${accessToken}&refreshToken=${refreshToken}&state=${encodeURIComponent(clientNonce)}`)
@@ -309,6 +419,7 @@ router.post('/yandex/electron', async (req, res) => {
     }
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
+    recordLoginEvent(user.id, 'yandex', req)
     res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan }, accessToken, refreshToken })
   } catch (err) {
     console.error('Yandex electron error:', err)
@@ -377,6 +488,7 @@ router.post('/github/electron-code', async (req, res) => {
 
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
+    recordLoginEvent(user.id, 'github', req)
 
     res.json({
       user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan },
@@ -441,6 +553,7 @@ router.post('/telegram/electron', async (req, res) => {
 
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
+    recordLoginEvent(user.id, 'telegram', req)
 
     res.json({
       user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan },

@@ -121,6 +121,55 @@ router.delete('/devices/:id', authMiddleware, async (req, res) => {
   }
 })
 
+// GET /api/user/login-history — append-only log of successful logins,
+// separate from GET /devices above (which only lists still-active Session
+// rows). Session rows disappear on logout/revoke/30-day expiry, so this is
+// the only place a user can see "someone logged in from an unfamiliar IP"
+// after that session already ended. Written to from auth.js's
+// recordLoginEvent() at every login/register/OAuth success site.
+router.get('/login-history', authMiddleware, async (req, res) => {
+  try {
+    const events = await prisma.loginEvent.findMany({
+      where: { userId: req.user.id },
+      select: { id: true, provider: true, ipAddress: true, userAgent: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    })
+
+    const PROVIDER_LABELS = {
+      password: 'Пароль', google: 'Google', yandex: 'Яндекс',
+      github: 'GitHub', telegram: 'Telegram'
+    }
+
+    const parsed = events.map(e => {
+      const ua = e.userAgent || ''
+      let os = 'Неизвестная ОС'
+      let icon = '💻'
+
+      if (/Windows/i.test(ua))               { os = 'Windows'; icon = '🖥️' }
+      else if (/Macintosh|Mac OS/i.test(ua)) { os = 'macOS'; icon = '🍎' }
+      else if (/Linux/i.test(ua))            { os = 'Linux'; icon = '🐧' }
+      else if (/Android/i.test(ua))          { os = 'Android'; icon = '📱' }
+      else if (/iPhone|iPad/i.test(ua))      { os = 'iOS'; icon = '📱' }
+      if (/Electron/i.test(ua))              { os = 'Centrio App'; icon = '⚡' }
+
+      return {
+        id: e.id,
+        provider: e.provider,
+        providerLabel: PROVIDER_LABELS[e.provider] || e.provider,
+        os,
+        icon,
+        ipAddress: e.ipAddress || '—',
+        createdAt: e.createdAt
+      }
+    })
+
+    res.json({ events: parsed, total: parsed.length })
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка получения истории входов' })
+  }
+})
+
 // DELETE /api/user/devices — revoke all except current
 router.delete('/devices', authMiddleware, async (req, res) => {
   try {
@@ -230,6 +279,29 @@ router.delete('/me', deleteAccountLimiter, authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('GDPR self-delete error:', err.message)
     res.status(500).json({ error: 'Ошибка удаления аккаунта' })
+  }
+})
+
+// GET /api/user/referrals — this user's own referral link id + stats.
+// Referral "code" is just the user's own uuid id (see landing/lib/referral.js
+// and the POST /register referralCode handling in auth-server.js) — no
+// separate code table, so this endpoint just counts referrals rows already
+// pointing at this user via referredById.
+router.get('/referrals', authMiddleware, async (req, res) => {
+  try {
+    const [totalReferred, bonusesGranted] = await Promise.all([
+      prisma.user.count({ where: { referredById: req.user.id } }),
+      prisma.user.count({ where: { referredById: req.user.id, referralBonusGranted: true } })
+    ])
+    res.json({
+      referralCode: req.user.id,
+      totalReferred,
+      bonusesGranted,
+      pending: totalReferred - bonusesGranted,
+      bonusDays: 14
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка получения реферальной статистики' })
   }
 })
 

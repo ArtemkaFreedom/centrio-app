@@ -1,13 +1,27 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/authStore'
 import { api } from '@/lib/api'
 
+// useSearchParams() (used below to read the ?ref=<referrerUserId> referral
+// link param) requires a Suspense boundary at build time — see the same
+// pattern in dashboard-server.tsx (learned the hard way there: missing this
+// breaks `next build` prerendering for the whole site). fallback is null
+// since there's no meaningful loading state for the brief Suspense gap.
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterPageInner />
+    </Suspense>
+  )
+}
+
+function RegisterPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { setAuth, user, _hasHydrated } = useAuthStore()
   const [name, setName]         = useState('')
   const [email, setEmail]       = useState('')
@@ -15,6 +29,11 @@ export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+
+  // Referral link is /register?ref=<referrer's user id> (see landing/lib/referral.js
+  // and the referralCode handling in POST /api/auth/register). Invalid/missing
+  // values are silently ignored server-side, so there's no need to validate here.
+  const referralCode = searchParams.get('ref') || undefined
 
   useEffect(() => {
     if (_hasHydrated && user) router.replace('/dashboard')
@@ -26,7 +45,7 @@ export default function RegisterPage() {
     if (password.length < 8) { setError('Пароль должен быть минимум 8 символов'); return }
     setLoading(true)
     try {
-      const { data } = await api.post('/api/auth/register', { name, email, password })
+      const { data } = await api.post('/api/auth/register', { name, email, password, referralCode })
       setAuth(data.user, data.accessToken, data.refreshToken)
       router.push('/dashboard')
     } catch (err: any) {

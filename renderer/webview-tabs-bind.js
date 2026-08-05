@@ -16,30 +16,129 @@ function translateDeepLinkUrl(special) {
         // SECURITY (defense-in-depth): re-validate host-side against the
         // same anchored pattern preload used to classify this link, rather
         // than trusting `href` verbatim just because it arrived tagged
-        // `service: 'max'` on the deep-link channel. loadURL() is fed
-        // straight from this return value in routeDeepLink() below, so
-        // this is the last gate before an in-app webview navigation.
+        // `service: 'max'` on the deep-link channel.
+        // ВНИМАНИЕ: этот https://max.ru/join/<token> годится ТОЛЬКО как
+        // фолбэк для ВНЕШНЕГО браузера (нет открытой вкладки MAX) — там
+        // max.ru сам показывает публичную страницу приглашения. НЕ грузить
+        // его через loadURL() в уже открытую и залогиненную вкладку MAX —
+        // см. extractMaxJoinToken + navigateMaxWebview ниже, там для этого
+        // случая same-origin путь (max.ru и web.max.ru — РАЗНЫЕ origin, см.
+        // подробности в navigateMaxWebview).
         return /^https:\/\/max\.ru\/join\//i.test(special.href) ? special.href : null
     }
 
     if (special.service === 'telegram') {
         // tg://resolve?domain=X → https://t.me/X — официальный универсальный
-        // редирект-домен Telegram, работает независимо от того, какой именно
-        // веб-клиент (k/a/z/web) настроен у пользователя в качестве вкладки.
-        const match = special.href.match(/[?&]domain=([^&]+)/i)
-        if (!match) return null
-        try {
-            const domain = decodeURIComponent(match[1])
-            // Только username-подобные значения — не даём decodeURIComponent
-            // результату протащить что-то похожее на путь/query в итоговый URL.
-            if (!/^[a-zA-Z0-9_]{1,64}$/.test(domain)) return null
-            return `https://t.me/${domain}`
-        } catch {
-            return null
-        }
+        // редирект-домен Telegram. Годится как фолбэк для ВНЕШНЕГО браузера
+        // (routeDeepLinkFromMain / открытие без подходящей вкладки) — там
+        // t.me корректно делает client-detection и редиректит сам.
+        // ВНИМАНИЕ: НЕ грузить t.me внутри уже открытой и залогиненной
+        // вкладки web.telegram.org через loadURL — см. extractTelegramUsername
+        // + navigateTelegramWebview ниже, там для этого случая отдельный,
+        // same-origin путь без полной навигации.
+        const username = extractTelegramUsername(special.href)
+        return username ? `https://t.me/${username}` : null
     }
 
     return null
+}
+
+// Отдельно от translateDeepLinkUrl(), т.к. нужен голый username и для
+// t.me-фолбэка, и для same-origin hash-навигации внутри уже открытой вкладки.
+function extractTelegramUsername(href) {
+    if (typeof href !== 'string') return null
+    const match = href.match(/[?&]domain=([^&]+)/i)
+    if (!match) return null
+    try {
+        const domain = decodeURIComponent(match[1])
+        // Только username-подобные значения — не даём decodeURIComponent
+        // результату протащить что-то похожее на путь/query в итоговый URL.
+        return /^[a-zA-Z0-9_]{1,64}$/.test(domain) ? domain : null
+    } catch {
+        return null
+    }
+}
+
+// BUGFIX ("клик по tg://resolve — переключает на вкладку ТГ, но там вместо
+// чата открывается страница-заглушка похожая на браузер, и вкладка потом не
+// реагирует ни на что"): раньше routeDeepLink() всегда грузил
+// https://t.me/<username> через loadURL() ПРЯМО В уже залогиненную вкладку
+// web.telegram.org. t.me — ДРУГОЙ origin (свои куки/сессия), поэтому вместо
+// навигации внутри уже открытого веб-клиента показывалась сама t.me
+// лендинг-страница (она рассчитана на переход из обычного браузера — делает
+// client-detection и пытается редиректнуть на tg://, показывая по пути
+// generic "открыть в браузере/приложении" UI — отсюда "выглядит как другой
+// браузер"). Открытие tg:// ИЗНУТРИ webview Electron не может завершиться
+// успехом (это не зарегistrированный для webview-контента протокол) — сама
+// попытка навигации подвешивает фрейм, отсюда "больше ни на что не
+// реагирует". Вместо полной навигации на другой origin — если целевая
+// вкладка уже открыта на web.telegram.org/<client>/, просто меняем hash
+// (#@username) ЧЕРЕЗ executeJavaScript: это тот же приём, которым сам
+// t.me/<username> в итоге открывает чат в веб-клиенте, но без ухода с
+// текущего origin/сессии и без второго прыжка через посадочную страницу.
+function navigateTelegramWebview(webview, username) {
+    let currentUrl = ''
+    try { currentUrl = webview.getURL() || '' } catch { currentUrl = '' }
+
+    const clientMatch = currentUrl.match(/^https:\/\/web\.telegram\.org\/(k|a|z)\//i)
+    if (clientMatch) {
+        // Same-origin SPA-навигация: меняем только hash, страница не
+        // перезагружается, сессия/логин не трогаются.
+        webview.executeJavaScript(`location.hash = '#@${username}'`).catch(() => {})
+        return
+    }
+
+    // Неизвестный/другой клиент Telegram (не web.telegram.org/k|a|z/) —
+    // ничего умнее t.me тут предложить не можем, это тот же фолбэк, что и
+    // при отсутствии вкладки вообще.
+    try { webview.loadURL(`https://t.me/${username}`) } catch {}
+}
+
+// Токен инвайта из https://max.ru/join/<token> — нужен отдельно от
+// translateDeepLinkUrl(), т.к. для same-origin навигации в уже открытой
+// вкладке нужен голый токен, а не полный max.ru-URL.
+function extractMaxJoinToken(href) {
+    if (typeof href !== 'string') return null
+    const match = href.match(/^https:\/\/max\.ru\/join\/([^/?#]+)/i)
+    if (!match) return null
+    const token = match[1]
+    return /^[A-Za-z0-9_-]{1,128}$/.test(token) ? token : null
+}
+
+// BUGFIX ("Макс тоже — только лендинг показывает, перехода нет"): та же
+// природа бага, что и у Telegram выше, подтверждено вживую (curl): сама
+// инвайт-ссылка https://max.ru/join/<token> и реальный веб-клиент MAX
+// (обычно https://web.max.ru/, см. renderer/constants.js) — ДВЕ РАЗНЫЕ
+// SvelteKit-сборки на РАЗНЫХ origin (разные хэши иммутабельных чанков —
+// max.ru отдаёт свой entry/start.*.js, web.max.ru свой; разные
+// куки/сессия/localStorage). loadURL(originalHref) уводил уже залогиненную
+// вкладку web.max.ru на публичный max.ru/join — оттуда и "только лендинг,
+// перехода нет". При этом web.max.ru/join/<token> отдаёт ТОТ ЖЕ SPA-шелл,
+// что и web.max.ru/ (проверено — идентичный HTML, 200), т.е. это валидный
+// клиентский роут внутри уже открытого приложения. В отличие от Telegram
+// (hash-based роутинг в k/a/z клиентах), MAX — путь-based роутинг
+// (SvelteKit), поэтому здесь не нужен hash-трюк через executeJavaScript:
+// обычная same-origin loadURL() на /join/<token> того же хоста — полная
+// перезагрузка, но БЕЗ смены origin, так что сессия (кука/localStorage
+// текущего хоста) сохраняется, а SPA сама разрешает join уже
+// авторизованным пользователем.
+function navigateMaxWebview(webview, token) {
+    let currentUrl = ''
+    try { currentUrl = webview.getURL() || '' } catch { currentUrl = '' }
+
+    let targetOrigin = 'https://web.max.ru'
+    try {
+        const parsed = new URL(currentUrl)
+        // Берём origin реально загруженной сейчас вкладки (обычно
+        // web.max.ru, но если пользователь сам завёл мессенджер на другом
+        // поддомене max.ru — останемся на нём, а не силой уведём на
+        // web.max.ru). Дефолт 'https://web.max.ru' — на случай, если
+        // getURL() ещё не вернул валидный max.ru-адрес (например, вкладка
+        // только что создана и ещё не успела загрузиться).
+        if (/(^|\.)max\.ru$/i.test(parsed.hostname)) targetOrigin = parsed.origin
+    } catch {}
+
+    try { webview.loadURL(`${targetOrigin}/join/${token}`) } catch {}
 }
 
 function createWebviewTabsApi({
@@ -95,7 +194,27 @@ function createWebviewTabsApi({
         switchTab(target.id)
         const targetWebview = document.getElementById(`webview-${target.id}`)
         if (targetWebview) {
-            try { targetWebview.loadURL(url) } catch {}
+            if (special.service === 'telegram') {
+                // См. подробный BUGFIX-комментарий у navigateTelegramWebview():
+                // здесь НЕ грузим `url` (https://t.me/<username>) через
+                // loadURL() — это увело бы уже залогиненную вкладку
+                // web.telegram.org на чужой origin (t.me) и подвесило бы её.
+                // translateDeepLinkUrl() уже провалидировал username выше
+                // (url !== null), так что extractTelegramUsername() здесь
+                // просто дублирует уже пройденную проверку — no-op в плане
+                // безопасности, но избегает парсинга `url` обратно.
+                const username = extractTelegramUsername(special.href)
+                if (username) navigateTelegramWebview(targetWebview, username)
+            } else if (special.service === 'max') {
+                // См. подробный BUGFIX-комментарий у navigateMaxWebview():
+                // здесь НЕ грузим `url` (исходный https://max.ru/join/...)
+                // — это увело бы уже залогиненную вкладку web.max.ru на
+                // другой origin (публичный max.ru) без перехода к чату.
+                const token = extractMaxJoinToken(special.href)
+                if (token) navigateMaxWebview(targetWebview, token)
+            } else {
+                try { targetWebview.loadURL(url) } catch {}
+            }
         }
         return true
     }
@@ -630,8 +749,38 @@ function createWebviewTabsApi({
             if (url) ipcRenderer.send('open-url', url)
         })
 
+        // BUGFIX ("MAX обновляется постоянно" — MAX kept refreshing in a
+        // loop): this used to reload messenger.url on ANY did-fail-load with
+        // no isMainFrame check and no backoff. did-fail-load fires per-FRAME
+        // — a single blocked sub-resource (an ad/analytics iframe, or a
+        // request our own adblock service killed — see
+        // main/services/adblock.js, applied to every webview session) is
+        // enough to trigger it even though the page itself loaded fine. On
+        // a heavy SPA like MAX/Telegram that has many such sub-frame
+        // requests, reloading the WHOLE page every time one of them fails
+        // reloads the page, which re-issues the same requests, which fail
+        // again the same way — an unthrottled reload loop with no visible
+        // error. Two fixes: (1) only reload on a MAIN-frame failure — a
+        // sub-frame failing doesn't mean the tab itself is broken; (2) apply
+        // exponential backoff + reset-on-success, same pattern already used
+        // by the (currently unused) legacy addWebview in
+        // renderer/messengers.js, so a persistently-failing main frame
+        // retries with increasing delay instead of hammering in a tight loop.
         webview.addEventListener('did-fail-load', (e) => {
-            if (e.errorCode !== -3) webview.loadURL(messenger.url)
+            if (e.errorCode === -3) return // ERR_ABORTED — normal cancelled navigation
+            if (e.isMainFrame === false) return // sub-frame/sub-resource failure — not the tab itself
+
+            const attempts = (webview._reloadAttempts || 0) + 1
+            webview._reloadAttempts = attempts
+            const delay = Math.min(1000 * Math.pow(2, attempts - 1), 30000)
+            clearTimeout(webview._reloadTimer)
+            webview._reloadTimer = setTimeout(() => {
+                try { webview.loadURL(messenger.url) } catch {}
+            }, delay)
+        })
+
+        webview.addEventListener('did-finish-load', () => {
+            webview._reloadAttempts = 0
         })
 
         watchWebview(webview, messenger)

@@ -224,6 +224,12 @@ module.exports = {
         vpnPreparing:     'Preparing...',
         vpnError:         'Error',
         vpnDownloadError: 'Download error',
+        vpnErrTimeout:       'Could not connect to the server in time. Check your internet connection or try another server',
+        vpnErrCrashed:       'Failed to start the VPN connection. Try again or choose another server',
+        vpnErrNotInstalled:  'VPN components are still being prepared. Please wait for them to finish and try again',
+        vpnErrInvalidLink:   'This link is invalid or unsupported. Check it and try again',
+        vpnErrSubHttpOnly:   'The subscription link must start with https://',
+        vpnErrSubEmpty:      'No servers were found in this subscription',
         vpnDeleteBtn:     'Delete',
         vpnNoConfigs:     'No saved configs',
         vpnSelectHint:    'Select a config to connect',
@@ -454,6 +460,7 @@ module.exports = {
 
     autoLaunch: {
         unavailable: 'Auto-launch unavailable',
+        error: 'Failed to change the auto-launch setting',
     },
 
     cloud: {

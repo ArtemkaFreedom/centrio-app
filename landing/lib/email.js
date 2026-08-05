@@ -16,7 +16,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_ADDRESS    = process.env.EMAIL_FROM || 'Centrio <noreply@centrio.me>'
 const RESEND_API      = 'https://api.resend.com/emails'
 
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, replyTo }) {
   if (!RESEND_API_KEY) {
     console.warn(`[email] RESEND_API_KEY not configured — skipping email "${subject}" to ${to}`)
     return { ok: false, reason: 'not_configured' }
@@ -26,7 +26,10 @@ async function sendEmail({ to, subject, html }) {
     return { ok: false, reason: 'no_recipient' }
   }
   try {
-    await axios.post(RESEND_API, { from: FROM_ADDRESS, to, subject, html }, {
+    await axios.post(RESEND_API, {
+      from: FROM_ADDRESS, to, subject, html,
+      ...(replyTo ? { reply_to: replyTo } : {})
+    }, {
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       timeout: 10000
     })
@@ -77,6 +80,26 @@ async function sendWelcomeEmail(user) {
   })
 }
 
+// Sent both right after password registration and on-demand from the
+// dashboard's "Отправить письмо" button (see POST /auth/verify-email/send).
+// token is a raw, single-use, time-limited (1h) secret minted by the caller —
+// only its SHA-256 hash is ever persisted, so this function never touches
+// the DB itself and can't leak the live token even via logs of this module.
+async function sendVerificationEmail(user, token) {
+  if (!user?.email) return { ok: false, reason: 'no_recipient' }
+  const link = `${process.env.API_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`
+  return sendEmail({
+    to: user.email,
+    subject: 'Подтвердите email в Centrio',
+    html: `
+      <p>Здравствуйте${user.name ? ', ' + escapeHtml(user.name) : ''}!</p>
+      <p>Подтвердите свой email, чтобы обезопасить аккаунт Centrio:</p>
+      <p><a href="${link}" style="display:inline-block;padding:10px 22px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Подтвердить email</a></p>
+      <p style="color:#888;font-size:12px">Ссылка действительна 1 час. Если это были не вы — просто проигнорируйте это письмо.</p>
+    `
+  })
+}
+
 async function sendAutoRenewFailedEmail(user, reason) {
   if (!user?.email) return { ok: false, reason: 'no_recipient' }
   return sendEmail({
@@ -105,4 +128,47 @@ async function sendRefundConfirmationEmail(user, payment) {
   })
 }
 
-module.exports = { sendEmail, sendPaymentReceiptEmail, sendWelcomeEmail, sendAutoRenewFailedEmail, sendRefundConfirmationEmail }
+// Sent from the FAQ page's "Написать в поддержку" form (see
+// contact-route.js). Goes to the support inbox, not the visitor — the
+// visitor's own address is set as reply-to so support can just hit
+// "Reply" in their mail client instead of copy-pasting an address out
+// of the email body.
+const SUPPORT_INBOX = process.env.SUPPORT_EMAIL || 'info@centrio.me'
+
+async function sendContactFormEmail({ name, email, question }) {
+  return sendEmail({
+    to: SUPPORT_INBOX,
+    subject: `Вопрос с сайта от ${name || 'без имени'}`,
+    replyTo: email,
+    html: `
+      <p><strong>Имя:</strong> ${escapeHtml(name || '—')}</p>
+      <p><strong>Email:</strong> ${escapeHtml(email || '—')}</p>
+      <p><strong>Вопрос:</strong></p>
+      <p>${escapeHtml(question).replace(/\n/g, '<br>')}</p>
+    `
+  })
+}
+
+// Sent when an admin replies to a support ticket from the admin panel
+// (see POST /api/admin/tickets/:id/messages in admin-routes.js). Links back
+// to the dashboard's ticket thread rather than including the reply body's
+// full formatting inline, so the user always reads the canonical thread
+// (and any follow-up replies already sent) rather than a possibly-stale
+// email copy.
+async function sendTicketReplyEmail(user, ticket, replyBody) {
+  if (!user?.email) return { ok: false, reason: 'no_recipient' }
+  const link = `${process.env.FRONTEND_URL || 'https://centrio.me'}/dashboard?tab=support&ticket=${encodeURIComponent(ticket.id)}`
+  return sendEmail({
+    to: user.email,
+    subject: `Ответ по обращению: ${ticket.subject}`,
+    html: `
+      <p>Здравствуйте${user.name ? ', ' + escapeHtml(user.name) : ''}!</p>
+      <p>Поддержка Centrio ответила на ваше обращение «${escapeHtml(ticket.subject)}»:</p>
+      <blockquote style="margin:12px 0;padding:10px 16px;border-left:3px solid #3b82f6;color:#333;background:#f5f7fb">${escapeHtml(replyBody).replace(/\n/g, '<br>')}</blockquote>
+      <p><a href="${link}" style="display:inline-block;padding:10px 22px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Открыть обращение</a></p>
+      <p style="color:#888;font-size:12px">Вы можете ответить прямо в личном кабинете Centrio.</p>
+    `
+  })
+}
+
+module.exports = { sendEmail, sendPaymentReceiptEmail, sendWelcomeEmail, sendVerificationEmail, sendAutoRenewFailedEmail, sendRefundConfirmationEmail, sendContactFormEmail, sendTicketReplyEmail }

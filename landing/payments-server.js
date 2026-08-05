@@ -11,6 +11,7 @@ const { rateLimit } = require('../middleware/rateLimit')
 // landing/lib/email.js must be deployed there — update the deploy script
 // to add that upload step when wiring this up (not yet automated).
 const { sendPaymentReceiptEmail, sendRefundConfirmationEmail } = require('../lib/email')
+const { grantReferralBonusIfEligible } = require('../lib/referral')
 
 // SECURITY: these routes had no rate limiting at all — an attacker could
 // flood /create (DB-write + external payment-provider API amplification) or
@@ -28,6 +29,16 @@ const YK_SHOP   = process.env.YUKASSA_SHOP_ID
 const YK_SECRET = process.env.YUKASSA_SECRET_KEY
 const YK_API    = 'https://api.yookassa.ru/v3'
 const FRONT     = process.env.FRONTEND_URL || 'https://centrio.me'
+
+// YooKassa rejects the ENTIRE payment-creation call with 403
+// "This store can't make recurring payments" when save_payment_method
+// is sent but the merchant account hasn't been approved by YooKassa for
+// recurring/saved-card charges. That approval is an account-level status,
+// not something this code controls. Gate the flag behind an env var
+// (defaults OFF) so payments work today; flip YOOKASSA_RECURRING=true
+// once the merchant account is approved. Mirrors the same pattern used
+// in the Cliqly Billing project for the identical YooKassa limitation.
+const YOOKASSA_RECURRING = process.env.YOOKASSA_RECURRING === 'true'
 
 // SECURITY: these previously had hardcoded plaintext fallback secrets
 // (a real FRIDE API key, merchant ID, and webhook HMAC key), so even
@@ -76,7 +87,7 @@ router.post('/create', createPaymentLimiter, authMiddleware, async (req, res) =>
       confirmation: { type: 'redirect', return_url: `${FRONT}/payment/success?plan=${plan}` },
       capture:      true,
       description:  cfg.label,
-      save_payment_method: true,
+      ...(YOOKASSA_RECURRING ? { save_payment_method: true } : {}),
       metadata:     { userId: req.user.id, plan, months: cfg.months },
       receipt: {
         customer: { email: req.user.email },
@@ -164,6 +175,7 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
       await prisma.user.update({ where: { id: payment.userId }, data: updateData })
       console.log('Payment OK: user=' + payment.userId + ' PRO until ' + exp.toISOString())
       sendPaymentReceiptEmail(user, payment).catch(e => console.error('[email] receipt send failed:', e.message))
+      grantReferralBonusIfEligible(prisma, payment.userId, payment.id).catch(e => console.error('[referral] grant failed:', e.message))
     }
 
     if (event === 'payment.canceled') {
@@ -203,11 +215,83 @@ router.get('/status/:paymentId', authMiddleware, async (req, res) => {
         updateData.autoRenewPayMethodId = yk.payment_method.id
       }
       await prisma.user.update({ where: { id: payment.userId }, data: updateData })
+      grantReferralBonusIfEligible(prisma, payment.userId, payment.id).catch(e => console.error('[referral] grant failed:', e.message))
     }
 
     res.json({ success: true, data: { ykStatus: yk.status, payment } })
   } catch (err) {
     res.status(500).json({ success: false, error: 'Ошибка проверки статуса' })
+  }
+})
+
+// ── POST /api/payments/promo/redeem ────────────────────────────────
+// Promo codes grant free Pro months directly — no YooKassa/FRIDE/crypto
+// provider involved, unlike every other route in this file. The code
+// catalogue itself (create/deactivate/delete) is admin-only, managed via
+// /api/admin/promo-codes (see admin-routes.js); this is the only
+// user-facing entry point, gated to one redemption per user per code via
+// the PromoRedemption unique constraint (not a rate limit — a real
+// second attempt with the same code must fail every time, not just be
+// throttled).
+router.post('/promo/redeem', authMiddleware, async (req, res) => {
+  try {
+    const raw = String(req.body?.code || '').trim().toUpperCase().slice(0, 40)
+    if (!raw) return res.status(400).json({ success: false, error: 'Введите промокод' })
+
+    const promo = await prisma.promoCode.findUnique({ where: { code: raw } })
+    if (!promo || !promo.isActive) {
+      return res.status(404).json({ success: false, error: 'Промокод не найден или неактивен' })
+    }
+    if (promo.expiresAt && promo.expiresAt < new Date()) {
+      return res.status(400).json({ success: false, error: 'Срок действия промокода истёк' })
+    }
+    if (promo.maxUses != null && promo.usesCount >= promo.maxUses) {
+      return res.status(400).json({ success: false, error: 'Промокод исчерпан' })
+    }
+
+    const already = await prisma.promoRedemption.findUnique({
+      where: { promoCodeId_userId: { promoCodeId: promo.id, userId: req.user.id } }
+    })
+    if (already) return res.status(409).json({ success: false, error: 'Вы уже использовали этот промокод' })
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+    const now  = new Date()
+    const alreadyPro = user.plan === 'PRO' && user.planExpiresAt && user.planExpiresAt > now
+    const base = alreadyPro ? user.planExpiresAt : now
+    const exp  = new Date(base)
+    exp.setMonth(exp.getMonth() + promo.months)
+
+    // Same-transaction: redemption row (enforces the unique constraint),
+    // uses-counter bump, plan extension, and a $0 Payment row so the
+    // redemption shows up in the existing payment-history UI (GET /my)
+    // alongside real charges. If any step fails, nothing partially applies.
+    await prisma.$transaction([
+      prisma.promoRedemption.create({ data: { promoCodeId: promo.id, userId: req.user.id } }),
+      prisma.promoCode.update({ where: { id: promo.id }, data: { usesCount: { increment: 1 } } }),
+      prisma.user.update({ where: { id: req.user.id }, data: { plan: 'PRO', planExpiresAt: exp } }),
+      prisma.payment.create({
+        data: {
+          userId:   req.user.id,
+          amount:   0,
+          currency: 'RUB',
+          status:   'SUCCEEDED',
+          provider: 'promo',
+          plan:     'PRO',
+          months:   promo.months
+        }
+      })
+    ])
+
+    res.json({ success: true, data: { planExpiresAt: exp, months: promo.months } })
+  } catch (err) {
+    // Unique-constraint race: two concurrent redeem calls with the same
+    // code from the same user can both pass the `already` check above
+    // before either commits — the DB constraint is the real guard.
+    if (err.code === 'P2002') {
+      return res.status(409).json({ success: false, error: 'Вы уже использовали этот промокод' })
+    }
+    console.error('Promo redeem error:', err.message)
+    res.status(500).json({ success: false, error: 'Ошибка активации промокода' })
   }
 })
 
@@ -246,12 +330,24 @@ router.get('/auto-renew', authMiddleware, async (req, res) => {
 })
 
 // ── PATCH /api/payments/auto-renew ───────────────────────────────
+// YooKassa's recurring-payments approval process requires that unlinking
+// a saved card is a real deletion of the stored payment-method token, not
+// just a UI toggle ("В рамках нашего протокола... при нажатии удалять
+// данные привязки из вашей системы"). Previously this only flipped the
+// `autoRenew` boolean and left `autoRenewPayMethodId` (the saved YooKassa
+// card token) untouched — so a user who "disabled" auto-renew still had
+// their card token sitting in the DB, and re-enabling would have silently
+// reused it without them ever re-entering card details. Now disabling
+// always clears the token too; the user must complete a new payment with
+// "Запомнить данные карты" to re-link.
 router.patch('/auto-renew', authMiddleware, async (req, res) => {
   try {
     const { enabled } = req.body
     await prisma.user.update({
       where: { id: req.user.id },
-      data:  { autoRenew: !!enabled }
+      data:  enabled
+        ? { autoRenew: true }
+        : { autoRenew: false, autoRenewPayMethodId: null }
     })
     res.json({ success: true, data: { autoRenew: !!enabled } })
   } catch (err) {
@@ -342,24 +438,35 @@ router.post('/crypto-activate', webhookLimiter, async (req, res) => {
     // — do not set autoRenew here.
     await prisma.user.update({ where: { id: userId }, data: { plan: 'PRO', planExpiresAt: exp } })
 
+    // Captured (rather than fire-and-forget) so grantReferralBonusIfEligible
+    // below can pass this payment's own id as the exclusion filter — without
+    // it, this very row would count as a "prior payment" and block a
+    // legitimate first-payment referral bonus.
+    let createdPaymentId = null
     if (providerPayId) {
-      await prisma.payment.create({
-        data: {
-          userId,
-          amount:        parseFloat(amount) || 0,
-          currency:      currency || 'USD',
-          status:        'SUCCEEDED',
-          provider:      'nowpayments',
-          providerPayId: String(providerPayId),
-          plan:          'PRO',
-          months:        cfg.months
-        }
-      }).catch(err => console.error('crypto-activate: payment log insert failed:', err.message))
+      try {
+        const created = await prisma.payment.create({
+          data: {
+            userId,
+            amount:        parseFloat(amount) || 0,
+            currency:      currency || 'USD',
+            status:        'SUCCEEDED',
+            provider:      'nowpayments',
+            providerPayId: String(providerPayId),
+            plan:          'PRO',
+            months:        cfg.months
+          }
+        })
+        createdPaymentId = created.id
+      } catch (err) {
+        console.error('crypto-activate: payment log insert failed:', err.message)
+      }
     }
 
     console.log('Crypto payment OK: user=' + userId + ' PRO until ' + exp.toISOString())
     sendPaymentReceiptEmail(user, { amount: parseFloat(amount) || 0, currency: currency || 'USD', months: cfg.months })
       .catch(e => console.error('[email] receipt send failed:', e.message))
+    grantReferralBonusIfEligible(prisma, userId, createdPaymentId).catch(e => console.error('[referral] grant failed:', e.message))
     res.json({ ok: true, expiresAt: exp })
   } catch (err) {
     console.error('crypto-activate error:', err.message)
@@ -420,6 +527,7 @@ router.post('/fride-webhook', webhookLimiter, async (req, res) => {
       await prisma.user.update({ where: { id: payment.userId }, data: { plan: 'PRO', planExpiresAt: exp } })
       console.log('FRIDE payment OK: user=' + payment.userId + ' PRO until ' + exp.toISOString())
       sendPaymentReceiptEmail(user, payment).catch(e => console.error('[email] receipt send failed:', e.message))
+      grantReferralBonusIfEligible(prisma, payment.userId, payment.id).catch(e => console.error('[referral] grant failed:', e.message))
     }
 
     if (status === 'cancelled' || status === 'failed') {

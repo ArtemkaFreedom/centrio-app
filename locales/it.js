@@ -223,6 +223,12 @@ module.exports = {
         vpnPreparing:        'Preparazione...',
         vpnError:            'Errore',
         vpnDownloadError:    'Errore di download',
+        vpnErrTimeout:       "Impossibile connettersi al server in tempo. Controlla la connessione a internet o prova un altro server",
+        vpnErrCrashed:       "Impossibile avviare la connessione VPN. Riprova o scegli un altro server",
+        vpnErrNotInstalled:  "I componenti VPN sono ancora in preparazione. Attendi che terminino e riprova",
+        vpnErrInvalidLink:   "Questo link non è valido o non è supportato. Controllalo e riprova",
+        vpnErrSubHttpOnly:   "Il link di abbonamento deve iniziare con https://",
+        vpnErrSubEmpty:      "Nessun server trovato in questo abbonamento",
         vpnConnectBtn:       'Connetti',
         vpnDeleteBtn:        'Elimina',
         vpnAppsTitle:        'VPN per app',
@@ -429,6 +435,7 @@ module.exports = {
 
     autoLaunch: {
         unavailable: 'Avvio automatico non disponibile',
+        error: "Impossibile modificare l'impostazione di avvio automatico",
     },
 
     cloud: {

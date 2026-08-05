@@ -5,6 +5,9 @@ const tracker        = require('../services/tracker')
 const visitorTracker = require('../services/visitor-tracker')
 const { appendCrashLog, reportCrashToServer } = require('../window')
 
+let log
+try { log = require('electron-log') } catch { log = console }
+
 function initApp({
     app,
     createWindow,
@@ -83,9 +86,10 @@ function initApp({
         // macOS uses the 'open-url' event instead
         if (process.platform !== 'darwin') {
             // isProtocolUrl recognizes every scheme we register ourselves as
-            // a handler for (centrio:// and now tg://) — see
+            // a handler for (centrio://, tg://, max://) — see
             // SUPPORTED_PROTOCOLS in main/config/constants.js.
             const deeplink = process.argv.find(isProtocolUrl)
+            log.info('[initApp] cold-start argv:', process.argv, 'deeplink:', deeplink || '(none)')
             if (deeplink) {
                 setTimeout(() => {
                     handleProtocolUrl(deeplink, getMainWindow, showMainWindow)

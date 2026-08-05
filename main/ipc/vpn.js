@@ -16,9 +16,27 @@ function getVpn () {
     return vpnMgr
 }
 
-// Общий обработчик ошибок — возвращает { success: false, error: '...' }
+// Общий обработчик ошибок — возвращает { success: false, error: '...', errorCode }
+// errorCode — стабильный код для локализованного сообщения в рендерере (см. friendlyVpnError в vpn-bind.js);
+// error остаётся техническим текстом для логов на случай, если код неизвестен рендереру.
 function errResult (e) {
-    return { success: false, error: e instanceof Error ? e.message : String(e) }
+    return {
+        success:   false,
+        error:     e instanceof Error ? e.message : String(e),
+        errorCode: (e instanceof Error && e.code) || null
+    }
+}
+
+function subHttpOnlyError () {
+    const err = new Error('Subscription URL must use HTTPS (plain HTTP is not allowed)')
+    err.code = 'VPN_SUBSCRIPTION_HTTP_ONLY'
+    return err
+}
+
+function subEmptyError () {
+    const err = new Error('Configurations not found in subscription')
+    err.code = 'VPN_SUBSCRIPTION_EMPTY'
+    return err
 }
 
 // Прокси-настройки для включения/выключения VPN

@@ -60,11 +60,11 @@ async function _tryRestoreVpn(win) {
             win.webContents.send('vpn-restored', vpnMgr.getStatus())
         }
     } catch (e) {
+        // Не стираем сохранённую ссылку здесь: сбой в этом блоке чаще всего
+        // временный (таймаут запуска sing-box, ошибка применения прокси к
+        // сессии) — заведомо невалидные/непарсящиеся ссылки уже отсеиваются
+        // раньше (см. return выше) без удаления настройки пользователя.
         console.warn('[VPN] auto-restore failed:', e.message)
-        try {
-            const store3 = require('./services/store')
-            store3.set('vpnActiveLink', null)
-        } catch {}
     }
 }
 

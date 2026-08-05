@@ -3073,6 +3073,7 @@ body:has(.modal.show) .split-handle { display: none !important; }
 }
 
 .settings-status.success { color: var(--success); }
+.settings-status.error { color: var(--danger); }
 
 /* ===== БЫСТРЫЙ ПОИСК (Ctrl+P) ===== */
 .quick-search {

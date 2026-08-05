@@ -148,9 +148,18 @@ function registerApiIpc() {
         return { success: true }
     })
 
-    // Renderer reports notification received
-    ipcMain.handle('tracker:notif', async (event, count = 1) => {
-        tracker.addNotif(count)
+    // Renderer reports notification received (optionally tied to a service
+    // name, e.g. 'Telegram', so the dashboard's per-service breakdown works)
+    ipcMain.handle('tracker:notif', async (event, count = 1, service = null) => {
+        tracker.addNotif(count, service)
+        return { success: true }
+    })
+
+    // Renderer reports a message received (inferred from a site notification
+    // firing — the closest reliable, source-agnostic signal we have across
+    // arbitrary messenger web content)
+    ipcMain.handle('tracker:msg-received', async (event, count = 1) => {
+        tracker.addMsgReceived(count)
         return { success: true }
     })
 

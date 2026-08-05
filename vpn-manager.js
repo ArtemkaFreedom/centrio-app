@@ -199,7 +199,9 @@ function parseVpnLink (link) {
   if (link.startsWith('ss://'))    return parseShadowsocks(link)
   if (link.startsWith('hysteria2://') || link.startsWith('hy2://')) return parseHysteria2(link)
 
-  throw new Error('Неизвестный формат ссылки. Поддерживаются: vmess, vless, trojan, ss, hysteria2')
+  const err = new Error('Неизвестный формат ссылки. Поддерживаются: vmess, vless, trojan, ss, hysteria2')
+  err.code = 'VPN_INVALID_LINK'
+  throw err
 }
 
 // TLS-проверка сертификата включена по умолчанию (защита от MITM на туннеле).
@@ -321,7 +323,9 @@ function parseShadowsocks (link) {
       ;[, method, password, host, port] = match
     }
   } catch (e) {
-    throw new Error('Не удалось разобрать Shadowsocks ссылку')
+    const err = new Error('Не удалось разобрать Shadowsocks ссылку')
+    err.code = 'VPN_INVALID_LINK'
+    throw err
   }
 
   const outbound = {
@@ -508,7 +512,11 @@ async function startProxy (parsed, onLog) {
   if (singboxProcess) await stopProxy()
 
   const binPath = getSingboxPath()
-  if (!fs.existsSync(binPath)) throw new Error('sing-box не установлен')
+  if (!fs.existsSync(binPath)) {
+    const err = new Error('sing-box не установлен')
+    err.code = 'VPN_NOT_INSTALLED'
+    throw err
+  }
 
   const config = buildSingboxConfig(parsed.outbound)
   const cfgPath = path.join(app.getPath('userData'), 'singbox', 'config.json')
@@ -528,7 +536,9 @@ async function startProxy (parsed, onLog) {
     const timeout = setTimeout(() => {
       if (!started) {
         clearInterval(portPoller)
-        reject(new Error('sing-box не запустился за 20 секунд'))
+        const err = new Error('sing-box не запустился за 20 секунд')
+        err.code = 'VPN_START_TIMEOUT'
+        reject(err)
       }
     }, 20000)
 
@@ -560,7 +570,9 @@ async function startProxy (parsed, onLog) {
       if (!started && (line.includes('panic') || line.includes('fatal'))) {
         clearTimeout(timeout)
         clearInterval(portPoller)
-        reject(new Error('sing-box: ' + line.trim()))
+        const err = new Error('sing-box: ' + line.trim())
+        err.code = 'VPN_START_CRASHED'
+        reject(err)
       }
     }
 
@@ -587,12 +599,24 @@ async function stopProxy () {
   if (singboxProcess) {
     const proc = singboxProcess
     singboxProcess = null  // обнуляем сразу, чтобы close-обработчик не конфликтовал
-    try { proc.kill() } catch (_) {}
-    // На Windows kill() иногда не убивает дочерние процессы — taskkill /f /t надёжнее
-    if (process.platform === 'win32' && proc.pid) {
-      const { execFile } = require('child_process')
-      execFile('taskkill', ['/pid', String(proc.pid), '/f', '/t'], { stdio: 'ignore' }, () => {})
-    }
+
+    // Дожидаемся реального завершения процесса (а не просто отправки сигнала),
+    // иначе быстрый reconnect может ударить в ещё занятый порт 7890 и молча
+    // не забиндиться — единственный симптом тогда: общий 20-секундный таймаут
+    // при следующем connect. Таймаут-страховка на случай, если 'exit' не придёт.
+    await new Promise((resolve) => {
+      let settled = false
+      const finish = () => { if (!settled) { settled = true; resolve() } }
+      proc.once('exit', finish)
+      setTimeout(finish, 3000)
+
+      try { proc.kill() } catch (_) {}
+      // На Windows kill() иногда не убивает дочерние процессы — taskkill /f /t надёжнее
+      if (process.platform === 'win32' && proc.pid) {
+        const { execFile } = require('child_process')
+        execFile('taskkill', ['/pid', String(proc.pid), '/f', '/t'], { stdio: 'ignore' }, () => {})
+      }
+    })
   }
   proxyActive   = false
   currentConfig = null

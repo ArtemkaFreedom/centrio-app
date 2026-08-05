@@ -13,7 +13,11 @@ module.exports = {
     // Windows still requires the user to explicitly pick it in
     // Settings → Apps → Default apps if another app (e.g. real Telegram
     // Desktop) already owns tg:// there. See main/services/protocol.js.
-    SUPPORTED_PROTOCOLS: ['centrio', 'tg'],
+    // 'max' does the same for max://max.ru/join/<token> invite links (MAX
+    // messenger's own custom scheme, host+path shaped unlike tg's
+    // host+query) — same candidate-handler caveat applies if the real MAX
+    // desktop client is installed and already registered for max://.
+    SUPPORTED_PROTOCOLS: ['centrio', 'tg', 'max'],
 
     API_URL: 'https://api.centrio.me',
 

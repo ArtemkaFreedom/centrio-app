@@ -223,6 +223,12 @@ module.exports = {
         vpnPreparing:        'Préparation...',
         vpnError:            'Erreur',
         vpnDownloadError:    'Erreur de téléchargement',
+        vpnErrTimeout:       "Impossible de se connecter au serveur à temps. Vérifiez votre connexion internet ou essayez un autre serveur",
+        vpnErrCrashed:       "Échec du démarrage de la connexion VPN. Réessayez ou choisissez un autre serveur",
+        vpnErrNotInstalled:  "Les composants VPN sont encore en préparation. Veuillez patienter puis réessayer",
+        vpnErrInvalidLink:   "Ce lien est invalide ou non pris en charge. Vérifiez-le et réessayez",
+        vpnErrSubHttpOnly:   "Le lien d'abonnement doit commencer par https://",
+        vpnErrSubEmpty:      "Aucun serveur n'a été trouvé dans cet abonnement",
         vpnConnectBtn:       'Connecter',
         vpnDeleteBtn:        'Supprimer',
         vpnAppsTitle:        'VPN par application',
@@ -429,6 +435,7 @@ module.exports = {
 
     autoLaunch: {
         unavailable: 'Démarrage automatique non disponible',
+        error: "Impossible de modifier le paramètre de démarrage automatique",
     },
 
     cloud: {

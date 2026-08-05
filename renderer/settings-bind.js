@@ -104,7 +104,31 @@ function bindSettingsUi({
             applySettings(settings)
 
             const autoLaunch = document.getElementById('settingAutoLaunch')
-            ipcRenderer.send('set-auto-launch', !!autoLaunch?.checked)
+            const autoLaunchRequested = !!autoLaunch?.checked
+
+            // BUGFIX ("настройка 'запускать с системой' не работает"): this
+            // used to be pure fire-and-forget — 'auto-launch-result' was sent
+            // back from main/ipc/autoLaunch.js but nothing ever listened for
+            // it, so a failed OS-level registration was 100% silent. The user
+            // would see the generic "✓ Настройки применены" toast either way,
+            // then find the checkbox unchecked again next time they opened
+            // Settings (get-auto-launch correctly reporting the real,
+            // unchanged OS state) with zero indication why. Listen for the
+            // reply and surface failures explicitly instead of masking them.
+            ipcRenderer.once('auto-launch-result', (_event, result) => {
+                if (!result?.success && autoLaunch) autoLaunch.checked = !autoLaunchRequested
+                const status = document.getElementById('settingsStatus')
+                if (status && !result?.success) {
+                    status.textContent = tGet('autoLaunch.error')
+                    status.classList.remove('success')
+                    status.classList.add('error')
+                    setTimeout(() => {
+                        status.textContent = ''
+                        status.classList.remove('error')
+                    }, 4000)
+                }
+            })
+            ipcRenderer.send('set-auto-launch', autoLaunchRequested)
 
             ipcRenderer.send('set-download-dir', settings.downloadDir || '')
             ipcRenderer.send('set-ask-download', settings.askDownload ?? true)

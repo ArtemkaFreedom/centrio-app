@@ -1,22 +1,29 @@
 const router = require('express').Router()
+const axios  = require('axios')
+const { v4: uuidv4 } = require('uuid')
 const prisma  = require('../utils/prisma')
 const { getQrDataUrl, verifyTotp, checkSession } = require('../utils/admin-otp')
+
+// YooKassa creds — same env vars payments-route.js already uses for the
+// real customer checkout flow (routes/payments.js).
+const YK_SHOP   = process.env.YUKASSA_SHOP_ID
+const YK_SECRET = process.env.YUKASSA_SECRET_KEY
+const YK_API    = 'https://api.yookassa.ru/v3'
+const FRONT     = process.env.FRONTEND_URL || 'https://centrio.me'
 
 // ── Открытые маршруты (без auth) ──────────────────────────────────────────────
 
 // GET /api/admin/setup-qr  — QR-код для первичной настройки
 // Защищён отдельным ключом SETUP_KEY из .env — знаете только вы
 router.get('/setup-qr', async (req, res) => {
-    const key = req.headers['x-setup-key'] || req.query.key
-    if (!key || key !== process.env.SETUP_KEY) {
-        return res.status(403).json({ error: 'Forbidden' })
-    }
-    try {
-        const qr = await getQrDataUrl()
-        res.json({ qr, secret: process.env.TOTP_SECRET })
-    } catch (err) {
-        res.status(500).json({ error: 'Ошибка генерации QR: ' + err.message })
-    }
+    // Отключено (security fix): первичная настройка TOTP админки уже
+    // завершена и активно используется (POST /verify-totp работает и
+    // требует валидный TOTP-код уже сейчас). Этот маршрут ранее отдавал
+    // сырой TOTP_SECRET в открытом JSON тому, кто знает SETUP_KEY, а
+    // сравнение SETUP_KEY было не timing-safe (`!==`). Маршрут оставлен
+    // (не удалён), чтобы не сломать ничего, что могло на него ссылаться,
+    // но теперь безусловно возвращает 410.
+    return res.status(410).json({ error: 'Endpoint disabled' })
 })
 
 // POST /api/admin/verify-totp  — проверить код, получить сессию
@@ -116,6 +123,7 @@ router.get('/users', async (req, res) => {
             isActive: u.isActive, isAdmin: u.isAdmin,
             lastSeenAt: u.lastSeenAt, createdAt: u.createdAt,
             autoRenew:  u.autoRenew || false,
+            hasPassword: !!u.passwordHash,
             online:     isOnline(u.lastSeenAt),
             provider:   detectProvider(u),
             messengers: u._count.messengers,
@@ -145,13 +153,17 @@ router.get('/users/:id', async (req, res) => {
             }
         })
         if (!user) return res.status(404).json({ error: 'Пользователь не найден' })
+        // Security fix: never send the raw bcrypt hash to the client —
+        // strip it from the object and expose only a boolean flag.
+        const { passwordHash, _count, ...safeUser } = user
         res.json({
-            ...user,
+            ...safeUser,
+            hasPassword: !!passwordHash,
             online:     isOnline(user.lastSeenAt),
             provider:   detectProvider(user),
-            messengers: user._count.messengers,
-            folders:    user._count.folders,
-            sessions:   user._count.sessions
+            messengers: _count.messengers,
+            folders:    _count.folders,
+            sessions:   _count.sessions
         })
     } catch (err) {
         res.status(500).json({ error: 'Ошибка' })
@@ -350,6 +362,81 @@ router.delete('/notifications/:id', async (req, res) => {
     }
 })
 
+// ── Promo codes ────────────────────────────────────────────────────────
+// Admin-only creation surface for the codes users redeem via
+// POST /api/payments/promo/redeem (routes/payments.js). Redemption itself
+// (validation, one-per-user-per-code enforcement, granting months of Pro)
+// lives there — this file only manages the code catalogue.
+router.get('/promo-codes', async (req, res) => {
+    try {
+        const codes = await prisma.promoCode.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: { _count: { select: { redemptions: true } } }
+        })
+        res.json({ codes })
+    } catch (err) {
+        console.error('Admin GET /promo-codes error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.post('/promo-codes', async (req, res) => {
+    try {
+        const { code, months, maxUses, expiresAt } = req.body
+        const normalized = String(code || '').trim().toUpperCase().slice(0, 40)
+        const monthsNum = parseInt(months, 10)
+        if (!normalized) return res.status(400).json({ error: 'code обязателен' })
+        if (!Number.isInteger(monthsNum) || monthsNum < 1 || monthsNum > 24) {
+            return res.status(400).json({ error: 'months должен быть целым числом от 1 до 24' })
+        }
+        const maxUsesNum = maxUses != null && maxUses !== '' ? parseInt(maxUses, 10) : null
+        if (maxUsesNum != null && (!Number.isInteger(maxUsesNum) || maxUsesNum < 1)) {
+            return res.status(400).json({ error: 'maxUses должен быть положительным целым числом или пустым (безлимит)' })
+        }
+        const promo = await prisma.promoCode.create({
+            data: {
+                code: normalized,
+                months: monthsNum,
+                maxUses: maxUsesNum,
+                expiresAt: expiresAt ? new Date(expiresAt) : null
+            }
+        })
+        audit(req, 'promo.create', { id: promo.id, code: promo.code, months: promo.months })
+        res.json({ ok: true, code: promo })
+    } catch (err) {
+        if (err.code === 'P2002') return res.status(409).json({ error: 'Такой код уже существует' })
+        console.error('Admin POST /promo-codes error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.patch('/promo-codes/:id/active', async (req, res) => {
+    try {
+        const promo = await prisma.promoCode.update({
+            where: { id: req.params.id },
+            data: { isActive: Boolean(req.body.isActive) }
+        })
+        audit(req, 'promo.active.update', { id: promo.id, isActive: promo.isActive })
+        res.json({ ok: true, code: promo })
+    } catch (err) {
+        if (err.code === 'P2025') return res.status(404).json({ error: 'Не найден' })
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.delete('/promo-codes/:id', async (req, res) => {
+    try {
+        await prisma.promoCode.delete({ where: { id: req.params.id } })
+        audit(req, 'promo.delete', { id: req.params.id })
+        res.json({ ok: true })
+    } catch (err) {
+        if (err.code === 'P2025') return res.status(404).json({ error: 'Не найден' })
+        // FK constraint: code already has redemptions — deactivate instead of deleting
+        if (err.code === 'P2003') return res.status(409).json({ error: 'Нельзя удалить код с активациями — деактивируйте вместо удаления' })
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
 // GET /api/admin/users/:id/payments — also restored from live (see note above).
 // Not a duplicate of anything else in this file.
 router.get('/users/:id/payments', async (req, res) => {
@@ -370,5 +457,227 @@ router.get('/users/:id/payments', async (req, res) => {
 // code — Express dispatches to the first matching route, and this file
 // already defines '/users/:id' DELETE above (line ~211) with audit logging
 // and FK-constraint handling — so it's intentionally not carried over here.
+
+// ── POST /api/admin/card-demo-payment (TEMPORARY) ────────────────────────────
+// Creates a REAL YooKassa payment — same underlying call as
+// routes/payments.js POST /create, using the same real Pro pricing — so the
+// owner can reach YooKassa's own hosted checkout widget — the genuine UI
+// their review team expects for the recurring-payments approval
+// application. `plan` ('month'|'year') picks real Pro pricing/description;
+// `linkCard` (bool) toggles save_payment_method, mirroring the
+// YOOKASSA_RECURRING-gated pattern used in Cliqly's billing.service.ts, just
+// exposed as a per-request checkbox instead of an env flag since this is an
+// admin-only demo trigger, not a real customer purchase. Admin-triggered so
+// no live Pro-eligible customer account with no saved card is needed.
+// Deliberately NOT written to the Payment table — no associated user, must
+// stay fully isolated from real subscription state; never grants Pro to
+// anyone. Remove this route once the YooKassa application is approved.
+const CARD_DEMO_PLANS = {
+    month: { price: '199.00',  label: 'Centrio Pro — 1 месяц (демо привязки карты)' },
+    year:  { price: '1590.00', label: 'Centrio Pro — 1 год (демо привязки карты)'  }
+}
+
+router.post('/card-demo-payment', async (req, res) => {
+    try {
+        const { plan, linkCard } = req.body || {}
+        const cfg = CARD_DEMO_PLANS[plan]
+        if (!cfg) return res.status(400).json({ error: 'Неверный план' })
+
+        const saveMethod = linkCard === true
+        const ikey = uuidv4()
+        const { data: yk } = await axios.post(`${YK_API}/payments`, {
+            amount:              { value: cfg.price, currency: 'RUB' },
+            confirmation:        { type: 'redirect', return_url: `${FRONT}/admin` },
+            capture:             true,
+            save_payment_method: saveMethod,
+            description:         cfg.label,
+            metadata:            { adminCardDemo: true, plan },
+            receipt: {
+                customer: { email: 'support@centrio.me' },
+                items: [{
+                    description:     cfg.label,
+                    quantity:        '1.00',
+                    amount:          { value: cfg.price, currency: 'RUB' },
+                    vat_code:        1,
+                    payment_mode:    'full_payment',
+                    payment_subject: 'service'
+                }]
+            }
+        }, {
+            auth:    { username: YK_SHOP, password: YK_SECRET },
+            headers: { 'Idempotence-Key': ikey }
+        })
+
+        audit(req, 'card-demo.create', { paymentId: yk.id, plan, saveMethod })
+        res.json({ ok: true, confirmationUrl: yk.confirmation.confirmation_url, paymentId: yk.id })
+    } catch (err) {
+        console.error('Admin card-demo-payment error:', err.response?.data || err.message)
+        res.status(500).json({ error: 'Ошибка создания демо-платежа ЮKassa' })
+    }
+})
+
+// In-memory only — demo purposes, resets on server restart. Real recurring
+// card storage for actual paying customers lives in
+// User.autoRenewPayMethodId via prisma (see routes/payments.js); this is
+// just so the "Демо карты" admin screen can show masked digits (••••1234)
+// after a successful ЮKassa card-linking demo payment, same as a real
+// customer would see their saved card reflected in the personal cabinet.
+// `id` is YooKassa's own payment_method id — needed to actually deactivate
+// the token via their API when the admin clicks "Отвязать карту" (ЮKassa's
+// review team explicitly requires the unlink screenshot to show a real
+// token deletion, not just a UI toggle — same requirement already applied
+// to the real customer flow, see the comment on PATCH /auto-renew in
+// routes/payments.js).
+let cardDemoSavedCard = null // { id, last4, first6, cardType } | null
+
+// ── GET /api/admin/card-demo-payment/saved-card ───────────────────────────
+// Lets the tab restore "Сохранённая карта" state on mount/reload without
+// re-polling YooKassa.
+router.get('/card-demo-payment/saved-card', (req, res) => {
+    res.json({ ok: true, card: cardDemoSavedCard })
+})
+
+// ── GET /api/admin/card-demo-payment/:id/status ───────────────────────────
+// Polled by the frontend after opening the YooKassa checkout tab (the admin
+// tab itself never navigates away, so there's no return_url redirect to
+// catch — polling YooKassa's own payment status is simpler and matches the
+// pattern already used in routes/payments.js GET /status/:paymentId).
+router.get('/card-demo-payment/:id/status', async (req, res) => {
+    try {
+        const { data: yk } = await axios.get(`${YK_API}/payments/${req.params.id}`, {
+            auth: { username: YK_SHOP, password: YK_SECRET }
+        })
+        if (yk.status === 'succeeded' && yk.payment_method?.saved && yk.payment_method?.card) {
+            cardDemoSavedCard = {
+                id:       yk.payment_method.id,
+                last4:    yk.payment_method.card.last4,
+                first6:   yk.payment_method.card.first6,
+                cardType: yk.payment_method.card.card_type || null
+            }
+            audit(req, 'card-demo.card-saved', { paymentId: yk.id, last4: cardDemoSavedCard.last4 })
+        }
+        res.json({ ok: true, status: yk.status, card: cardDemoSavedCard })
+    } catch (err) {
+        console.error('Admin card-demo-payment status error:', err.response?.data || err.message)
+        res.status(500).json({ error: 'Ошибка проверки статуса платежа' })
+    }
+})
+
+// ── POST /api/admin/card-demo-payment/unlink-card ─────────────────────────
+// Real card-token deletion via YooKassa's own deactivate API — same "real
+// deletion, not just a UI toggle" requirement their review team already
+// applies to the customer-facing flow (see PATCH /auto-renew in
+// routes/payments.js). Only works when a real card was linked through the
+// demo payment flow above (cardDemoSavedCard.id is a genuine YooKassa
+// payment_method id); a locally-seeded placeholder card (shown via the
+// "Показать демо-карту" button, no id) is cleared client-side only, since
+// there is nothing on YooKassa's side to deactivate.
+router.post('/card-demo-payment/unlink-card', async (req, res) => {
+    try {
+        if (!cardDemoSavedCard || !cardDemoSavedCard.id) {
+            return res.status(400).json({ error: 'Нет привязанной карты' })
+        }
+        const ikey = uuidv4()
+        await axios.post(`${YK_API}/payment_methods/${cardDemoSavedCard.id}/deactivate`, {}, {
+            auth:    { username: YK_SHOP, password: YK_SECRET },
+            headers: { 'Idempotence-Key': ikey }
+        })
+        audit(req, 'card-demo.card-unlinked', { paymentMethodId: cardDemoSavedCard.id })
+        cardDemoSavedCard = null
+        res.json({ ok: true })
+    } catch (err) {
+        console.error('Admin card-demo unlink-card error:', err.response?.data || err.message)
+        res.status(500).json({ error: 'Ошибка отвязки карты' })
+    }
+})
+
+// ── Support tickets ───────────────────────────────────────────────────
+// User-facing create/list/reply endpoints live in routes/tickets.js. This
+// block is the admin queue: list all tickets (optionally filtered by
+// status), read a full thread, reply (flips status -> ANSWERED and emails
+// the user), and an explicit close/reopen toggle.
+const { sendTicketReplyEmail } = require('../lib/email')
+
+router.get('/tickets', async (req, res) => {
+    try {
+        const { status } = req.query
+        const where = status ? { status: String(status).toUpperCase() } : {}
+        const tickets = await prisma.ticket.findMany({
+            where,
+            include: {
+                user: { select: { id: true, email: true, name: true } },
+                _count: { select: { messages: true } }
+            },
+            orderBy: { updatedAt: 'desc' }
+        })
+        res.json({ tickets })
+    } catch (err) {
+        console.error('Admin GET /tickets error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.get('/tickets/:id', async (req, res) => {
+    try {
+        const ticket = await prisma.ticket.findUnique({
+            where: { id: req.params.id },
+            include: {
+                user: { select: { id: true, email: true, name: true } },
+                messages: { orderBy: { createdAt: 'asc' } }
+            }
+        })
+        if (!ticket) return res.status(404).json({ error: 'Обращение не найдено' })
+        res.json(ticket)
+    } catch (err) {
+        console.error('Admin GET /tickets/:id error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.post('/tickets/:id/messages', async (req, res) => {
+    try {
+        const { body } = req.body
+        if (!body || !String(body).trim()) return res.status(400).json({ error: 'Введите сообщение' })
+
+        const ticket = await prisma.ticket.findUnique({
+            where: { id: req.params.id },
+            include: { user: { select: { id: true, email: true, name: true } } }
+        })
+        if (!ticket) return res.status(404).json({ error: 'Обращение не найдено' })
+
+        const [message] = await prisma.$transaction([
+            prisma.ticketMessage.create({ data: { ticketId: ticket.id, isAdmin: true, body: String(body).trim() } }),
+            prisma.ticket.update({ where: { id: ticket.id }, data: { status: 'ANSWERED' } })
+        ])
+
+        audit(req, 'ticket.reply', { id: ticket.id, userId: ticket.userId })
+
+        // Fire-and-forget: sendEmail() itself fails soft (no RESEND_API_KEY
+        // = no-op), so this never blocks the admin reply on email delivery.
+        sendTicketReplyEmail(ticket.user, ticket, message.body)
+            .catch(e => console.error('[tickets] reply email failed:', e.message))
+
+        res.status(201).json({ ok: true, message })
+    } catch (err) {
+        console.error('Admin POST /tickets/:id/messages error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.patch('/tickets/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body
+        if (!['OPEN', 'ANSWERED', 'CLOSED'].includes(status)) {
+            return res.status(400).json({ error: 'Некорректный статус' })
+        }
+        const ticket = await prisma.ticket.update({ where: { id: req.params.id }, data: { status } })
+        audit(req, 'ticket.status.update', { id: ticket.id, status })
+        res.json({ ok: true, ticket })
+    } catch (err) {
+        if (err.code === 'P2025') return res.status(404).json({ error: 'Не найден' })
+        console.error('Admin PATCH /tickets/:id/status error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
 
 module.exports = router

@@ -781,12 +781,20 @@ async function bootstrap() {
             zoomLevel: typeof m.zoomLevel === 'number' ? m.zoomLevel : 1
         }))
 
-        store.set('messengers', messengers)
+        // store.set('messengers', ...) returns the underlying storeSet IPC
+        // promise (see `store` object above) — returned here so a caller that
+        // needs the main process's store to be authoritative BEFORE a
+        // dependent side effect (see addMessenger below) can `await
+        // saveData()`. Existing call sites that don't await this keep
+        // firing-and-forgetting exactly as before, so this is safe to add.
+        const messengersSaved = store.set('messengers', messengers)
         store.set('folders', state.folders)
         store.set('mutedMessengers', state.mutedMessengers)
         store.set('globalMuteAll', state.globalMuteAll)
 
         if (cloudStore.isLoggedIn()) cloudSyncPush()
+
+        return messengersSaved
     }
 
     // ==============================
@@ -1373,7 +1381,7 @@ function applyTabZoom(level) {
     // ==============================
     // ДОБАВЛЕНИЕ МЕССЕНДЖЕРА
     // ==============================
-    function addMessenger(messenger) {
+    async function addMessenger(messenger) {
         // ── Plan limits ──────────────────────────────────────────
         const user = cloudStore.getUser()
         const plan = (user?.plan || 'FREE').toUpperCase()
@@ -1403,6 +1411,21 @@ function applyTabZoom(level) {
         state.activeMessengers.push(newMessenger)
         addToSidebar(newMessenger)
         addTab(newMessenger)
+
+        // RACE FIX (see CHANGELOG 1.8.7): persist to the main-process store
+        // and WAIT for it before creating the <webview> for this messenger.
+        // main/bootstrap/registerAppEvents.js's will-attach-webview handler
+        // validates the guest's partition against store.get('messengers') in
+        // the MAIN process. addWebview() below appends a <webview> element,
+        // which triggers Electron's native attach-guest-view request almost
+        // immediately — if that request reaches main before this messenger's
+        // id has actually been written to the main-process store (saveData()
+        // persists via async IPC), the security check fails closed and the
+        // tab is left permanently blank with no error visible to the user.
+        // Awaiting saveData() here guarantees main's store is authoritative
+        // before the webview ever asks to attach.
+        await saveData()
+
         addWebview(newMessenger)
         switchTab(id)
 
@@ -1412,7 +1435,6 @@ function applyTabZoom(level) {
         state.unreadCounts[id] = 0
         resetMessengerNotifyState(id, 0)
 
-        saveData()
         updateStatusBar()
     }
 
@@ -2073,7 +2095,25 @@ function applyTabZoom(level) {
     // Обновляем уведомления после полной загрузки (на случай если при init токена ещё не было)
     if (cloudStore.isLoggedIn()) {
         appNotifApi?.fetchNotifications?.()
+
+        // Подтягиваем актуальный план (plan/planExpiresAt) с сервера при старте —
+        // до этого он читался только из локального кэша, обновляемого лишь при
+        // логине/регистрации/OAuth или ручном открытии профиля (cloudBtn). Если
+        // пользователь оплатил Pro на сайте, а приложение уже было запущено (или
+        // было закрыто и открыто заново без повторного логина), Pro-статус в UI
+        // мог оставаться устаревшим сколь угодно долго.
+        cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn() })
     }
+
+    // ...и повторяем при каждом возврате фокуса на окно — типичный сценарий:
+    // пользователь нажал "Купить Pro", оплатил в открывшемся браузере, вернулся
+    // в уже запущенное приложение (без перезапуска и без повторного логина).
+    // Тот же паттерн already используется для уведомлений в app-notif-bind.js.
+    window.addEventListener('focus', () => {
+        if (cloudStore.isLoggedIn()) {
+            cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn() })
+        }
+    })
 
     await advanceStartup('security', 94, { minStepTime: 260 })
 

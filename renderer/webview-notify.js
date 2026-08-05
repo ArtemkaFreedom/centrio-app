@@ -38,7 +38,17 @@ function createWebviewNotifyApi({
         const shouldShowNotification = !appInForeground || !isActiveTab
 
         // ── Count notification regardless of whether we show OS popup ──
-        invokeIpc('tracker:notif', 1).catch(() => {})
+        // Tagged with the messenger's display name so it lines up with the
+        // service key used by tracker:service-time (see switchTab's
+        // _tkPrevName in renderer.js) — keeps the dashboard's per-service
+        // breakdown consistent instead of always showing 0.
+        invokeIpc('tracker:notif', 1, messenger.name || null).catch(() => {})
+
+        // ── A site-fired notification is the most reliable, source-agnostic
+        // signal we have that a new message arrived (arbitrary web content
+        // makes DOM-level "message received" detection unreliable across
+        // different messengers) ──
+        invokeIpc('tracker:msg-received', 1).catch(() => {})
 
         // ── Добавляем в панель уведомлений как уведомление от мессенджера ──
         if (typeof addMessengerNotification === 'function') {

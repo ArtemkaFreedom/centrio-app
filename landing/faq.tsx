@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { SiteNav, SiteFooter } from '@/components/ui/site-shell';
 
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://api.centrio.me';
+
 const faqs = [
   { q: 'Как установить Centrio на Windows?', a: 'Скачайте установщик Centrio Setup.exe со страницы загрузки, запустите его и следуйте инструкциям. Установка занимает около 1 минуты. Если Windows SmartScreen показывает предупреждение — нажмите «Подробнее» → «Запустить в любом случае»: файл безопасен.' },
   { q: 'Какие мессенджеры поддерживает Centrio?', a: 'Centrio поддерживает более 100 сервисов: Telegram, WhatsApp, Discord, VK, Slack, Microsoft Teams, Zoom, Skype, Viber, Signal, Instagram DM, Gmail, Notion, Trello и многие другие. Список постоянно пополняется.' },
@@ -50,13 +52,28 @@ export default function FAQPage() {
   const [form, setForm] = useState({ name: '', email: '', question: '' });
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSent(true);
-    setSending(false);
+    setError('');
+    try {
+      const res = await fetch(`${API}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Не удалось отправить сообщение');
+      }
+      setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось отправить сообщение, попробуйте позже');
+    } finally {
+      setSending(false);
+    }
   };
 
   const inp: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '11px 14px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
@@ -150,6 +167,9 @@ export default function FAQPage() {
                   <input style={inp} type="email" placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
                   <textarea style={{ ...inp, resize: 'vertical', minHeight: 100 }} placeholder="Ваш вопрос или проблема..." value={form.question} onChange={e => setForm({ ...form, question: e.target.value })} required />
                 </div>
+                {error && (
+                  <p style={{ color: '#f87171', fontSize: 13.5, marginTop: 14, lineHeight: 1.5 }}>{error}</p>
+                )}
                 <button type="submit" disabled={sending} style={{ marginTop: 20, width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontWeight: 700, fontSize: 15, cursor: 'pointer', opacity: sending ? 0.7 : 1 }}>
                   {sending ? 'Отправка...' : 'Отправить'}
                 </button>

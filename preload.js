@@ -45,7 +45,7 @@ const validInvokeChannels = new Set([
     'get-webview-preload-path', 'api-login', 'api-register', 'api-me', 'api-refresh',
     'api-sync-push', 'api-sync-pull', 'api-update-profile', 'api-get-stats', 'api-logout',
     'api-get-notifications', 'api-read-all-notifications', 'api-yandex-desktop', 'api-vk-desktop',
-    'tracker:service-time', 'tracker:msg-sent', 'tracker:notif',
+    'tracker:service-time', 'tracker:msg-sent', 'tracker:notif', 'tracker:msg-received',
     // main/ipc/vpn.js
     'vpn-status', 'vpn-connect', 'vpn-download-and-connect', 'vpn-connect-saved',
     'vpn-disconnect', 'vpn-ping', 'vpn-delete-config', 'vpn-get-subscription',

@@ -223,6 +223,12 @@ module.exports = {
         vpnPreparing:        '准备中...',
         vpnError:            '错误',
         vpnDownloadError:    '下载错误',
+        vpnErrTimeout:       '未能及时连接到服务器。请检查网络连接或尝试其他服务器',
+        vpnErrCrashed:       '无法启动 VPN 连接。请重试或选择其他服务器',
+        vpnErrNotInstalled:  'VPN 组件仍在准备中，请稍候再试',
+        vpnErrInvalidLink:   '此链接无效或不受支持，请检查后重试',
+        vpnErrSubHttpOnly:   '订阅链接必须以 https:// 开头',
+        vpnErrSubEmpty:      '此订阅中未找到任何服务器',
         vpnConnectBtn:       '连接',
         vpnDeleteBtn:        '删除',
         vpnAppsTitle:        '按应用使用VPN',
@@ -429,6 +435,7 @@ module.exports = {
 
     autoLaunch: {
         unavailable: '自动启动不可用',
+        error: '无法更改自动启动设置',
     },
 
     cloud: {

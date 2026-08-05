@@ -18,6 +18,7 @@ let _msgSent     = 0
 let _msgReceived = 0
 
 const _serviceAccum = {}       // { 'Telegram': seconds, ... }
+const _serviceNotifAccum = {}  // { 'Telegram': notifCount, ... }
 let _interval = null
 
 // ── Focus tracking ────────────────────────────────────────────────
@@ -48,7 +49,16 @@ function addServiceTime(serviceName, seconds) {
 }
 
 // ── Notification / message counters ──────────────────────────────
-function addNotif(count = 1)       { _notifCount    += count }
+// serviceName ties a notification to a specific messenger tab (e.g. 'Telegram')
+// so the per-service breakdown on the dashboard isn't always zero. Falls back
+// to the unattributed aggregate bucket when no service is known.
+function addNotif(count = 1, serviceName = null) {
+    if (serviceName) {
+        _serviceNotifAccum[serviceName] = (_serviceNotifAccum[serviceName] || 0) + count
+    } else {
+        _notifCount += count
+    }
+}
 function addMsgSent(count = 1)     { _msgSent       += count }
 function addMsgReceived(count = 1) { _msgReceived   += count }
 
@@ -70,14 +80,19 @@ async function flush() {
             })
         }
 
-        // Send per-service time
-        for (const [service, secs] of Object.entries(_serviceAccum)) {
-            if (secs > 0) {
+        // Send per-service time + per-service notif count together, so a
+        // service that only got a background notification (no tab switch
+        // yet) still gets its own row instead of being dropped.
+        const services = new Set([...Object.keys(_serviceAccum), ...Object.keys(_serviceNotifAccum)])
+        for (const service of services) {
+            const secs = _serviceAccum[service] || 0
+            const notifCount = _serviceNotifAccum[service] || 0
+            if (secs > 0 || notifCount > 0) {
                 await api.trackStats(token, {
                     service,
                     serviceTime: secs,
                     appTime: 0,  // avoid double-counting
-                    notifCount: 0,
+                    notifCount,
                 })
             }
         }
@@ -89,6 +104,7 @@ async function flush() {
         _msgSent     = 0
         _msgReceived = 0
         Object.keys(_serviceAccum).forEach(k => delete _serviceAccum[k])
+        Object.keys(_serviceNotifAccum).forEach(k => delete _serviceNotifAccum[k])
 
         console.log('[tracker] flushed stats')
     } catch (err) {

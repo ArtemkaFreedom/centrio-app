@@ -10,6 +10,7 @@ interface User {
   avatar?: string
   plan?: string
   planExpiresAt?: string | null
+  emailVerified?: boolean
 }
 
 interface AuthState {

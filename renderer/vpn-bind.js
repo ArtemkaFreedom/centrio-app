@@ -4,6 +4,24 @@
 // Флаги: локальные SVG из assets/flags (без внешнего CDN)
 // Таймер: отображает сколько подключены
 
+// ── Понятные сообщения об ошибках (общие для bindVpnUi и bindVpnSettings) ──
+// main-процесс присылает стабильный errorCode (см. errResult в main/ipc/vpn.js)
+// вместо технического e.message ("sing-box не запустился за 20 секунд" и т.п.),
+// чтобы пользователь видел понятный текст, а не внутреннее имя процесса/детали реализации.
+const VPN_ERROR_KEYS = {
+  VPN_START_TIMEOUT:          'network.vpnErrTimeout',
+  VPN_START_CRASHED:          'network.vpnErrCrashed',
+  VPN_NOT_INSTALLED:          'network.vpnErrNotInstalled',
+  VPN_INVALID_LINK:           'network.vpnErrInvalidLink',
+  VPN_SUBSCRIPTION_HTTP_ONLY: 'network.vpnErrSubHttpOnly',
+  VPN_SUBSCRIPTION_EMPTY:     'network.vpnErrSubEmpty'
+}
+function friendlyVpnError (tGet, result, fallbackKey) {
+  const mappedKey = result?.errorCode && VPN_ERROR_KEYS[result.errorCode]
+  if (mappedKey) return tGet(mappedKey)
+  return result?.error || tGet(fallbackKey || 'network.vpnError')
+}
+
 function bindVpnUi ({ invokeIpc, tGet }) {
   const btn   = document.getElementById('vpnBtn')
   const panel = document.getElementById('vpnPanel')
@@ -21,6 +39,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
   function esc (s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   }
+
 
   // ── Парсинг флага из имени ────────────────────────────────────────
   // Emoji-флаги = два Regional Indicator Symbol (0x1F1E6–0x1F1FF).
@@ -144,7 +163,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
       } else {
         status.active = false
         updateBtn()
-        setStatus(result.error || tGet('network.vpnError'), true)
+        setStatus(friendlyVpnError(tGet, result, 'network.vpnError'), true)
         render()
       }
     } catch (e) {
@@ -396,7 +415,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
         render()
         startPings(status.configs)
       } else {
-        setStatus(result.error || tGet('network.vpnError'), true)
+        setStatus(friendlyVpnError(tGet, result, 'network.vpnError'), true)
         if (b) { b.disabled = false; b.classList.remove('vpn-sub-refreshing') }
       }
     } catch (e) {
@@ -471,6 +490,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
           ? tGet('network.vpnImported', { n: result.imported, name: status.name || '' })
           : tGet('network.vpnConnected', { name: status.name || '' })
         setStatus(msg, false)
+        if (btn) btn.disabled = false
         updateBtn()
         render()
         startPings(status.configs)
@@ -479,7 +499,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
         showProgress(0, tGet('network.vpnPreparing'))
         await downloadAndConnect(link)
       } else {
-        setStatus(result.error || tGet('network.vpnError'), true)
+        setStatus(friendlyVpnError(tGet, result, 'network.vpnError'), true)
         if (btn) btn.disabled = false
       }
     } catch (e) {
@@ -499,11 +519,13 @@ function bindVpnUi ({ invokeIpc, tGet }) {
         status = result.status
         startTimer()
         setStatus(tGet('network.vpnConnected', { name: status.name || '' }), false)
+        const btn = document.getElementById('vpnImportBtn')
+        if (btn) btn.disabled = false
         updateBtn()
         render()
         startPings(status.configs)
       } else {
-        setStatus(result.error || tGet('network.vpnDownloadError'), true)
+        setStatus(friendlyVpnError(tGet, result, 'network.vpnDownloadError'), true)
         const btn = document.getElementById('vpnImportBtn')
         if (btn) btn.disabled = false
       }
@@ -511,6 +533,8 @@ function bindVpnUi ({ invokeIpc, tGet }) {
       showProgress(-1, '')
       window.electronAPI?.offVpnProgress?.()
       setStatus(e.message || tGet('network.vpnError'), true)
+      const btn = document.getElementById('vpnImportBtn')
+      if (btn) btn.disabled = false
     }
   }
 
@@ -530,7 +554,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
         showProgress(0, tGet('network.vpnPreparing'))
         await downloadAndConnect(link)
       } else {
-        setStatus(result.error || tGet('network.vpnError'), true)
+        setStatus(friendlyVpnError(tGet, result, 'network.vpnError'), true)
       }
     } catch (e) {
       setStatus(e.message || tGet('network.vpnError'), true)
@@ -754,7 +778,7 @@ function bindVpnSettings ({ invokeIpc, tGet, getActiveMessengers }) {
         const vpnBtn = document.getElementById('vpnBtn')
         if (vpnBtn && result.status?.active) vpnBtn.classList.add('vpn-active')
       } else {
-        setStatus(result.error || tGet('network.vpnError'), true)
+        setStatus(friendlyVpnError(tGet, result, 'network.vpnError'), true)
       }
     } catch (e) {
       setStatus(e.message || tGet('network.vpnError'), true)
