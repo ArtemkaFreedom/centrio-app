@@ -205,7 +205,7 @@ function DashboardPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, logout, setUser, _hasHydrated } = useAuthStore()
-  const [tab, setTab] = useState<'overview' | 'profile' | 'devices' | 'subscription' | 'support'>('overview')
+  const [tab, setTab] = useState<'overview' | 'profile' | 'devices' | 'subscription' | 'referral' | 'support'>('overview')
   const [stats, setStats]     = useState<StatsData | null>(null)
   const [devices, setDevices] = useState<Device[]>([])
   const [loginHistory, setLoginHistory] = useState<LoginEvent[]>([])
@@ -570,6 +570,8 @@ function DashboardPageInner() {
       refreshUser()
       loadPayments()
       loadAutoRenew()
+    }
+    if (tab === 'referral') {
       loadReferral()
     }
   }, [tab, loadPayments, refreshUser, loadAutoRenew, loadReferral])
@@ -656,11 +658,12 @@ function DashboardPageInner() {
   const initial = (user.name || user.email).charAt(0).toUpperCase()
 
   const NAV = [
-    { key: 'overview',     label: 'Обзор',       Icon: IcoOverview },
-    { key: 'profile',      label: 'Профиль',     Icon: IcoUser },
-    { key: 'devices',      label: 'Устройства',   Icon: IcoDevices },
-    { key: 'subscription', label: 'Подписка',     Icon: IcoSubscription },
-    { key: 'support',      label: 'Поддержка',    Icon: IcoSupport },
+    { key: 'overview',     label: 'Обзор',              Icon: IcoOverview },
+    { key: 'profile',      label: 'Профиль',            Icon: IcoUser },
+    { key: 'devices',      label: 'Устройства',          Icon: IcoDevices },
+    { key: 'subscription', label: 'Подписка',            Icon: IcoSubscription },
+    { key: 'referral',     label: 'Приглашай друзей',    Icon: IcoGift },
+    { key: 'support',      label: 'Поддержка',           Icon: IcoSupport },
   ] as const
 
   const glass = {
@@ -1543,48 +1546,13 @@ function DashboardPageInner() {
                   {promoMsg.text}
                 </div>
               )}
-            </div>
-
-            {/* Referral program */}
-            <div className="glass-card" style={{ padding:'18px 24px', marginBottom:20 }}>
-              <div className="section-title" style={{ marginBottom:3 }}><IcoGift /> Пригласить друга</div>
-              <div style={{ fontSize:12, color:'rgba(255,255,255,0.38)', lineHeight:1.5, marginBottom:14 }}>
-                Отправьте ссылку другу. Когда он впервые оплатит подписку — вы оба получите
-                {referralInfo ? ` +${referralInfo.bonusDays} дней` : ' +14 дней'} Pro бесплатно.
+              <div style={{ marginTop:14, paddingTop:14, borderTop:'1px solid rgba(255,255,255,0.07)', display:'flex', alignItems:'center', gap:10, fontSize:12.5, color:'rgba(255,255,255,0.4)' }}>
+                <IcoGift />
+                Pro можно получить и бесплатно — приглашайте друзей на вкладке{' '}
+                <button onClick={() => setTab('referral')} style={{ background:'none', border:'none', color:'#60a5fa', cursor:'pointer', fontSize:12.5, padding:0, textDecoration:'underline', fontFamily:'inherit' }}>
+                  «Приглашай друзей»
+                </button>
               </div>
-              {loadingReferral ? (
-                <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.3)' }}>Загрузка…</div>
-              ) : referralInfo ? (
-                <>
-                  <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:14 }}>
-                    <input
-                      readOnly
-                      value={referralLink}
-                      onFocus={e => e.currentTarget.select()}
-                      style={{ flex:'1 1 260px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:'10px 14px', color:'rgba(255,255,255,0.8)', fontSize:12.5, outline:'none', fontFamily:'inherit' }}
-                    />
-                    <button type="button" className="btn-primary" onClick={copyReferralLink} style={{ display:'inline-flex', alignItems:'center', gap:7 }}>
-                      <IcoCopy /> {referralCopied ? 'Скопировано' : 'Копировать'}
-                    </button>
-                  </div>
-                  <div style={{ display:'flex', gap:24, flexWrap:'wrap' }}>
-                    <div>
-                      <div style={{ fontSize:20, fontWeight:800 }}>{referralInfo.totalReferred}</div>
-                      <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.35)' }}>Приглашено</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize:20, fontWeight:800, color:'#22c55e' }}>{referralInfo.bonusesGranted}</div>
-                      <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.35)' }}>Оплатили (бонус начислен)</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize:20, fontWeight:800, color:'rgba(255,255,255,0.5)' }}>{referralInfo.pending}</div>
-                      <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.35)' }}>Ждут первой оплаты</div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.3)' }}>Не удалось загрузить реферальную ссылку</div>
-              )}
             </div>
 
             {/* Plan cards */}
@@ -1721,6 +1689,112 @@ function DashboardPageInner() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ──────────── REFERRAL ──────────── */}
+        {tab === 'referral' && (
+          <div>
+            <div style={{ marginBottom:28 }}>
+              <h2 style={{ fontSize:22, fontWeight:900, letterSpacing:'-.03em', marginBottom:6 }}>Приглашай друзей</h2>
+              <p style={{ color:'rgba(255,255,255,0.38)', fontSize:13.5 }}>Получайте Pro бесплатно за каждого друга, который оплатит подписку</p>
+            </div>
+
+            {/* Reward hero */}
+            <div style={{ ...glassBlue, padding:'26px 30px', marginBottom:24, display:'flex', alignItems:'center', gap:20, position:'relative', overflow:'hidden' }}>
+              <div style={{ position:'absolute', top:-60, right:-40, width:200, height:200, borderRadius:'50%', background:'radial-gradient(circle, #3b82f630 0%, transparent 70%)', pointerEvents:'none' }} />
+              <div style={{ width:54, height:54, borderRadius:16, background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.35)', display:'flex', alignItems:'center', justifyContent:'center', color:'#60a5fa', flexShrink:0, boxShadow:'0 6px 20px rgba(59,130,246,0.25)', zIndex:1 }}>
+                <IcoGift />
+              </div>
+              <div style={{ flex:1, zIndex:1 }}>
+                <div style={{ fontSize:17, fontWeight:800, marginBottom:4 }}>
+                  +{referralInfo ? referralInfo.bonusDays : 14} дней Pro — вам и другу
+                </div>
+                <div style={{ fontSize:13, color:'rgba(255,255,255,0.42)' }}>
+                  Как только приглашённый друг впервые оплатит подписку Centrio Pro, вы оба автоматически получите бонусные дни
+                </div>
+              </div>
+            </div>
+
+            {/* How it works */}
+            <div className="glass-card" style={{ padding:'20px 24px', marginBottom:20 }}>
+              <div className="section-title" style={{ marginBottom:16 }}>Как это работает</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+                {[
+                  { n: '1', title: 'Поделитесь ссылкой', text: 'Отправьте свою реферальную ссылку другу — в мессенджере, почте или соцсетях' },
+                  { n: '2', title: 'Друг регистрируется', text: 'Он переходит по ссылке и создаёт аккаунт Centrio — это бесплатно и ни к чему не обязывает' },
+                  { n: '3', title: 'Друг оплачивает Pro', text: `При первой оплате подписки вы оба получаете +${referralInfo ? referralInfo.bonusDays : 14} дней Pro бесплатно` },
+                ].map(step => (
+                  <div key={step.n} style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)', borderRadius:14, padding:'16px 18px' }}>
+                    <div style={{ width:28, height:28, borderRadius:9, background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.3)', display:'flex', alignItems:'center', justifyContent:'center', color:'#60a5fa', fontSize:13, fontWeight:800, marginBottom:10 }}>
+                      {step.n}
+                    </div>
+                    <div style={{ fontSize:13.5, fontWeight:700, marginBottom:4 }}>{step.title}</div>
+                    <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)', lineHeight:1.5 }}>{step.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Referral link */}
+            <div className="glass-card" style={{ padding:'20px 24px', marginBottom:20 }}>
+              <div className="section-title" style={{ marginBottom:3 }}><IcoGift /> Ваша реферальная ссылка</div>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.38)', lineHeight:1.5, marginBottom:14 }}>
+                Приглашать можно неограниченное количество друзей — бонус начисляется за каждого
+              </div>
+              {loadingReferral ? (
+                <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.3)' }}>Загрузка…</div>
+              ) : referralInfo ? (
+                <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+                  <input
+                    readOnly
+                    value={referralLink}
+                    onFocus={e => e.currentTarget.select()}
+                    style={{ flex:'1 1 260px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:'10px 14px', color:'rgba(255,255,255,0.8)', fontSize:12.5, outline:'none', fontFamily:'inherit' }}
+                  />
+                  <button type="button" className="btn-primary" onClick={copyReferralLink} style={{ display:'inline-flex', alignItems:'center', gap:7 }}>
+                    <IcoCopy /> {referralCopied ? 'Скопировано' : 'Копировать'}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.3)' }}>Не удалось загрузить реферальную ссылку</div>
+              )}
+            </div>
+
+            {/* Stats */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:20 }}>
+              {[
+                { label: 'Приглашено',              value: referralInfo?.totalReferred ?? 0,   color: '#3b82f6', Icon: IcoUser },
+                { label: 'Оплатили (бонус начислен)', value: referralInfo?.bonusesGranted ?? 0,  color: '#22c55e', Icon: IcoCheck },
+                { label: 'Ждут первой оплаты',        value: referralInfo?.pending ?? 0,         color: '#94a3b8', Icon: IcoTime },
+              ].map(s => (
+                <div key={s.label} className="glass-card" style={{ padding:'18px 20px' }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:`${s.color}18`, border:`1px solid ${s.color}35`, display:'flex', alignItems:'center', justifyContent:'center', color:s.color, marginBottom:12 }}>
+                    <s.Icon />
+                  </div>
+                  <div style={{ fontSize:24, fontWeight:900, letterSpacing:'-.02em' }}>{loadingReferral ? '...' : s.value}</div>
+                  <div style={{ fontSize:12, color:'rgba(255,255,255,0.4)', marginTop:2 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Terms */}
+            <div className="glass-card" style={{ padding:'18px 24px' }}>
+              <div className="section-title" style={{ marginBottom:14 }}>Условия программы</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {[
+                  'Бонус начисляется только после первой реальной оплаты друга — регистрации по ссылке недостаточно',
+                  'Друг должен зарегистрироваться именно по вашей персональной ссылке',
+                  `Бонусные ${referralInfo ? referralInfo.bonusDays : 14} дней Pro добавляются автоматически обеим сторонам — никаких дополнительных действий не требуется`,
+                  'Активация промокода другом не засчитывается как оплата — бонус даёт только реальный платёж',
+                  'Ограничения на количество приглашённых друзей нет',
+                ].map(text => (
+                  <div key={text} style={{ display:'flex', alignItems:'flex-start', gap:9, fontSize:13, color:'rgba(255,255,255,0.55)', lineHeight:1.5 }}>
+                    <IcoCheck color="#3b82f6" /> {text}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
