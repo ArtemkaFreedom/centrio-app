@@ -144,19 +144,6 @@ function registerDownloadsIpc({ getMainWindow }) {
         return err ? { success: false, error: err } : { success: true }
     })
 
-    // Настоящий OS-level drag файла наружу из панели загрузок — пользователь
-    // тащит завершённую загрузку прямо в мессенджер (тот же <webview> внутри
-    // этого же окна тоже принимает такой drag как обычный файловый drop,
-    // поскольку это нативный drag сессии ОС, а не HTML5 DnD внутри страницы).
-    safeOn('downloads:start-drag', (event, id) => {
-        const record = downloadsHistory.find(d => d.id === id)
-        if (!record?.savePath || record.state !== 'completed' || !fs.existsSync(record.savePath)) return
-        event.sender.startDrag({
-            file: record.savePath,
-            icon: path.join(__dirname, '..', '..', 'assets', 'icon.png')
-        })
-    })
-
     safeOn('downloads:remove', (_event, id) => {
         downloadsHistory = downloadsHistory.filter(d => d.id !== id)
         persistDownloadsHistory()

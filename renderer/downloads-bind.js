@@ -19,6 +19,21 @@ function bindDownloadsUi({
     let contextTargetId = null
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+    // Собирает file:// URL из локального пути (в т.ч. Windows-путь с буквой
+    // диска и обратными слэшами) — используется для перетаскивания загрузки
+    // через 'DownloadURL' (см. dragstart ниже).
+    function toFileUrl(filePath) {
+        let normalized = String(filePath || '').replace(/\\/g, '/')
+        if (!normalized.startsWith('/')) normalized = '/' + normalized
+        const segments = normalized.split('/').map((seg, i) => {
+            // Сегмент вида "C:" (буква диска) оставляем как есть — иначе
+            // encodeURIComponent превратит двоеточие в %3A
+            if (i === 1 && /^[a-zA-Z]:$/.test(seg)) return seg
+            return encodeURIComponent(seg)
+        })
+        return 'file://' + segments.join('/')
+    }
+
     function escapeHtml(str) {
         return String(str || '')
             .replace(/&/g, '&amp;')
@@ -123,18 +138,36 @@ function bindDownloadsUi({
                 e.stopPropagation()
                 showDownloadContextMenu(e, el.dataset.id)
             })
-            // Настоящий drag файла наружу (в мессенджер-webview, в проводник,
-            // в другое приложение) — не HTML5 DnD, а нативная OS-сессия
-            // перетаскивания через main-процесс (см. downloads:start-drag).
-            // Подложка попапов (popup-backdrop-bind.js) обычно перехватывает
-            // мышь над webview, пока эта же панель загрузок открыта — на
-            // время самого перетаскивания её нужно спрятать, иначе drop
-            // никогда не долетит до мессенджера под ней.
+            // Перетаскивание файла наружу (в мессенджер-webview, в проводник,
+            // в другое приложение). ВАЖНО: изначально было сделано через
+            // webContents.startDrag() из main-процесса — это официальный путь
+            // Electron для drag-out, НО на Windows он документированно не
+            // работает для дропа внутри самого приложения (Electron issue
+            // #7118 — doDragDrop() на Windows не разрешает Electron как
+            // цель дропа для intra-app drag). Поэтому используем более
+            // низкоуровневый механизм — 'DownloadURL' в dataTransfer,
+            // тот же приём, которым сам Chrome реализует перетаскивание
+            // файла из своей панели загрузок: браузер сам скачивает файл
+            // по указанному URL (в нашем случае — file:// на уже скачанный
+            // файл) в точку дропа. Это остаётся полностью внутри обычного
+            // HTML5 drag-and-drop Chromium, а не уходит в отдельный OS-вызов,
+            // поэтому должно корректнее долетать до <webview> в том же окне.
+            // Подложка попапов (popup-backdrop-bind.js) перехватывает мышь
+            // над webview, пока эта же панель загрузок открыта — на время
+            // самого перетаскивания её нужно спрятать, иначе drop не
+            // долетит до мессенджера под ней.
             if (el.getAttribute('draggable') === 'true') {
                 el.addEventListener('dragstart', (e) => {
-                    e.preventDefault()
+                    const d = downloads.find(x => x.id === el.dataset.id)
+                    if (!d || d.state !== 'completed' || !d.savePath) {
+                        e.preventDefault()
+                        return
+                    }
                     document.dispatchEvent(new CustomEvent('popup-backdrop-suspend'))
-                    ipcRenderer.send('downloads:start-drag', el.dataset.id)
+                    const fileUrl = toFileUrl(d.savePath)
+                    const mime = 'application/octet-stream'
+                    e.dataTransfer.setData('DownloadURL', `${mime}:${d.filename}:${fileUrl}`)
+                    e.dataTransfer.effectAllowed = 'copy'
                 })
                 el.addEventListener('dragend', () => {
                     document.dispatchEvent(new CustomEvent('popup-backdrop-resume'))

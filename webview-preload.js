@@ -5,6 +5,56 @@ let zeroStreak = 0
 let unreadInterval = null
 let mutationObserver = null
 
+// ── Badging API hook (navigator.setAppBadge / clearAppBadge) ───────────────
+// Многие современные веб-мессенджеры (WhatsApp Web среди них) ставят бейдж
+// непрочитанных через стандартный Web Badging API, а не через DOM/title —
+// это АВТОРИТЕТНЫЙ сигнал (сайт сам сообщает точное число), надёжнее любой
+// DOM-эвристики выше. Проблема: этот preload-скрипт исполняется в изолированном
+// мире (contextIsolation), а страница вызывает navigator.setAppBadge() в своём,
+// основном мире — прямая подмена navigator здесь на неё не подействует. Поэтому
+// патчим через инжект <script> в сам документ (это уже основной мир) и
+// перебрасываем значение обратно через обычное DOM CustomEvent — оно, в отличие
+// от JS-объектов, пересекает границу миров штатно.
+let badgeApiCount = null
+
+function injectBadgeApiHook() {
+    const target = document.head || document.documentElement
+    if (!target) {
+        setTimeout(injectBadgeApiHook, 50)
+        return
+    }
+    try {
+        const script = document.createElement('script')
+        script.textContent = `(() => {
+            if (!navigator.setAppBadge) return;
+            const origSet = navigator.setAppBadge.bind(navigator);
+            const origClear = navigator.clearAppBadge ? navigator.clearAppBadge.bind(navigator) : null;
+            navigator.setAppBadge = (count) => {
+                window.dispatchEvent(new CustomEvent('__centrio_badge', { detail: { count: typeof count === 'number' ? count : 1 } }));
+                return origSet(count);
+            };
+            if (origClear) {
+                navigator.clearAppBadge = () => {
+                    window.dispatchEvent(new CustomEvent('__centrio_badge', { detail: { count: 0 } }));
+                    return origClear();
+                };
+            }
+        })();`
+        target.appendChild(script)
+        script.remove()
+    } catch {
+        // ignore — сайт просто не получит этот сигнал, остальные эвристики останутся
+    }
+}
+
+window.addEventListener('__centrio_badge', (e) => {
+    const count = e.detail?.count
+    badgeApiCount = Number.isFinite(count) && count >= 0 ? count : null
+    checkUnread()
+})
+
+injectBadgeApiHook()
+
 function getHostname() {
     try {
         return window.location.hostname || ''
@@ -162,13 +212,17 @@ function hasFaviconBadge() {
 }
 
 function extractUnreadCount() {
+    // Авторитетный сигнал — сайт сам вызвал navigator.setAppBadge(). Приоритет
+    // выше любых эвристик ниже.
+    if (typeof badgeApiCount === 'number') return badgeApiCount
+
     const hostname = getHostname()
     const title = document.title || ''
 
     const titleCount = extractUnreadFromTitle(title)
     if (typeof titleCount === 'number' && titleCount > 0) return titleCount
 
-    let domCount = null
+    let domCount
 
     if (hostname.includes('telegram')) {
         domCount = extractUnreadTelegram()
@@ -598,11 +652,58 @@ function bindMsgSentDetection() {
     }, true)
 }
 
+// ── Перетаскивание вложения из одного мессенджера в другой (сплит-экран) ────
+// Задача: перетащить картинку/файл, уже показанный в чате, прямо в другой
+// открытый мессенджер, как обычное вложение.
+//
+// ГРАНИЦЫ ВОЗМОЖНОГО (важно понимать, прежде чем полагаться на это):
+// - Работает только для http(s)-ресурсов (обычный <img src="https://...">
+//   или <a href="https://...файл">). Для них используется 'DownloadURL' в
+//   dataTransfer — тот же приём, что и в панели загрузок (см.
+//   renderer/downloads-bind.js), только тут URL остаётся удалённым: Chromium
+//   сам скачивает его в момент дропа, без похода через наш main-процесс.
+// - НЕ работает для blob:/data: URL, которыми многие мессенджеры (в т.ч.
+//   WhatsApp Web) отдают уже расшифрованные медиа — такой URL валиден только
+//   в контексте этой же страницы и не резолвится снаружи. Скачать его самим
+//   и переотправить как file:// в теории можно, но fetch(blob:) асинхронный,
+//   а нативный drag должен получить данные синхронно в момент dragstart —
+//   к моменту, когда скачивание бы завершилось, жест перетаскивания уже
+//   потерян. Рабочего обхода для этого случая нет.
+function bindAttachmentDragOut() {
+    document.addEventListener('dragstart', (e) => {
+        const el = e.target && e.target.closest ? e.target.closest('img, a[href]') : null
+        if (!el) return
+
+        let url = null
+        let filename = 'file'
+
+        if (el.tagName === 'IMG') {
+            url = el.currentSrc || el.src || ''
+            const clean = url.split('?')[0].split('#')[0]
+            filename = clean.split('/').pop() || 'image.jpg'
+        } else if (el.tagName === 'A') {
+            url = el.href || ''
+            const clean = url.split('?')[0].split('#')[0]
+            filename = el.getAttribute('download') || clean.split('/').pop() || 'file'
+        }
+
+        if (!url || !/^https?:\/\//i.test(url)) return // blob:/data:/относительные — не поддерживаем, см. комментарий выше
+
+        try {
+            e.dataTransfer.setData('DownloadURL', `application/octet-stream:${filename}:${url}`)
+            e.dataTransfer.effectAllowed = 'copy'
+        } catch {
+            // ignore — сайт мог сам уже что-то положить в dataTransfer раньше нас
+        }
+    }, true)
+}
+
 function init() {
     bindContextMenuForwarding()
     bindKeyboardForwarding()
     bindDownloadImageHandler()
     bindLinkInterception()
+    bindAttachmentDragOut()
     bindMsgSentDetection()
     startObserver()
     startUnreadInterval()
