@@ -126,10 +126,21 @@ function bindDownloadsUi({
             // Настоящий drag файла наружу (в мессенджер-webview, в проводник,
             // в другое приложение) — не HTML5 DnD, а нативная OS-сессия
             // перетаскивания через main-процесс (см. downloads:start-drag).
+            // Подложка попапов (popup-backdrop-bind.js) обычно перехватывает
+            // мышь над webview, пока эта же панель загрузок открыта — на
+            // время самого перетаскивания её нужно спрятать, иначе drop
+            // никогда не долетит до мессенджера под ней.
             if (el.getAttribute('draggable') === 'true') {
                 el.addEventListener('dragstart', (e) => {
                     e.preventDefault()
+                    document.dispatchEvent(new CustomEvent('popup-backdrop-suspend'))
                     ipcRenderer.send('downloads:start-drag', el.dataset.id)
+                })
+                el.addEventListener('dragend', () => {
+                    document.dispatchEvent(new CustomEvent('popup-backdrop-resume'))
+                    if (panel.style.display !== 'none') {
+                        document.dispatchEvent(new CustomEvent('popup-opened'))
+                    }
                 })
             }
         })

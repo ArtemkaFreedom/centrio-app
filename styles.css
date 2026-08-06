@@ -1817,16 +1817,13 @@ body:has(.modal.show) .split-handle { display: none !important; }
 /* ── Зоны сетки-раскладок (3col / 2x2) ──────────────────────────── */
 /* Контейнер вынесен в document.body (position:fixed), подогнан под рект
    #contentArea в split.js — та же причина, что у #popupBackdrop. */
-.split-zones {
-    display: none;
-}
-
-.content-area.split-active.split-grid .split-zones {
-    display: block;
-}
-
+/* display переключается напрямую из JS (split.js) — #splitZones вынесен
+   в document.body тем же приёмом, что #splitPicker/#splitHandle, поэтому
+   CSS-селектор вида ".content-area.split-active .split-zones" никогда не
+   сработает: после hoisting он больше не потомок #contentArea в DOM. */
 .split-zone-placeholder {
     position:        absolute;
+    pointer-events:  auto;
     display:         flex;
     flex-direction:  column;
     align-items:     center;
@@ -9408,6 +9405,8 @@ body.startup-locked #lockScreen {
     z-index: 9999;
     box-shadow: 0 12px 40px rgba(0,0,0,0.5);
     font-size: 13px;
+    transform-origin: top left;
+    animation: scaleIn 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .vpn-panel-header {

@@ -1,11 +1,21 @@
 // renderer/split.js — Split-screen mode
-// Two messengers side by side with a drag-resize divider.
+// Two messengers side by side with a drag-resize divider, plus grid layouts
+// (3 columns / 2x2) with a zone-picker.
 //
 // ARCHITECTURE NOTE:
-// Both #splitHandle and #splitPicker are appended to document.body as
-// position:fixed elements. This is the only reliable way to make them
-// receive pointer events above Electron webviews, which intercept all
-// mouse input within their bounds regardless of CSS z-index.
+// #splitHandle, #splitPicker, #splitLayoutPicker, #splitZones and
+// #splitZonePicker are all appended to document.body as position:fixed
+// elements. This is the only reliable way to make them receive pointer
+// events above Electron webviews, which intercept all mouse input within
+// their bounds regardless of CSS z-index.
+//
+// GOTCHA this hoisting causes: any CSS rule that depends on one of these
+// elements still being a DESCENDANT of #contentArea (e.g. a selector like
+// ".content-area.split-active .split-zones { display: block }") will never
+// match again once the element has been moved to <body> — it's a sibling of
+// #contentArea now, not a descendant. Control visibility of these five
+// elements directly via element.style.display in JS, never via a CSS
+// descendant selector keyed off an ancestor class.
 'use strict'
 
 // Раскладки-сетки (доп. к классическому 2col выше) — прямоугольники в % от
@@ -66,6 +76,22 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         el.style.position = 'fixed'
         el.style.zIndex   = '99999'
     })
+
+    // splitZones — просто контейнер для плейсхолдеров/рамок зон, у самих
+    // плейсхолдеров position:absolute (см. .split-zone-placeholder в CSS).
+    // Без явного left/top:0 у самого контейнера (fixed, но без сторон —
+    // остаётся в потоке документа) их px-координаты, посчитанные от рект
+    // #contentArea, оказывались бы смещены на координаты контейнера, а не
+    // на 0,0 окна — из-за этого зоны/плейсхолдеры рендерились не там, где
+    // нужно (либо вообще за пределами видимой области).
+    if (splitZones) {
+        splitZones.style.left   = '0'
+        splitZones.style.top    = '0'
+        splitZones.style.width  = '0'
+        splitZones.style.height = '0'
+        splitZones.style.pointerEvents = 'none'
+        splitZones.style.display = 'none'
+    }
 
     // ── Position helpers (recalculate from contentArea live rect) ─────────────
 
@@ -359,6 +385,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
 
         contentArea.classList.add('split-active', 'split-grid')
         splitBtn?.classList.add('split-active')
+        if (splitZones) splitZones.style.display = 'block'
 
         _applyGridZoneWebview(0, state.activeTabId)
         renderGridZones()
@@ -501,7 +528,10 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         } else {
             _clearGridWebviewStyles()
             hideZonePicker()
-            if (splitZones) splitZones.innerHTML = ''
+            if (splitZones) {
+                splitZones.innerHTML = ''
+                splitZones.style.display = 'none'
+            }
         }
 
         state.splitMode       = false

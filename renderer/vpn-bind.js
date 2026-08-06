@@ -597,6 +597,8 @@ function bindVpnUi ({ invokeIpc, tGet, onVpnStatusChange }) {
 
   // ── Открыть/закрыть панель ────────────────────────────────────────
   async function openPanel () {
+    document.dispatchEvent(new CustomEvent('close-all-popups'))
+
     try {
       // vpn-status тихо восстанавливает соединение если было активно
       const s = await invokeIpc('vpn-status')
@@ -612,16 +614,18 @@ function bindVpnUi ({ invokeIpc, tGet, onVpnStatusChange }) {
 
     const rect = btn.getBoundingClientRect()
     panel.style.display = 'flex'
-    panel.style.left    = `${rect.right + 8}px`
+    panel.style.left    = `${rect.right + 14}px`
     panel.style.top     = '0px'
 
     requestAnimationFrame(() => {
       const pRect = panel.getBoundingClientRect()
       let top = rect.bottom - pRect.height
-      if (top < 8) top = 8
-      if (top + pRect.height > window.innerHeight - 8) top = window.innerHeight - pRect.height - 8
-      panel.style.top = `${Math.max(8, top)}px`
+      if (top < 12) top = 12
+      if (top + pRect.height > window.innerHeight - 12) top = window.innerHeight - pRect.height - 12
+      panel.style.top = `${Math.max(12, top)}px`
     })
+
+    document.dispatchEvent(new CustomEvent('popup-opened'))
 
     // Запускаем пинг фоном (только новые конфиги)
     startPings(status.configs)
@@ -630,6 +634,8 @@ function bindVpnUi ({ invokeIpc, tGet, onVpnStatusChange }) {
   function closePanel () {
     panel.style.display = 'none'
   }
+
+  document.addEventListener('close-all-popups', closePanel)
 
   btn.addEventListener('click', (e) => {
     e.stopPropagation()

@@ -39,7 +39,24 @@ function bindPopupBackdrop({ contentArea } = {}) {
     reposition()
     window.addEventListener('resize', reposition)
 
+    // Перетаскивание файла из панели загрузок наружу (см. downloads-bind.js,
+    // downloads:start-drag) — настоящий OS-level drag поверх webview. Пока
+    // подложка видима (а она видима всё время, что открыта панель загрузок,
+    // из которой и тащат файл), она перехватывает мышь над webview и не даёт
+    // ОС-дропу долететь до места назначения. На время самого перетаскивания
+    // подложку нужно прятать, не закрывая при этом саму панель — как только
+    // drag завершится, 'popup-opened' диспатчится заново и подложка вернётся.
+    let suspended = false
+    document.addEventListener('popup-backdrop-suspend', () => {
+        suspended = true
+        backdrop.classList.remove('show')
+    })
+    document.addEventListener('popup-backdrop-resume', () => {
+        suspended = false
+    })
+
     document.addEventListener('popup-opened', () => {
+        if (suspended) return
         reposition()
         backdrop.classList.add('show')
     })
