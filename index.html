@@ -368,13 +368,6 @@
                 </svg>
                 <span id="appNotifBadge" class="sidebar-notif-badge" style="display:none;"></span>
             </button>
-            <!-- Быстрый доступ к списку горячих клавиш (открывает Настройки → Горячие клавиши) -->
-            <button id="hotkeysBtn" class="activity-btn" data-i18n-title="shortcuts.btnTitle">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/>
-                    <path d="M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
             <button id="settingsBtn" class="activity-btn" data-i18n-title="settings.title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" stroke-width="1.8"/>
@@ -391,9 +384,9 @@
     </div>
     <div class="content-area" id="contentArea">
         <div id="tabsContent" class="tabs-content"></div>
-        <!-- Split-screen divider handle -->
+        <!-- Split-screen divider handle (только для раскладки 2col) -->
         <div id="splitHandle" class="split-handle"></div>
-        <!-- Split-screen messenger picker (right pane, shown until secondary is chosen) -->
+        <!-- Split-screen messenger picker (2col: единственная вторая панель) -->
         <div id="splitPicker" class="split-picker" style="display:none">
             <div class="split-picker-inner">
                 <svg class="split-picker-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
@@ -406,6 +399,41 @@
                 <button id="splitCloseBtn" class="split-close-btn">Закрыть сплит</button>
             </div>
         </div>
+        <!-- Выбор раскладки сплита (2 колонки / 3 колонки / сетка 2×2) —
+             открывается по клику на кнопку сплита, когда сплит ещё не активен -->
+        <div id="splitLayoutPicker" class="split-layout-picker" style="display:none">
+            <div class="split-layout-picker-title">Выберите раскладку</div>
+            <div class="split-layout-options">
+                <button type="button" class="split-layout-option" data-layout="2col" title="2 колонки">
+                    <span class="split-layout-preview split-layout-preview-2col"><i></i><i></i></span>
+                    <span class="split-layout-option-label">2 колонки</span>
+                </button>
+                <button type="button" class="split-layout-option" data-layout="3col" title="3 колонки">
+                    <span class="split-layout-preview split-layout-preview-3col"><i></i><i></i><i></i></span>
+                    <span class="split-layout-option-label">3 колонки</span>
+                </button>
+                <button type="button" class="split-layout-option" data-layout="2x2" title="Сетка 2×2">
+                    <span class="split-layout-preview split-layout-preview-2x2"><i></i><i></i><i></i><i></i></span>
+                    <span class="split-layout-option-label">Сетка 2×2</span>
+                </button>
+            </div>
+        </div>
+        <!-- Контейнер для зон сетки-раскладок (3col/2x2) — сами зоны и их
+             плейсхолдеры "выбрать мессенджер" создаются в renderer/split.js -->
+        <div id="splitZones" class="split-zones"></div>
+        <!-- Маленький попап выбора мессенджера для одной зоны сетки-раскладки
+             (в отличие от #splitPicker, который на весь второй пейн в 2col) -->
+        <div id="splitZonePicker" class="split-zone-picker" style="display:none">
+            <div id="splitZonePickerList" class="split-picker-list"></div>
+        </div>
+        <!-- Невидимая подложка поверх webview, пока открыт любой попап
+             (уведомления/загрузки/контекстное меню) — клики внутри webview
+             не всплывают до document, поэтому обычный document-click для
+             закрытия по клику "вне" там не срабатывает. renderer/popup-backdrop-bind.js
+             выносит этот div в document.body с position:fixed (иначе Electron
+             webview не отдаст ему клик даже при высоком z-index — см. комментарий
+             в начале renderer/split.js) и подгоняет под рект #contentArea. -->
+        <div id="popupBackdrop" class="popup-backdrop"></div>
     </div>
     <div id="welcomeScreen" style="display:none;">
         <!-- Ambient background glows -->
@@ -607,6 +635,16 @@
         <button class="changelog-popup-close" id="changelogPopupClose">✕</button>
     </div>
     <div class="changelog-popup-body">
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.9.1</div>
+            <ul class="changelog-list">
+                <li>Новое: раскладки сплит-экрана — можно выбрать не только 2 колонки, но и 3 колонки или сетку 2×2, для каждой зоны отдельный мессенджер</li>
+                <li>Новое: загрузку из панели загрузок можно перетащить прямо в мессенджер — файл отправится как обычное вложение</li>
+                <li>Исправлен баг: клик мимо всплывающего окна (уведомления, загрузки, контекстные меню) не закрывал его, если клик приходился на область открытого мессенджера</li>
+                <li>Всплывающие окна уведомлений и загрузок отодвинуты от кнопки и стали визуально аккуратнее</li>
+                <li>Убрана неиспользуемая кнопка быстрого перехода к горячим клавишам из боковой панели</li>
+            </ul>
+        </div>
         <div class="changelog-entry">
             <div class="changelog-version">v1.9.0</div>
             <ul class="changelog-list">

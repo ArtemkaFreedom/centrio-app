@@ -11,7 +11,7 @@ function bindSidebarShellUi({
     tGet
 }) {
     function showSidebarContextMenuAt(x, y) {
-        hideAllMenus()
+        document.dispatchEvent(new CustomEvent('close-all-popups'))
 
         sidebarContextMenu.style.left = `${x}px`
         sidebarContextMenu.style.top = `${y}px`
@@ -24,6 +24,7 @@ function bindSidebarShellUi({
         if (rect.bottom > window.innerHeight) {
             sidebarContextMenu.style.top = `${y - rect.height}px`
         }
+        document.dispatchEvent(new CustomEvent('popup-opened'))
     }
 
     document.addEventListener('click', () => hideAllMenus())

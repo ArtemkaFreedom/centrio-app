@@ -36,9 +36,15 @@ const state = {
     vpnActive: false, // фактический статус подключения VPN (не путать с per-app предпочтением vpnAppModes)
     // ── Split-screen ──────────────────────────────────────────────────────────
     splitMode:    false,   // is split mode active?
-    splitTabId:   null,    // ID of the secondary (right pane) messenger
-    splitFocus:   'left',  // 'left' | 'right' — which pane receives tab switches
-    splitLeftPct: 50       // divider position 20–80 %
+    splitTabId:   null,    // ID of the secondary (right pane) messenger — only used when splitLayout === '2col'
+    splitFocus:   'left',  // 'left' | 'right' — which pane receives tab switches (2col layout only)
+    splitLeftPct: 50,      // divider position 20–80 % (2col layout only)
+    // Сетка-раскладки (3 колонки / 2×2) — независимы от 2col-полей выше,
+    // чтобы не трогать уже работающий 2col-код. Зона 0 всегда зеркалит
+    // activeTabId, как и в 2col (та же конвенция "первая зона = основная вкладка").
+    splitLayout:    '2col', // '2col' | '3col' | '2x2'
+    splitZoneIds:   [],     // messenger id по зонам, только для '3col'/'2x2'
+    splitZoneFocus: 0       // индекс зоны, получающей переключение вкладок, только для '3col'/'2x2'
 }
 
 module.exports = state

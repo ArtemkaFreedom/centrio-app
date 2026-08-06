@@ -101,8 +101,10 @@ function bindDownloadsUi({
                 ? `${formatBytes(d.receivedBytes)} / ${d.totalBytes > 0 ? formatBytes(d.totalBytes) : '?'}`
                 : stateLabel(d)
 
+            const draggable = d.state === 'completed' ? ' draggable="true"' : ''
+
             return `
-                <div class="app-notif-item downloads-item" data-id="${escapeHtml(d.id)}" title="${escapeHtml(d.filename)}">
+                <div class="app-notif-item downloads-item" data-id="${escapeHtml(d.id)}" title="${escapeHtml(d.filename)}"${draggable}>
                     <div class="app-notif-item-title">${escapeHtml(d.filename)}</div>
                     ${progressHtml}
                     <div class="app-notif-item-body">${escapeHtml(bodyText)}</div>
@@ -121,12 +123,23 @@ function bindDownloadsUi({
                 e.stopPropagation()
                 showDownloadContextMenu(e, el.dataset.id)
             })
+            // Настоящий drag файла наружу (в мессенджер-webview, в проводник,
+            // в другое приложение) — не HTML5 DnD, а нативная OS-сессия
+            // перетаскивания через main-процесс (см. downloads:start-drag).
+            if (el.getAttribute('draggable') === 'true') {
+                el.addEventListener('dragstart', (e) => {
+                    e.preventDefault()
+                    ipcRenderer.send('downloads:start-drag', el.dataset.id)
+                })
+            }
         })
     }
 
     // ── Контекстное меню ───────────────────────────────────────────────────────
     function showDownloadContextMenu(e, id) {
         if (!contextMenu) return
+        // Не шлём сюда close-all-popups: это меню — дочернее к уже открытой
+        // панели загрузок, закрывать саму панель при его открытии не нужно.
         contextTargetId = id
         contextMenu.style.left = `${e.clientX}px`
         contextMenu.style.top = `${e.clientY}px`
@@ -135,12 +148,15 @@ function bindDownloadsUi({
         const rect = contextMenu.getBoundingClientRect()
         if (rect.right > window.innerWidth) contextMenu.style.left = `${e.clientX - rect.width}px`
         if (rect.bottom > window.innerHeight) contextMenu.style.top = `${e.clientY - rect.height}px`
+        document.dispatchEvent(new CustomEvent('popup-opened'))
     }
 
     function hideDownloadContextMenu() {
         contextMenu?.classList.remove('show')
         contextTargetId = null
     }
+
+    document.addEventListener('close-all-popups', hideDownloadContextMenu)
 
     document.getElementById('ctxDownloadShowInFolder')?.addEventListener('click', () => {
         if (contextTargetId) ipcRenderer.send('downloads:show-in-folder', contextTargetId)
@@ -164,29 +180,36 @@ function bindDownloadsUi({
 
     // ── Панель open/close ──────────────────────────────────────────────────────
     function openPanel() {
+        document.dispatchEvent(new CustomEvent('close-all-popups'))
+
         panelOpen = true
         renderPanel()
 
         const rect = btn.getBoundingClientRect()
-        panel.style.left = `${rect.right + 8}px`
+        panel.style.left = `${rect.right + 14}px`
         panel.style.top  = '0px'
         panel.style.display = 'flex'
 
         requestAnimationFrame(() => {
             const pRect = panel.getBoundingClientRect()
             let top = rect.bottom - pRect.height
-            if (top < 8) top = 8
-            if (top + pRect.height > window.innerHeight - 8) {
-                top = window.innerHeight - pRect.height - 8
+            if (top < 12) top = 12
+            if (top + pRect.height > window.innerHeight - 12) {
+                top = window.innerHeight - pRect.height - 12
             }
-            panel.style.top = `${Math.max(8, top)}px`
+            panel.style.top = `${Math.max(12, top)}px`
         })
+
+        document.dispatchEvent(new CustomEvent('popup-opened'))
     }
 
     function closePanel() {
         panelOpen = false
         panel.style.display = 'none'
+        hideDownloadContextMenu()
     }
+
+    document.addEventListener('close-all-popups', closePanel)
 
     btn.addEventListener('click', (e) => {
         e.stopPropagation()

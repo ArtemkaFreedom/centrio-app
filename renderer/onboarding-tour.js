@@ -20,7 +20,6 @@ function createOnboardingTourApi({ store, tGet }) {
     // не найден в DOM (скрыт фичей/темой) или недоступен, шаг просто пропускается.
     const steps = [
         { selector: '#addMessengerBtn', titleKey: 'onboarding.step1Title', descKey: 'onboarding.step1Desc' },
-        { selector: '#hotkeysBtn',      titleKey: 'onboarding.step2Title', descKey: 'onboarding.step2Desc' },
         { selector: '#settingsBtn',     titleKey: 'onboarding.step3Title', descKey: 'onboarding.step3Desc' },
         { selector: '#vpnBtn',          titleKey: 'onboarding.step4Title', descKey: 'onboarding.step4Desc' },
         { selector: '#statusVersion',   titleKey: 'onboarding.step5Title', descKey: 'onboarding.step5Desc' }

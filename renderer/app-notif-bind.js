@@ -211,30 +211,36 @@ function bindAppNotifUi({
     }
 
     function openPanel() {
+        document.dispatchEvent(new CustomEvent('close-all-popups'))
+
         panelOpen = true
         syncMuteToggle()
         renderPanel()
 
         const rect = btn.getBoundingClientRect()
-        panel.style.left = `${rect.right + 8}px`
+        panel.style.left = `${rect.right + 14}px`
         panel.style.top  = '0px'
         panel.style.display = 'flex'
 
         requestAnimationFrame(() => {
             const pRect = panel.getBoundingClientRect()
             let top = rect.bottom - pRect.height
-            if (top < 8) top = 8
-            if (top + pRect.height > window.innerHeight - 8) {
-                top = window.innerHeight - pRect.height - 8
+            if (top < 12) top = 12
+            if (top + pRect.height > window.innerHeight - 12) {
+                top = window.innerHeight - pRect.height - 12
             }
-            panel.style.top = `${Math.max(8, top)}px`
+            panel.style.top = `${Math.max(12, top)}px`
         })
+
+        document.dispatchEvent(new CustomEvent('popup-opened'))
     }
 
     function closePanel() {
         panelOpen = false
         panel.style.display = 'none'
     }
+
+    document.addEventListener('close-all-popups', closePanel)
 
     btn.addEventListener('click', (e) => {
         e.stopPropagation()

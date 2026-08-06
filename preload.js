@@ -93,7 +93,8 @@ const validSendChannels = new Set([
     'toggle-fullscreen', 'set-app-zoom', 'open-url', 'open-translate-window',
     // main/ipc/downloads.js
     'set-download-dir', 'set-ask-download', 'save-page', 'save-image-data',
-    'downloads:show-in-folder', 'downloads:remove', 'downloads:clear'
+    'downloads:show-in-folder', 'downloads:remove', 'downloads:clear',
+    'downloads:start-drag'
 ])
 
 function mapInvokeChannel(channel) {

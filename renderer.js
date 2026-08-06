@@ -25,6 +25,7 @@ const { createUnreadApi } = require('./renderer/unread')
 const { createLockApi } = require('./renderer/lock')
 const { createCloudUiApi } = require('./renderer/cloud-ui')
 const { createContextMenusApi } = require('./renderer/context-menus')
+const { bindPopupBackdrop } = require('./renderer/popup-backdrop-bind')
 const { createFoldersUiApi } = require('./renderer/folders-ui')
 const { createSearchUiApi } = require('./renderer/search-ui')
 const { createAddModalUiApi } = require('./renderer/add-modal-ui')
@@ -1171,12 +1172,20 @@ function applyZoomWhenReady(webview, zoomLevel) {
 function switchTab(id) {
     // In split mode route to the focused pane
     if (state.splitMode) {
-        if (state.splitFocus === 'right') {
+        if (state.splitLayout !== '2col') {
+            if (state.splitZoneFocus !== 0) {
+                splitApi?.switchGridZone(state.splitZoneFocus, id)
+                return
+            }
+            // Zone 0 (primary): don't let it overlap another already-assigned zone
+            if (state.splitZoneIds.slice(1).includes(id)) return
+        } else if (state.splitFocus === 'right') {
             splitApi?.switchSplitTab(id)
             return
+        } else if (id === state.splitTabId) {
+            // Left pane: don't let primary overlap secondary
+            return
         }
-        // Left pane: don't let primary overlap secondary
-        if (id === state.splitTabId) return
     }
 
     // Track time spent on previous tab
@@ -2071,6 +2080,8 @@ function applyTabZoom(level) {
         ipcRenderer
     })
 
+    bindPopupBackdrop({ contentArea })
+
     bindSidebarShellUi({
         state,
         hideAllMenus,
@@ -2168,7 +2179,17 @@ function applyTabZoom(level) {
 
     // ── Восстанавливаем сплит-режим если был открыт при закрытии ──
     const _savedSplit = store.get('split.saved', null)
-    if (_savedSplit?.splitTabId && state.activeMessengers.length >= 2) {
+    if (_savedSplit?.layout && _savedSplit.layout !== '2col' && state.activeMessengers.length >= 2) {
+        if (splitApi.enterGridSplitMode(_savedSplit.layout)) {
+            const zoneIds = Array.isArray(_savedSplit.zoneIds) ? _savedSplit.zoneIds : []
+            zoneIds.forEach((zid, i) => {
+                if (i === 0 || !zid) return
+                if (state.activeMessengers.some(m => m.id === zid)) {
+                    splitApi.switchGridZone(i, zid)
+                }
+            })
+        }
+    } else if (_savedSplit?.splitTabId && state.activeMessengers.length >= 2) {
         const _splitTarget = state.activeMessengers.find(m => m.id === _savedSplit.splitTabId)
         if (_splitTarget) {
             state.splitLeftPct = _savedSplit.splitLeftPct || 50

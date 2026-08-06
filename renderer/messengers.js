@@ -226,12 +226,13 @@ function createMessengersApi({
             const params = e.args[0]
             state.wvContextParams = params
 
-            document.querySelectorAll('.context-menu').forEach((m) => m.classList.remove('show'))
+            document.dispatchEvent(new CustomEvent('close-all-popups'))
             document.getElementById('wvSaveImage').style.display = params.mediaType === 'image' ? 'flex' : 'none'
 
             webviewContextMenu.style.left = `${params.x}px`
             webviewContextMenu.style.top = `${params.y}px`
             webviewContextMenu.classList.add('show')
+            document.dispatchEvent(new CustomEvent('popup-opened'))
 
             requestAnimationFrame(() => {
                 const rect = webviewContextMenu.getBoundingClientRect()
