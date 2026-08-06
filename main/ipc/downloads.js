@@ -154,6 +154,14 @@ function registerDownloadsIpc({ getMainWindow }) {
         persistDownloadsHistory()
     })
 
+    // BUGFIX ("папку выбираешь, а путь не прописывается"): renderer/downloads.js
+    // has always read this as { success, data } (`if (!result.success) return`),
+    // but this handler returned a bare string/null — `result.success` on a
+    // string is undefined, so the renderer bailed out immediately on every
+    // pick, before ever calling updateDownloadDirUI() or persisting the dir.
+    // Also explains "не спрашивать куда сохранять" still prompting: with
+    // downloadDir never actually saved, `!askDownload && downloadDir` in the
+    // will-download handler above never held true regardless of the checkbox.
     safeHandle('choose-download-dir', async () => {
         const win = getMainWindow()
 
@@ -163,10 +171,10 @@ function registerDownloadsIpc({ getMainWindow }) {
         })
 
         if (!result.canceled && result.filePaths.length > 0) {
-            return result.filePaths[0]
+            return { success: true, data: result.filePaths[0] }
         }
 
-        return null
+        return { success: false, data: null }
     })
 
     safeHandle('dialog:selectDirectory', async () => {

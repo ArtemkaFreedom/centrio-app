@@ -483,36 +483,48 @@ function bindLinkInterception() {
             return
         }
 
-        if (
-            href.startsWith('http://') ||
-            href.startsWith('https://') ||
-            link.target === '_blank'
-        ) {
+        // BUGFIX ("клики в Яндекс.Почте — и обычная внутренняя навигация, и
+        // 'скачать файл' — открывали внешний браузер"): раньше это условие
+        // ловило ЛЮБОЙ клик по <a href="http(s)://…">, то есть буквально
+        // каждую обычную ссылку на странице — включая внутреннюю SPA-навигацию
+        // сайта (реальные <a>-теги для роутинга — обычный паттерн) и ссылки
+        // на скачивание файлов (что дополнительно ломало их: клик уводил в
+        // браузер вместо того чтобы дать webview поймать will-download).
+        // Теперь наружу уходит только: (1) сайт сам явно попросил новую
+        // вкладку (target=_blank — как и раньше), либо (2) ссылка ведёт на
+        // другой хост, помечена НЕ как download — то есть похожа на
+        // "внешняя ссылка в переписке", а не на действие самого сайта.
+        // Ссылки на тот же хост и любые download-ссылки остаются
+        // необработанными — их обрабатывает сам webview штатно.
+        if (link.hasAttribute('download')) return
+
+        const isBlank = link.target === '_blank'
+        let isCrossOrigin
+        try {
+            isCrossOrigin = new URL(href, window.location.href).hostname !== window.location.hostname
+        } catch {
+            isCrossOrigin = false
+        }
+
+        if (isBlank || (isCrossOrigin && (href.startsWith('http://') || href.startsWith('https://')))) {
             e.preventDefault()
             e.stopPropagation()
             ipcRenderer.send('open-url', href)
         }
     }, true)
 
-    const originalOpen = window.open
-    window.open = function patchedOpen(url, ...args) {
-        if (url && url !== 'about:blank') {
-            // SECURITY: window.open() can be invoked by page script with no
-            // user-gesture guarantee we can verify here (unlike the click
-            // listener above, there is no isTrusted-equivalent signal on a
-            // plain function call). So window.open never gets to auto-route
-            // into another tab — a recognized deep link just takes the
-            // ordinary external-open path, same as any other URL.
-            ipcRenderer.send('open-url', url)
-            return null
-        }
-
-        if (typeof originalOpen === 'function') {
-            return originalOpen.call(window, url, ...args)
-        }
-
-        return null
-    }
+    // BUGFIX ("кнопка мессенджера/попапы в Яндекс.Почте открывали внешний
+    // браузер"): this used to unconditionally hijack window.open() and send
+    // every call straight to the external browser. That pre-empted Chromium's
+    // own popup handling entirely — window.open() never got a chance to
+    // trigger the <webview>'s native 'new-window' event, which is what
+    // renderer/webview-tabs-bind.js actually listens on to route popups
+    // through open-popup-window with the messenger's own session (including
+    // the item #1/#6 OAuth-broker handling). With window.open overridden
+    // here, that whole mechanism was silently unreachable for any popup a
+    // guest page opened via window.open() (as opposed to a target="_blank"
+    // link). Removed — window.open() now behaves natively, and 'new-window'
+    // fires and gets handled as intended.
 }
 
 // ─── Перехват Notification ──────────────────────────────────────────────────
