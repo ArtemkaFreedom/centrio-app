@@ -260,16 +260,6 @@ function DashboardPageInner() {
   const [sendingVerify, setSendingVerify] = useState(false)
   const [verifyMsg, setVerifyMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
-  // TEMPORARY: fake "link card" screen — pure UI mockup, no network call,
-  // built only to produce screenshots for the YooKassa recurring-payments
-  // approval application (they require screenshots of the card-linking
-  // step). Not wired to any real endpoint. Remove once the application is
-  // approved and go back to the real "Оплатите подписку..." copy-only state.
-  const [showLinkCardModal, setShowLinkCardModal] = useState(false)
-  const [fakeCardNumber, setFakeCardNumber] = useState('')
-  const [fakeCardExpiry, setFakeCardExpiry] = useState('')
-  const [fakeCardCvv, setFakeCardCvv] = useState('')
-
   useEffect(() => {
     if (!_hasHydrated) return
     if (!user) router.push('/auth/login')
@@ -1223,7 +1213,7 @@ function DashboardPageInner() {
                     <div>
                       <label className="field-label">Email</label>
                       <input className="field-input" value={user.email} disabled />
-                      {!user.emailVerified && (
+                      {!user.emailVerified && !user.hasOAuth && (
                         <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:10, flexWrap:'wrap' }}>
                           <span className="badge" style={{ background:'rgba(245,158,11,0.12)', color:'#f59e0b', border:'1px solid rgba(245,158,11,0.3)' }}>
                             Email не подтверждён
@@ -1515,9 +1505,21 @@ function DashboardPageInner() {
                     {togglingAR ? '...' : autoRenew ? 'Отвязать карту' : 'Включить'}
                   </button>
                 ) : (
-                  <button onClick={() => setShowLinkCardModal(true)}
-                    style={{ background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:10, padding:'9px 20px', color:'#60a5fa', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s' }}>
-                    Привязать карту
+                  // ЮKassa не даёт "просто сохранить карту" без реального
+                  // платежа — привязка происходит как побочный эффект
+                  // обычной оплаты через save_payment_method (см.
+                  // /api/payments/create, main branch). Раньше тут открывалась
+                  // фейковая модалка с полями номера карты/CVC — макет для
+                  // скриншотов в заявку на одобрение рекуррентных платежей
+                  // ЮKassa, никогда не подключённый к реальному эндпоинту (и
+                  // хорошо — вводить номер карты в собственной форме вместо
+                  // хостинга ЮKassa нарушало бы PCI DSS). Теперь, когда
+                  // рекуррент одобрен, кнопка ведёт на настоящий платёж через
+                  // тот же безопасный редирект на ЮKassa, что и обычная
+                  // покупка/продление — карта сохранится автоматически.
+                  <button onClick={() => handleBuyPlan('month')} disabled={buyingPlan !== null}
+                    style={{ background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:10, padding:'9px 20px', color:'#60a5fa', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s', opacity: buyingPlan !== null ? 0.6 : 1 }}>
+                    {buyingPlan === 'month' ? 'Загрузка…' : 'Привязать карту'}
                   </button>
                 )}
               </div>
@@ -1958,82 +1960,6 @@ function DashboardPageInner() {
           </div>
         )}
       </main>
-
-      {/* TEMPORARY: fake card-link modal — UI mockup only, see comment near
-          showLinkCardModal state above. No data here is sent anywhere. */}
-      {showLinkCardModal && (
-        <div
-          onClick={() => setShowLinkCardModal(false)}
-          style={{ position:'fixed', inset:0, background:'rgba(6,8,15,0.72)', backdropFilter:'blur(6px)', WebkitBackdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:20 }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="glass-card"
-            style={{ width:'100%', maxWidth:420, padding:32, position:'relative', animation:'fadeIn .2s ease both' }}
-          >
-            <button onClick={() => setShowLinkCardModal(false)}
-              style={{ position:'absolute', top:18, right:18, width:30, height:30, borderRadius:9, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.04)', color:'rgba(255,255,255,0.5)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, lineHeight:1 }}>
-              ×
-            </button>
-
-            <div style={{ width:44, height:44, borderRadius:12, background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.3)', display:'flex', alignItems:'center', justifyContent:'center', color:'#60a5fa', marginBottom:16 }}>
-              <IcoCard />
-            </div>
-            <div style={{ fontSize:19, fontWeight:800, letterSpacing:'-.02em', marginBottom:6 }}>Привязать карту</div>
-            <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.4)', lineHeight:1.5, marginBottom:24 }}>
-              Карта будет сохранена через защищённый платёжный шлюз ЮKassa для автоматического продления подписки Centrio Pro.
-            </div>
-
-            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-              <div>
-                <label style={{ fontSize:11.5, fontWeight:600, color:'rgba(255,255,255,0.45)', marginBottom:6, display:'block' }}>Номер карты</label>
-                <input
-                  value={fakeCardNumber}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 16)
-                    setFakeCardNumber(digits.replace(/(.{4})/g, '$1 ').trim())
-                  }}
-                  placeholder="0000 0000 0000 0000"
-                  inputMode="numeric"
-                  style={{ width:'100%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:'12px 14px', color:'#fff', fontSize:14.5, fontFamily:'inherit', letterSpacing:'.03em', outline:'none' }}
-                />
-              </div>
-              <div style={{ display:'flex', gap:12 }}>
-                <div style={{ flex:1 }}>
-                  <label style={{ fontSize:11.5, fontWeight:600, color:'rgba(255,255,255,0.45)', marginBottom:6, display:'block' }}>Срок действия</label>
-                  <input
-                    value={fakeCardExpiry}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 4)
-                      setFakeCardExpiry(digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits)
-                    }}
-                    placeholder="ММ/ГГ"
-                    inputMode="numeric"
-                    style={{ width:'100%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:'12px 14px', color:'#fff', fontSize:14.5, fontFamily:'inherit', outline:'none' }}
-                  />
-                </div>
-                <div style={{ width:110 }}>
-                  <label style={{ fontSize:11.5, fontWeight:600, color:'rgba(255,255,255,0.45)', marginBottom:6, display:'block' }}>CVC</label>
-                  <input
-                    value={fakeCardCvv}
-                    onChange={(e) => setFakeCardCvv(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                    placeholder="●●●"
-                    inputMode="numeric"
-                    style={{ width:'100%', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:'12px 14px', color:'#fff', fontSize:14.5, fontFamily:'inherit', outline:'none' }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <button className="btn-primary" style={{ width:'100%', justifyContent:'center', marginTop:22 }} disabled>
-              Привязать карту
-            </button>
-            <div style={{ fontSize:11, color:'rgba(255,255,255,0.22)', textAlign:'center', marginTop:12, lineHeight:1.5 }}>
-              Платежи защищены · ЮKassa · ИП Козловский А.С. · ИНН: 501908743800
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Account deletion confirmation modal */}
       {showDeleteModal && (

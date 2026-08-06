@@ -70,6 +70,10 @@ const UPLOADS = [
     { local: path.join(__dirname, '..', 'landing', 'blog-messenger-vpn-guide.tsx'),      remote: `${REMOTE_BASE}/src/app/blog/messenger-vpn-guide/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-remote-team-messengers.tsx'),   remote: `${REMOTE_BASE}/src/app/blog/remote-team-messengers/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-how-to-combine-messengers.tsx'), remote: `${REMOTE_BASE}/src/app/blog/how-to-combine-messengers/page.tsx` },
+    // Real YooKassa card-binding flow (replaces the fake mockup built only
+    // for YooKassa's recurring-payments approval screenshots) — confirmed
+    // live path via `test -f` before adding, same as the entries above.
+    { local: path.join(__dirname, '..', 'landing', 'dashboard-server.tsx'), remote: `${REMOTE_BASE}/src/app/dashboard/page.tsx` },
 ]
 
 function exec(conn, cmd) {
