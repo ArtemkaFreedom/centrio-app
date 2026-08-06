@@ -74,6 +74,8 @@ const UPLOADS = [
     // for YooKassa's recurring-payments approval screenshots) — confirmed
     // live path via `test -f` before adding, same as the entries above.
     { local: path.join(__dirname, '..', 'landing', 'dashboard-server.tsx'), remote: `${REMOTE_BASE}/src/app/dashboard/page.tsx` },
+    // Confirmed live via `test -f` before adding, same as the entries above.
+    { local: path.join(__dirname, '..', 'landing', 'admin-server.tsx'),     remote: `${REMOTE_BASE}/src/app/admin/page.tsx` },
 ]
 
 function exec(conn, cmd) {
