@@ -108,7 +108,7 @@ function extractTelegramInvite(href) {
 // { type: 'invite', value } для tg://join?invite= (приватные ссылки-
 // приглашения, см. extractTelegramInvite выше).
 function navigateTelegramWebview(webview, target) {
-    let currentUrl = ''
+    let currentUrl
     try { currentUrl = webview.getURL() || '' } catch { currentUrl = '' }
 
     const clientMatch = currentUrl.match(/^https:\/\/web\.telegram\.org\/(k|a|z)\//i)
@@ -169,7 +169,7 @@ function extractMaxJoinToken(href) {
 // текущего хоста) сохраняется, а SPA сама разрешает join уже
 // авторизованным пользователем.
 function navigateMaxWebview(webview, token) {
-    let currentUrl = ''
+    let currentUrl
     try { currentUrl = webview.getURL() || '' } catch { currentUrl = '' }
 
     let targetOrigin = 'https://web.max.ru'
@@ -205,6 +205,23 @@ function isOAuthProviderUrl(url) {
     } catch {
         return false
     }
+}
+
+// BUGFIX ("клик по другому сервису в шапке Яндекс.Почты открывал внешний
+// браузер"): 'will-navigate' ниже сравнивал ТОЧНЫЙ hostname навигации с
+// hostname мессенджера — но многие сайты (Яндекс, Google и т.п. — целые
+// "порталы") держат разные свои сервисы на разных поддоменах одного и того
+// же домена (mail.yandex.ru → disk.yandex.ru), между которыми пользователь
+// естественно ожидает переходить, не покидая приложение — авторизация у них
+// общая на весь домен. Сравниваем базовый домен (последние 2 сегмента) вместо
+// точного хоста — переход на ДРУГОЙ поддомен ТОГО ЖЕ домена остаётся внутри
+// вкладки, во внешний браузер уходит только реально другой домен. Наивная
+// эвристика (не использует публичный suffix-list, значит некорректна для
+// доменов вида *.co.uk), но здесь это даже лучше, чем предыдущая крайность
+// "любой поддомен — уже не свой".
+function baseDomain(hostname) {
+    const parts = String(hostname || '').split('.').filter(Boolean)
+    return parts.length <= 2 ? parts.join('.') : parts.slice(-2).join('.')
 }
 
 function createWebviewTabsApi({
@@ -839,7 +856,7 @@ function createWebviewTabsApi({
             try {
                 const messengerHost = new URL(messenger.url).hostname
                 const navHost = new URL(url).hostname
-                if (navHost !== messengerHost && !url.startsWith('file://')) {
+                if (baseDomain(navHost) !== baseDomain(messengerHost) && !url.startsWith('file://')) {
                     e.preventDefault()
 
                     // Item #6: some providers run OAuth as a full top-level

@@ -111,13 +111,19 @@ function bindSettingsUi({
 
                 const status = document.getElementById('settingsStatus')
                 if (status && !result?.success) {
-                    status.textContent = tGet('autoLaunch.error')
+                    // Показываем и реальную причину сбоя (result.error, из
+                    // main/ipc/autoLaunch.js) — раньше был только общий текст,
+                    // из-за чего диагностировать конкретную причину провала
+                    // app.setLoginItemSettings() на машине пользователя было
+                    // невозможно без доступа к его log-файлу.
+                    const reason = result?.error ? ` (${result.error})` : ''
+                    status.textContent = tGet('autoLaunch.error') + reason
                     status.classList.remove('success')
                     status.classList.add('error')
                     setTimeout(() => {
                         status.textContent = ''
                         status.classList.remove('error')
-                    }, 4000)
+                    }, 8000)
                 }
             })
             ipcRenderer.send('set-auto-launch', autoLaunchRequested)
