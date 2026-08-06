@@ -31,6 +31,11 @@ module.exports = {
         changeIcon: 'Change icon',
     },
 
+    divider: {
+        add:    'Add divider',
+        remove: 'Remove divider',
+    },
+
     modal: {
         addTitle:            'Add messenger',
         popular:             'Popular',
@@ -366,6 +371,19 @@ module.exports = {
         hAgo:          '{n} h ago',
     },
 
+    downloads: {
+        title:         'Downloads',
+        empty:         'No downloads yet',
+        clearAll:      'Clear all',
+        openFile:      'Open file',
+        showInFolder:  'Show in folder',
+        removeFromList: 'Remove from list',
+        inProgress:    'Downloading…',
+        completed:     'Completed',
+        cancelled:     'Cancelled',
+        failed:        'Failed',
+    },
+
     system: {
         notificationDefault: 'New message',
     },
@@ -461,6 +479,7 @@ module.exports = {
     autoLaunch: {
         unavailable: 'Auto-launch unavailable',
         error: 'Failed to change the auto-launch setting',
+        disabledByOS: 'Windows disabled auto-launch for Centrio. Open Task Manager → Startup apps tab and enable Centrio manually',
     },
 
     cloud: {

@@ -211,6 +211,7 @@ function createExtensionsUiApi({
 
         container.innerHTML = ''
         const state = getExtensionState()
+        const userIsPro = getUserIsPro()
 
         REAL_EXTENSIONS.forEach(ext => {
             const info = byKey[ext.key] || { installed: false }
@@ -222,15 +223,27 @@ function createExtensionsUiApi({
             const card = document.createElement('div')
             card.className = `ext-card${isInstalled ? ' ext-installed' : ''}`
 
+            const lockBadge = !userIsPro
+                ? `<div class="ext-pro-lock" title="Pro">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    Pro
+                </div>`
+                : ''
+
             const actionsHtml = isInstalled
                 ? `
+                    ${lockBadge}
                     <button class="ext-uninstall-btn" data-action="uninstall" title="${escapeHtml(tGet('extensions.uninstallBtn'))}" ${isBusy ? 'disabled' : ''}>✕</button>
                     <label class="ext-toggle">
-                        <input type="checkbox" class="ext-toggle-check" data-action="toggle" ${isEnabled ? 'checked' : ''} ${isBusy ? 'disabled' : ''}>
+                        <input type="checkbox" class="ext-toggle-check" data-action="toggle" ${isEnabled && userIsPro ? 'checked' : ''} ${isBusy ? 'disabled' : ''}>
                         <span class="ext-toggle-slider"></span>
                     </label>
                 `
                 : `
+                    ${lockBadge}
                     <button class="ext-install-btn${isBusy ? ' loading' : ''}" data-action="install" ${isBusy ? 'disabled' : ''}>
                         ${escapeHtml(isBusy ? tGet('extensions.installing') : tGet('extensions.install'))}
                     </button>
@@ -254,6 +267,10 @@ function createExtensionsUiApi({
             const installBtn = card.querySelector('[data-action="install"]')
             if (installBtn) {
                 installBtn.addEventListener('click', async () => {
+                    if (!userIsPro) {
+                        if (requirePro) requirePro('extensions')
+                        return
+                    }
                     if (realExtBusy[ext.key]) return
                     realExtBusy[ext.key] = true
                     delete realExtErrors[ext.key]
@@ -304,6 +321,11 @@ function createExtensionsUiApi({
             if (toggleInput) {
                 toggleInput.addEventListener('change', async (e) => {
                     const checked = e.target.checked
+                    if (checked && !userIsPro) {
+                        e.target.checked = false
+                        if (requirePro) requirePro('extensions')
+                        return
+                    }
                     e.target.disabled = true
 
                     const newState = getExtensionState()

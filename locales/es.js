@@ -31,6 +31,11 @@ module.exports = {
         changeIcon: 'Cambiar icono',
     },
 
+    divider: {
+        add:    'Añadir separador',
+        remove: 'Eliminar separador',
+    },
+
     modal: {
         addTitle:            'Añadir messenger',
         popular:             'Popular',
@@ -351,6 +356,19 @@ module.exports = {
         noNotifs:      'No hay nuevas notificaciones',
     },
 
+    downloads: {
+        title:          'Descargas',
+        empty:          'Aún no hay descargas',
+        clearAll:       'Borrar todo',
+        openFile:       'Abrir archivo',
+        showInFolder:   'Mostrar en la carpeta',
+        removeFromList: 'Quitar de la lista',
+        inProgress:     'Descargando…',
+        completed:      'Completado',
+        cancelled:      'Cancelado',
+        failed:         'Fallido',
+    },
+
     system: {
         notificationDefault: 'Nuevo mensaje',
     },
@@ -436,6 +454,7 @@ module.exports = {
     autoLaunch: {
         unavailable: 'Inicio automático no disponible',
         error: 'No se pudo cambiar la configuración de inicio automático',
+        disabledByOS: 'Windows desactivó el inicio automático de Centrio. Abra el Administrador de tareas → pestaña "Aplicaciones de inicio" y active Centrio manualmente',
     },
 
     cloud: {

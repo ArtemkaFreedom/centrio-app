@@ -348,12 +348,16 @@ function createSettingsUiApi({
         })
 
         const autoLaunchCheckbox = document.getElementById('settingAutoLaunch')
+        const autoLaunchWarning = document.getElementById('settingAutoLaunchWarning')
         if (autoLaunchCheckbox) {
             try {
                 const result = await invokeIpc('get-auto-launch')
-                autoLaunchCheckbox.checked = result?.success ? !!result.data : false
+                const data = result?.success ? result.data : null
+                autoLaunchCheckbox.checked = !!data?.openAtLogin
+                if (autoLaunchWarning) autoLaunchWarning.style.display = data?.disabledByOS ? '' : 'none'
             } catch {
                 autoLaunchCheckbox.checked = false
+                if (autoLaunchWarning) autoLaunchWarning.style.display = 'none'
             }
         }
 

@@ -5,6 +5,7 @@ function createContextMenusApi({
     folderPickMenu,
     sidebarContextMenu,
     webviewContextMenu,
+    dividerContextMenu,
     folderIcons,
     tGet,
     getActiveMessengers,
@@ -17,8 +18,10 @@ function createContextMenusApi({
         folderPickMenu.classList.remove('show')
         sidebarContextMenu.classList.remove('show')
         webviewContextMenu.classList.remove('show')
+        if (dividerContextMenu) dividerContextMenu.classList.remove('show')
         state.contextTargetId = null
         state.contextTargetFolderId = null
+        state.contextTargetDividerId = null
     }
 
     function showContextMenu(e, messengerId) {
@@ -111,11 +114,27 @@ function createContextMenusApi({
         if (rect.bottom > window.innerHeight) folderPickMenu.style.top = `${e.clientY - rect.height}px`
     }
 
+    function showDividerContextMenu(e, dividerId) {
+        e.preventDefault()
+        e.stopPropagation()
+        hideAllMenus()
+        state.contextTargetDividerId = dividerId
+
+        dividerContextMenu.style.left = `${e.clientX}px`
+        dividerContextMenu.style.top = `${e.clientY}px`
+        dividerContextMenu.classList.add('show')
+
+        const rect = dividerContextMenu.getBoundingClientRect()
+        if (rect.right > window.innerWidth) dividerContextMenu.style.left = `${e.clientX - rect.width}px`
+        if (rect.bottom > window.innerHeight) dividerContextMenu.style.top = `${e.clientY - rect.height}px`
+    }
+
     return {
         hideAllMenus,
         showContextMenu,
         showFolderContextMenu,
-        showFolderPickMenu
+        showFolderPickMenu,
+        showDividerContextMenu
     }
 }
 

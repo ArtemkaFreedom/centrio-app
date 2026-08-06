@@ -51,6 +51,7 @@ const { bindChangeIconUi } = require('./renderer/change-icon-bind')
 const { bindMessengerSoundUi } = require('./renderer/messenger-sound-bind')
 const { bindSidebarShellUi } = require('./renderer/sidebar-shell-bind')
 const { bindAppNotifUi } = require('./renderer/app-notif-bind')
+const { bindDownloadsUi } = require('./renderer/downloads-bind')
 const { bindVpnUi, bindVpnSettings } = require('./renderer/vpn-bind')
 
 // ==============================
@@ -414,6 +415,8 @@ async function bootstrap() {
         ['lockOnStartup', false],
         ['messengers', []],
         ['folders', []],
+        ['dividers', []],
+        ['sidebarOrder', []],
         ['mutedMessengers', {}],
         ['globalMuteAll', false],
         ['extensionsState', {}],
@@ -522,6 +525,7 @@ async function bootstrap() {
     const quickSearchResults = document.getElementById('quickSearchResults')
     const webviewContextMenu = document.getElementById('webviewContextMenu')
     const sidebarContextMenu = document.getElementById('sidebarContextMenu')
+    const dividerContextMenu = document.getElementById('dividerContextMenu')
     const menuToggleBtn = document.getElementById('menuToggleBtn')
     const titlebarMenu = document.getElementById('titlebarMenu')
     const menuToggleIcon = document.getElementById('menuToggleIcon')
@@ -789,6 +793,7 @@ async function bootstrap() {
         // firing-and-forgetting exactly as before, so this is safe to add.
         const messengersSaved = store.set('messengers', messengers)
         store.set('folders', state.folders)
+        store.set('dividers', state.dividers)
         store.set('mutedMessengers', state.mutedMessengers)
         store.set('globalMuteAll', state.globalMuteAll)
 
@@ -820,7 +825,11 @@ async function bootstrap() {
         ]
 
         const vpnModes = store.get('vpnAppModes', {}) || {}
-        const hasVpn   = vpnModes[messenger.id] === true
+        // По умолчанию VPN включён для всех мессенджеров (см. main/ipc/vpn.js: "true = use VPN (default)"),
+        // поэтому отсутствие явного false в vpnModes означает "включён", а не "выключен".
+        // Дополнительно гасим бейдж, если сам VPN сейчас не подключён (state.vpnActive) — щит не должен
+        // говорить "защищено", когда туннель фактически не поднят.
+        const hasVpn   = (vpnModes[messenger.id] !== false) && !!state.vpnActive
 
         item.innerHTML = `
             <div class="messenger-icon-wrap">
@@ -1008,6 +1017,7 @@ async function bootstrap() {
         folderPickMenu,
         sidebarContextMenu,
         webviewContextMenu,
+        dividerContextMenu,
         folderIcons,
         tGet,
         getActiveMessengers: () => state.activeMessengers,
@@ -1018,7 +1028,8 @@ async function bootstrap() {
     const {
         hideAllMenus,
         showContextMenu,
-        showFolderContextMenu
+        showFolderContextMenu,
+        showDividerContextMenu
     } = contextMenusApi
 
     // ==============================
@@ -1061,6 +1072,49 @@ async function bootstrap() {
         const zone = messengerList.querySelector('.sidebar-root-drop-zone')
         if (zone) messengerList.insertBefore(folderEl, zone)
         else messengerList.appendChild(folderEl)
+    }
+
+    // ==============================
+    // РЕНДЕР РАЗДЕЛИТЕЛЯ (sidebar divider)
+    // ==============================
+    // Разделитель — чисто визуальная сущность сайдбара без своих данных
+    // (в отличие от мессенджера/папки), нужна только для группировки иконок.
+    // Хранится в state.dividers / store('dividers') и участвует в общем
+    // порядке sidebarOrder наравне с мессенджерами и папками.
+    function renderDivider(divider) {
+        const dividerEl = document.createElement('div')
+        dividerEl.className = 'sidebar-divider'
+        dividerEl.id = `divider-${divider.id}`
+
+        dividerEl.addEventListener('contextmenu', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            showDividerContextMenu(e, divider.id)
+        })
+
+        initDrag(dividerEl, divider.id, 'divider')
+        initDropTarget(dividerEl, divider.id, 'divider')
+
+        const zone = messengerList.querySelector('.sidebar-root-drop-zone')
+        if (zone) messengerList.insertBefore(dividerEl, zone)
+        else messengerList.appendChild(dividerEl)
+    }
+
+    function addDivider() {
+        const divider = { id: Date.now().toString() }
+        state.dividers.push(divider)
+        renderDivider(divider)
+        store.set('dividers', state.dividers)
+        saveOrder()
+    }
+
+    function removeDivider(dividerId) {
+        if (!dividerId) return
+        state.dividers = state.dividers.filter(d => d.id !== dividerId)
+        const el = document.getElementById(`divider-${dividerId}`)
+        if (el) el.remove()
+        store.set('dividers', state.dividers)
+        saveOrder()
     }
 
     function markWebviewReady(webview) {
@@ -1481,7 +1535,8 @@ function applyTabZoom(level) {
         initDrag,
         initDropTarget,
         initRootDropZone,
-        loadOrder
+        loadOrder,
+        saveOrder
     } = sidebarDndApi
 
     // ==============================
@@ -1678,9 +1733,11 @@ function applyTabZoom(level) {
 
         const savedMessengers = await store.getAsync('messengers', [])
         const savedFolders = await store.getAsync('folders', [])
+        const savedDividers = await store.getAsync('dividers', [])
         state.mutedMessengers = await store.getAsync('mutedMessengers', {})
         state.globalMuteAll = await store.getAsync('globalMuteAll', false)
         state.folders = savedFolders || []
+        state.dividers = savedDividers || []
 
         updateMuteAllBtn()
 
@@ -1696,6 +1753,7 @@ function applyTabZoom(level) {
         tabsContent.style.pointerEvents = 'auto'
 
         state.folders.forEach(renderFolder)
+        state.dividers.forEach(renderDivider)
 
         const settings = await store.getAsync('settings', {})
         const foldersEnabled = settings?.foldersEnabled !== false
@@ -1898,21 +1956,36 @@ function applyTabZoom(level) {
         tGet
     })
 
+    // enabled — предпочтение пользователя ("использовать VPN для этого мессенджера"),
+    // не факт реального подключения. Реально показываем щит только если VPN ещё и подключён
+    // (state.vpnActive), иначе бейдж вводит в заблуждение ("защищено", хотя туннель не поднят).
     function updateVpnBadge(messengerId, enabled) {
         const item = document.getElementById(`sidebar-${messengerId}`)
         if (!item) return
         const wrap = item.querySelector('.messenger-icon-wrap')
         if (!wrap) return
         const existing = wrap.querySelector('.vpn-badge')
-        if (enabled && !existing) {
+        const show = !!enabled && !!state.vpnActive
+        if (show && !existing) {
             const badge = document.createElement('span')
             badge.className = 'vpn-badge'
             badge.title = 'VPN включён'
             badge.textContent = '🛡'
             wrap.appendChild(badge)
-        } else if (!enabled && existing) {
+        } else if (!show && existing) {
             existing.remove()
         }
+    }
+
+    // Перерисовать бейджи VPN у всех мессенджеров сайдбара — вызывается при каждом
+    // изменении реального статуса VPN (подключение/отключение), см. bindVpnUi(onVpnStatusChange).
+    async function refreshAllVpnBadges (vpnActive) {
+        state.vpnActive = !!vpnActive
+        const modesResult = await invokeIpc('vpn-get-app-modes').catch(() => ({ modes: {} }))
+        const modes = modesResult?.modes || {}
+        state.activeMessengers.forEach(m => {
+            updateVpnBadge(m.id, modes[m.id] !== false)
+        })
     }
 
     // VPN toggle для конкретного мессенджера из контекстного меню
@@ -1988,6 +2061,8 @@ function applyTabZoom(level) {
         removeMessenger,
         moveMessengerToFolder,
         removeFolder,
+        addDivider,
+        removeDivider,
         updateMuteIcon,
         getMessengerById: (id) => state.activeMessengers.find(m => m.id === id),
         getFolderById: (id) => state.folders.find(f => f.id === id),
@@ -2021,8 +2096,19 @@ function applyTabZoom(level) {
         addMessengerNotifRef = appNotifApi.addMessengerNotification
     }
 
-    bindVpnUi({ invokeIpc, tGet, state })
-    bindVpnSettings({ invokeIpc, tGet, getActiveMessengers: () => state.activeMessengers })
+    bindDownloadsUi({
+        invokeIpc,
+        ipcRenderer,
+        tGet
+    })
+
+    bindVpnUi({ invokeIpc, tGet, state, onVpnStatusChange: refreshAllVpnBadges })
+    bindVpnSettings({
+        invokeIpc,
+        tGet,
+        getActiveMessengers: () => state.activeMessengers,
+        onAppVpnModeChange: updateVpnBadge
+    })
 
     bindUpdater({
         ipcRenderer,

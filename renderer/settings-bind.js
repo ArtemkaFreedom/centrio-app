@@ -117,6 +117,15 @@ function bindSettingsUi({
             // reply and surface failures explicitly instead of masking them.
             ipcRenderer.once('auto-launch-result', (_event, result) => {
                 if (!result?.success && autoLaunch) autoLaunch.checked = !autoLaunchRequested
+
+                const autoLaunchWarning = document.getElementById('settingAutoLaunchWarning')
+                if (autoLaunchWarning) {
+                    // Same Windows StartupApproved gap as get-auto-launch (see
+                    // main/ipc/autoLaunch.js) — surface it right away instead of
+                    // waiting for the next Settings open.
+                    autoLaunchWarning.style.display = result?.success && result?.disabledByOS ? '' : 'none'
+                }
+
                 const status = document.getElementById('settingsStatus')
                 if (status && !result?.success) {
                     status.textContent = tGet('autoLaunch.error')

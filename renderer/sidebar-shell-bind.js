@@ -33,7 +33,7 @@ function bindSidebarShellUi({
     })
 
     document.getElementById('messengerList')?.addEventListener('contextmenu', (e) => {
-        if (e.target.closest('.messenger-item') || e.target.closest('.folder-item')) return
+        if (e.target.closest('.messenger-item') || e.target.closest('.folder-item') || e.target.closest('.sidebar-divider')) return
 
         e.preventDefault()
         e.stopPropagation()
@@ -44,6 +44,7 @@ function bindSidebarShellUi({
         if (
             e.target.closest('.messenger-item') ||
             e.target.closest('.folder-item') ||
+            e.target.closest('.sidebar-divider') ||
             e.target.closest('.activity-btn')
         ) return
 

@@ -1,6 +1,7 @@
 const state = {
     activeMessengers: [],
     folders: [],
+    dividers: [],
     activeTabId: null,
     unreadCounts: {},
     rawUnreadCounts: {},
@@ -8,6 +9,7 @@ const state = {
     globalMuteAll: false,
     contextTargetId: null,
     contextTargetFolderId: null,
+    contextTargetDividerId: null,
     editMode: null,
     selectedFolderIcon: 'folder',
     soundTargetId: null,
@@ -31,6 +33,7 @@ const state = {
     webviewWatchBound: new Set(),
     siteNotificationState: {},
     unreadStabilizeTimers: {},
+    vpnActive: false, // фактический статус подключения VPN (не путать с per-app предпочтением vpnAppModes)
     // ── Split-screen ──────────────────────────────────────────────────────────
     splitMode:    false,   // is split mode active?
     splitTabId:   null,    // ID of the secondary (right pane) messenger

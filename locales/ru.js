@@ -32,6 +32,11 @@ module.exports = {
         changeIcon: 'Сменить иконку'
     },
 
+    divider: {
+        add: 'Добавить разделитель',
+        remove: 'Удалить разделитель'
+    },
+
     modal: {
         addTitle: 'Добавить мессенджер',
         popular: 'Популярные',
@@ -367,6 +372,19 @@ module.exports = {
         hAgo:          '{n} ч назад'
     },
 
+    downloads: {
+        title: 'Загрузки',
+        empty: 'Загрузок пока нет',
+        clearAll: 'Очистить всё',
+        openFile: 'Открыть файл',
+        showInFolder: 'Показать в папке',
+        removeFromList: 'Удалить из списка',
+        inProgress: 'Загрузка…',
+        completed: 'Завершено',
+        cancelled: 'Отменено',
+        failed: 'Ошибка'
+    },
+
     system: {
         notificationDefault: 'Новое сообщение'
     },
@@ -461,7 +479,8 @@ module.exports = {
 
     autoLaunch: {
         unavailable: 'Автозапуск недоступен',
-        error: 'Не удалось изменить настройку автозапуска'
+        error: 'Не удалось изменить настройку автозапуска',
+        disabledByOS: 'Windows отключила автозапуск для Centrio. Откройте Диспетчер задач → вкладка «Автозагрузка» и включите Centrio вручную'
     },
 
     cloud: {

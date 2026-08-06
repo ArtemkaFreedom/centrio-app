@@ -16,7 +16,9 @@ const validReceiveChannels = new Set([
     'ext:show-popup',
     'vpn-restored',
     'show-lock-screen',
-    'deep-link-route'
+    'deep-link-route',
+    'oauth-popup-done',
+    'downloads:item-update'
 ])
 
 const invokeChannelMap = {
@@ -64,6 +66,7 @@ const validInvokeChannels = new Set([
     // main/ipc/downloads.js
     'choose-download-dir', 'dialog:selectDirectory', 'get-save-image-path',
     'copy-image-to-clipboard', 'copy-text-to-clipboard',
+    'downloads:get-history', 'downloads:open-file',
     // main/ipc/updater.js
     'install-update', 'check-for-updates', 'app:checkForUpdates',
     // main/ipc/settingsPortability.js
@@ -89,7 +92,8 @@ const validSendChannels = new Set([
     'minimize-window', 'maximize-window', 'close-window', 'quit-app', 'hide-window',
     'toggle-fullscreen', 'set-app-zoom', 'open-url', 'open-translate-window',
     // main/ipc/downloads.js
-    'set-download-dir', 'set-ask-download', 'save-page', 'save-image-data'
+    'set-download-dir', 'set-ask-download', 'save-page', 'save-image-data',
+    'downloads:show-in-folder', 'downloads:remove', 'downloads:clear'
 ])
 
 function mapInvokeChannel(channel) {

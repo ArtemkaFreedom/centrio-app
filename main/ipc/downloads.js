@@ -1,4 +1,4 @@
-const { ipcMain, dialog, app, clipboard, nativeImage } = require('electron')
+const { ipcMain, dialog, app, clipboard, nativeImage, shell } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const store = require('../services/store')
@@ -6,6 +6,82 @@ const { t } = require('../services/i18n')
 
 let downloadDir = store.get('settings.downloadDir', '')
 let askDownload = store.get('settings.askDownload', true)
+
+// ── История загрузок (менеджер загрузок) ─────────────────────────────────
+// Отслеживаем загрузки не только в сессии главного окна, но и в каждой
+// персистентной сессии мессенджера (persist:<id>) — именно там происходит
+// подавляющее большинство реальных загрузок (файлы из WhatsApp/Telegram и
+// т.д.), а раньше 'will-download' был подключён только к сессии главного
+// окна и вообще не видел эти загрузки.
+const MAX_DOWNLOADS_HISTORY = 200
+let downloadsHistory = store.get('downloadsHistory', []) || []
+let mainWindowGetter = null
+const wiredDownloadSessions = new WeakSet()
+
+function persistDownloadsHistory() {
+    if (downloadsHistory.length > MAX_DOWNLOADS_HISTORY) {
+        downloadsHistory = downloadsHistory.slice(0, MAX_DOWNLOADS_HISTORY)
+    }
+    store.set('downloadsHistory', downloadsHistory)
+}
+
+function broadcastDownloadUpdate(record) {
+    const win = mainWindowGetter && mainWindowGetter()
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('downloads:item-update', record)
+    }
+}
+
+function wireSessionDownloads(ses, getMainWindow) {
+    if (!ses || wiredDownloadSessions.has(ses)) return
+    wiredDownloadSessions.add(ses)
+    if (typeof getMainWindow === 'function') mainWindowGetter = getMainWindow
+
+    ses.on('will-download', (_event, item) => {
+        if (!askDownload && downloadDir) {
+            try { item.setSavePath(path.join(downloadDir, item.getFilename())) } catch {}
+        }
+
+        const record = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            filename: item.getFilename(),
+            url: item.getURL(),
+            savePath: item.getSavePath() || '',
+            totalBytes: item.getTotalBytes(),
+            receivedBytes: 0,
+            state: 'progressing',
+            startTime: Date.now(),
+            endTime: null
+        }
+
+        downloadsHistory.unshift(record)
+        persistDownloadsHistory()
+        broadcastDownloadUpdate(record)
+
+        let lastBroadcast = 0
+        item.on('updated', (_e, state) => {
+            record.receivedBytes = item.getReceivedBytes()
+            record.totalBytes = item.getTotalBytes()
+            record.savePath = item.getSavePath() || record.savePath
+            record.state = state === 'interrupted' ? 'interrupted' : 'progressing'
+
+            const now = Date.now()
+            if (state === 'interrupted' || now - lastBroadcast > 250) {
+                lastBroadcast = now
+                broadcastDownloadUpdate(record)
+            }
+        })
+
+        item.once('done', (_e, state) => {
+            record.state = state // 'completed' | 'cancelled' | 'interrupted'
+            record.receivedBytes = item.getReceivedBytes()
+            record.savePath = item.getSavePath() || record.savePath
+            record.endTime = Date.now()
+            persistDownloadsHistory()
+            broadcastDownloadUpdate(record)
+        })
+    })
+}
 
 function safeOn(channel, listener) {
     ipcMain.removeAllListeners(channel)
@@ -40,18 +116,44 @@ function registerPendingSaveImagePath(filePath) {
 function updateDownloadHandler(getMainWindow) {
     const win = getMainWindow()
     if (!win || win.isDestroyed()) return
-
-    const ses = win.webContents.session
-    ses.removeAllListeners('will-download')
-
-    ses.on('will-download', (_event, item) => {
-        if (!askDownload && downloadDir) {
-            item.setSavePath(path.join(downloadDir, item.getFilename()))
-        }
-    })
+    wireSessionDownloads(win.webContents.session, getMainWindow)
 }
 
 function registerDownloadsIpc({ getMainWindow }) {
+    mainWindowGetter = getMainWindow
+    // Подключаем отслеживание сразу, а не только при первом изменении
+    // askDownload/downloadDir — иначе загрузки в сессии главного окна не
+    // отслеживались бы вовсе, пока пользователь ни разу не тронет настройки.
+    updateDownloadHandler(getMainWindow)
+
+    safeHandle('downloads:get-history', async () => downloadsHistory)
+
+    safeOn('downloads:show-in-folder', (_event, id) => {
+        const record = downloadsHistory.find(d => d.id === id)
+        if (record?.savePath && fs.existsSync(record.savePath)) {
+            shell.showItemInFolder(record.savePath)
+        }
+    })
+
+    safeHandle('downloads:open-file', async (_event, id) => {
+        const record = downloadsHistory.find(d => d.id === id)
+        if (!record?.savePath || !fs.existsSync(record.savePath)) {
+            return { success: false, error: 'File not found' }
+        }
+        const err = await shell.openPath(record.savePath)
+        return err ? { success: false, error: err } : { success: true }
+    })
+
+    safeOn('downloads:remove', (_event, id) => {
+        downloadsHistory = downloadsHistory.filter(d => d.id !== id)
+        persistDownloadsHistory()
+    })
+
+    safeOn('downloads:clear', () => {
+        downloadsHistory = []
+        persistDownloadsHistory()
+    })
+
     safeHandle('choose-download-dir', async () => {
         const win = getMainWindow()
 
@@ -201,5 +303,6 @@ function registerDownloadsIpc({ getMainWindow }) {
 
 module.exports = {
     registerDownloadsIpc,
-    updateDownloadHandler
+    updateDownloadHandler,
+    wireSessionDownloads
 }

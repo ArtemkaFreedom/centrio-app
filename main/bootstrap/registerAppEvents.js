@@ -4,6 +4,7 @@ const path = require('path')
 const tracker = require('../services/tracker')
 const store = require('../services/store')
 const { getWebviewPreloadPath } = require('../ipc/api')
+const { wireSessionDownloads } = require('../ipc/downloads')
 
 // Normalizes a preload value (file:// URL or plain path, as seen in either
 // webPreferences.preload or our own getWebviewPreloadPath() output) down to a
@@ -58,6 +59,16 @@ function registerAppEvents({
     // are cheap to check here and let us fail closed (deny attachment) on any
     // mismatch instead of guessing.
     app.on('web-contents-created', (_e, contents) => {
+        // Каждый мессенджер живёт в своей персистентной сессии
+        // (persist:<messenger.id>), поэтому 'will-download' нужно подключать
+        // отдельно к сессии каждого webview — сессия главного окна не видит
+        // загрузки, инициированные внутри мессенджеров (файлы из чатов и т.д.)
+        if (contents.getType() === 'webview') {
+            try { wireSessionDownloads(contents.session, getMainWindow) } catch (err) {
+                log.error('[downloads] failed to wire webview session:', err.message)
+            }
+        }
+
         contents.on('will-attach-webview', (event, webPreferences, params) => {
             try {
                 const partition = params.partition || webPreferences.partition || ''

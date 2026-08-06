@@ -37,7 +37,17 @@ function translateDeepLinkUrl(special) {
         // + navigateTelegramWebview ниже, там для этого случая отдельный,
         // same-origin путь без полной навигации.
         const username = extractTelegramUsername(special.href)
-        return username ? `https://t.me/${username}` : null
+        if (username) return `https://t.me/${username}`
+
+        // tg://join?invite=<hash> — приватные инвайт-ссылки (самый частый
+        // реальный формат "пришлите ссылку на чат"), у них нет username и
+        // extractTelegramUsername() тут всегда вернёт null. t.me/+<hash> —
+        // актуальный официальный формат (core.telegram.org/api/links),
+        // работает как внешний фолбэк так же, как t.me/<username> выше.
+        const invite = extractTelegramInvite(special.href)
+        if (invite) return `https://t.me/+${invite}`
+
+        return null
     }
 
     return null
@@ -54,6 +64,24 @@ function extractTelegramUsername(href) {
         // Только username-подобные значения — не даём decodeURIComponent
         // результату протащить что-то похожее на путь/query в итоговый URL.
         return /^[a-zA-Z0-9_]{1,64}$/.test(domain) ? domain : null
+    } catch {
+        return null
+    }
+}
+
+// Голый инвайт-хэш из tg://join?invite=<hash> (или ...?invite=X&... — порядок
+// query-параметров у tg:// не гарантирован). Нужен и для t.me/+<hash>-фолбэка
+// в translateDeepLinkUrl(), и для same-origin навигации в navigateTelegramWebview().
+function extractTelegramInvite(href) {
+    if (typeof href !== 'string') return null
+    const match = href.match(/[?&]invite=([^&]+)/i)
+    if (!match) return null
+    try {
+        const hash = decodeURIComponent(match[1])
+        // Telegram выдаёт инвайт-хэши как URL-safe токены — та же защита от
+        // протаскивания постороннего пути/query через decodeURIComponent,
+        // что и у extractTelegramUsername/extractMaxJoinToken выше.
+        return /^[A-Za-z0-9_-]{1,64}$/.test(hash) ? hash : null
     } catch {
         return null
     }
@@ -76,22 +104,40 @@ function extractTelegramUsername(href) {
 // (#@username) ЧЕРЕЗ executeJavaScript: это тот же приём, которым сам
 // t.me/<username> в итоге открывает чат в веб-клиенте, но без ухода с
 // текущего origin/сессии и без второго прыжка через посадочную страницу.
-function navigateTelegramWebview(webview, username) {
+// `target` — { type: 'username', value } для tg://resolve или
+// { type: 'invite', value } для tg://join?invite= (приватные ссылки-
+// приглашения, см. extractTelegramInvite выше).
+function navigateTelegramWebview(webview, target) {
     let currentUrl = ''
     try { currentUrl = webview.getURL() || '' } catch { currentUrl = '' }
 
     const clientMatch = currentUrl.match(/^https:\/\/web\.telegram\.org\/(k|a|z)\//i)
     if (clientMatch) {
-        // Same-origin SPA-навигация: меняем только hash, страница не
-        // перезагружается, сессия/логин не трогаются.
-        webview.executeJavaScript(`location.hash = '#@${username}'`).catch(() => {})
+        if (target.type === 'username') {
+            // Same-origin SPA-навигация: меняем только hash, страница не
+            // перезагружается, сессия/логин не трогаются.
+            webview.executeJavaScript(`location.hash = '#@${target.value}'`).catch(() => {})
+            return
+        }
+
+        // invite: у join-по-хэшу нет короткого #@username-роута — вместо
+        // него веб-клиенты Telegram сами умеют разбирать произвольный
+        // tg://-URI, переданный через хэш `#?tgaddr=<encoded-uri>` (этим же
+        // приёмом t.me сам редиректит на web.telegram.org при переходе из
+        // обычного браузера — см. core.telegram.org/api/links про формат
+        // tg://join?invite=<hash>). Тот же same-origin эффект, что и у
+        // #@username: без ухода с текущего origin/сессии.
+        const uri = `tg://join?invite=${target.value}`
+        webview.executeJavaScript(`location.hash = '#?tgaddr=${encodeURIComponent(uri)}'`).catch(() => {})
         return
     }
 
     // Неизвестный/другой клиент Telegram (не web.telegram.org/k|a|z/) —
     // ничего умнее t.me тут предложить не можем, это тот же фолбэк, что и
     // при отсутствии вкладки вообще.
-    try { webview.loadURL(`https://t.me/${username}`) } catch {}
+    try {
+        webview.loadURL(target.type === 'username' ? `https://t.me/${target.value}` : `https://t.me/+${target.value}`)
+    } catch {}
 }
 
 // Токен инвайта из https://max.ru/join/<token> — нужен отдельно от
@@ -139,6 +185,26 @@ function navigateMaxWebview(webview, token) {
     } catch {}
 
     try { webview.loadURL(`${targetOrigin}/join/${token}`) } catch {}
+}
+
+// ── OAuth-брокер для входа через сторонний провайдер внутри webview ────────
+// Большинство OAuth-провайдеров (в первую очередь Google) сознательно
+// отказывают во входе изнутри embedded-браузера — Electron <webview>
+// детектится как небезопасный встроенный браузер, и вместо формы входа
+// показывается "This browser or app may not be secure" (или форма просто
+// виснет). Решение — не webview, а обычное popup-окно с нормальным
+// desktop-UA Chrome и ТОЙ ЖЕ session partition, что и у мессенджера (см.
+// main/ipc/window.js open-popup-window → isOAuthBroker): такое окно
+// проходит проверку провайдера, а полученные cookies/сессия остаются в
+// той же партиции, что и у уже открытого webview мессенджера.
+const OAUTH_PROVIDER_HOST_RE = /(^|\.)accounts\.google\.com$|(^|\.)appleid\.apple\.com$|(^|\.)login\.live\.com$|(^|\.)login\.microsoftonline\.com$|(^|\.)oauth\.yandex\.(ru|com)$|(^|\.)id\.vk\.com$/i
+
+function isOAuthProviderUrl(url) {
+    try {
+        return OAUTH_PROVIDER_HOST_RE.test(new URL(url).hostname)
+    } catch {
+        return false
+    }
 }
 
 function createWebviewTabsApi({
@@ -196,15 +262,20 @@ function createWebviewTabsApi({
         if (targetWebview) {
             if (special.service === 'telegram') {
                 // См. подробный BUGFIX-комментарий у navigateTelegramWebview():
-                // здесь НЕ грузим `url` (https://t.me/<username>) через
-                // loadURL() — это увело бы уже залогиненную вкладку
+                // здесь НЕ грузим `url` (https://t.me/<username или +hash>)
+                // через loadURL() — это увело бы уже залогиненную вкладку
                 // web.telegram.org на чужой origin (t.me) и подвесило бы её.
-                // translateDeepLinkUrl() уже провалидировал username выше
-                // (url !== null), так что extractTelegramUsername() здесь
+                // translateDeepLinkUrl() уже провалидировал username/invite
+                // выше (url !== null), так что повторный extract* здесь
                 // просто дублирует уже пройденную проверку — no-op в плане
                 // безопасности, но избегает парсинга `url` обратно.
                 const username = extractTelegramUsername(special.href)
-                if (username) navigateTelegramWebview(targetWebview, username)
+                if (username) {
+                    navigateTelegramWebview(targetWebview, { type: 'username', value: username })
+                } else {
+                    const invite = extractTelegramInvite(special.href)
+                    if (invite) navigateTelegramWebview(targetWebview, { type: 'invite', value: invite })
+                }
             } else if (special.service === 'max') {
                 // См. подробный BUGFIX-комментарий у navigateMaxWebview():
                 // здесь НЕ грузим `url` (исходный https://max.ru/join/...)
@@ -236,6 +307,21 @@ function createWebviewTabsApi({
         if (url) ipcRenderer.send('open-url', url)
     }
     ipcRenderer.on('deep-link-route', routeDeepLinkFromMain)
+
+    // OAuth-брокер (main/ipc/window.js open-popup-window → isOAuthBroker)
+    // редиректнул на origin мессенджера и закрылся сам — cookies/сессия
+    // теперь лежат в той же persist:<id> партиции, что и у webview.
+    // Просто перезагружаем вкладку, чтобы она подхватила уже
+    // установленный логин без ручного действия пользователя.
+    ipcRenderer.on('oauth-popup-done', (payload) => {
+        const partition = payload && payload.partition
+        if (typeof partition !== 'string' || !partition.startsWith('persist:')) return
+        const messengerId = partition.slice('persist:'.length)
+        const webview = document.getElementById(`webview-${messengerId}`)
+        if (webview) {
+            try { webview.reload() } catch {}
+        }
+    })
 
     function hideWebviewContextMenu() {
         if (!webviewContextMenu) return
@@ -701,6 +787,41 @@ function createWebviewTabsApi({
                 }).catch(() => {})
                 return
             }
+
+            // BUGFIX (item #1 — popups falling through to the external
+            // browser): window.open() calls from a messenger webview (call/
+            // meeting windows, share dialogs, "sign in with X" popups, ...)
+            // used to always go through the plain open-url fallback below,
+            // landing in the user's default browser with none of the
+            // session the messenger itself is logged into. Route http(s)
+            // popups through open-popup-window instead, sharing this
+            // messenger's own partition — see main/ipc/window.js
+            // (isSharedMessengerSession is allowlisted there against known
+            // messenger partitions, so this can't be used to read an
+            // arbitrary session). Recognized OAuth-provider popups (item
+            // #6) additionally get returnHost so the main process can close
+            // the popup and hand control back once sign-in completes — see
+            // isOAuthProviderUrl()/OAUTH_PROVIDER_HOST_RE above.
+            if ((url.startsWith('http://') || url.startsWith('https://')) && messenger?.id) {
+                const popupOpts = {
+                    width: 500,
+                    height: 650,
+                    name: messenger.name || 'Centrio',
+                    partition: `persist:${messenger.id}`
+                }
+
+                if (isOAuthProviderUrl(url)) {
+                    try { popupOpts.returnHost = new URL(messenger.url).hostname } catch {}
+                }
+
+                invokeIpc('open-popup-window', url, popupOpts)
+                    .then((result) => {
+                        if (!result || result.success !== true) ipcRenderer.send('open-url', url)
+                    })
+                    .catch(() => ipcRenderer.send('open-url', url))
+                return
+            }
+
             // SECURITY: 'new-window' (like 'will-navigate' below) can be
             // reached from page script with no verifiable real user
             // gesture, so it deliberately does NOT auto-route into another
@@ -720,6 +841,27 @@ function createWebviewTabsApi({
                 const navHost = new URL(url).hostname
                 if (navHost !== messengerHost && !url.startsWith('file://')) {
                     e.preventDefault()
+
+                    // Item #6: some providers run OAuth as a full top-level
+                    // redirect (not a window.open() popup) straight out of
+                    // the messenger webview itself. Same in-app broker
+                    // hand-off as the 'new-window' branch above instead of
+                    // sending it to the external browser.
+                    if (isOAuthProviderUrl(url) && messenger?.id) {
+                        let returnHost = ''
+                        try { returnHost = new URL(messenger.url).hostname } catch {}
+                        if (returnHost) {
+                            invokeIpc('open-popup-window', url, {
+                                width: 500,
+                                height: 650,
+                                name: messenger.name || 'Centrio',
+                                partition: `persist:${messenger.id}`,
+                                returnHost
+                            }).catch(() => {})
+                            return
+                        }
+                    }
+
                     ipcRenderer.send('open-url', url)
                 }
             } catch {}

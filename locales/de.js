@@ -31,6 +31,11 @@ module.exports = {
         changeIcon: 'Symbol ändern',
     },
 
+    divider: {
+        add:    'Trenner hinzufügen',
+        remove: 'Trenner entfernen',
+    },
+
     modal: {
         addTitle:            'Messenger hinzufügen',
         popular:             'Beliebt',
@@ -351,6 +356,19 @@ module.exports = {
         noNotifs:      'Keine neuen Benachrichtigungen',
     },
 
+    downloads: {
+        title:          'Downloads',
+        empty:          'Noch keine Downloads',
+        clearAll:       'Alle löschen',
+        openFile:       'Datei öffnen',
+        showInFolder:   'Im Ordner anzeigen',
+        removeFromList: 'Aus Liste entfernen',
+        inProgress:     'Wird heruntergeladen…',
+        completed:      'Abgeschlossen',
+        cancelled:      'Abgebrochen',
+        failed:         'Fehlgeschlagen',
+    },
+
     system: {
         notificationDefault: 'Neue Nachricht',
     },
@@ -436,6 +454,7 @@ module.exports = {
     autoLaunch: {
         unavailable: 'Autostart nicht verfügbar',
         error: 'Autostart-Einstellung konnte nicht geändert werden',
+        disabledByOS: 'Windows hat den Autostart für Centrio deaktiviert. Öffnen Sie den Task-Manager → Tab „Autostart" und aktivieren Sie Centrio manuell',
     },
 
     cloud: {

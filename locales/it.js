@@ -31,6 +31,11 @@ module.exports = {
         changeIcon: 'Cambia icona',
     },
 
+    divider: {
+        add:    'Aggiungi separatore',
+        remove: 'Rimuovi separatore',
+    },
+
     modal: {
         addTitle:            'Aggiungi messenger',
         popular:             'Popolari',
@@ -351,6 +356,19 @@ module.exports = {
         noNotifs:      'Nessuna nuova notifica',
     },
 
+    downloads: {
+        title:          'Download',
+        empty:          'Nessun download ancora',
+        clearAll:       'Cancella tutto',
+        openFile:       'Apri file',
+        showInFolder:   'Mostra nella cartella',
+        removeFromList: 'Rimuovi dalla lista',
+        inProgress:     'Download in corso…',
+        completed:      'Completato',
+        cancelled:      'Annullato',
+        failed:         'Fallito',
+    },
+
     system: {
         notificationDefault: 'Nuovo messaggio',
     },
@@ -436,6 +454,7 @@ module.exports = {
     autoLaunch: {
         unavailable: 'Avvio automatico non disponibile',
         error: "Impossibile modificare l'impostazione di avvio automatico",
+        disabledByOS: "Windows ha disattivato l'avvio automatico di Centrio. Apri Task Manager → scheda \"App all'avvio\" e attiva Centrio manualmente",
     },
 
     cloud: {

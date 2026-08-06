@@ -31,6 +31,11 @@ module.exports = {
         changeIcon: '更换图标',
     },
 
+    divider: {
+        add:    '添加分隔线',
+        remove: '删除分隔线',
+    },
+
     modal: {
         addTitle:            '添加应用',
         popular:             '热门',
@@ -351,6 +356,19 @@ module.exports = {
         noNotifs:      '没有新通知',
     },
 
+    downloads: {
+        title:          '下载',
+        empty:          '暂无下载',
+        clearAll:       '清除全部',
+        openFile:       '打开文件',
+        showInFolder:   '在文件夹中显示',
+        removeFromList: '从列表中移除',
+        inProgress:     '下载中…',
+        completed:      '已完成',
+        cancelled:      '已取消',
+        failed:         '失败',
+    },
+
     system: {
         notificationDefault: '新消息',
     },
@@ -436,6 +454,7 @@ module.exports = {
     autoLaunch: {
         unavailable: '自动启动不可用',
         error: '无法更改自动启动设置',
+        disabledByOS: 'Windows 已禁用 Centrio 的自动启动。请打开任务管理器 → "启动应用" 选项卡，手动启用 Centrio',
     },
 
     cloud: {

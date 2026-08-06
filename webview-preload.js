@@ -56,70 +56,109 @@ function extractUnreadFromTitle(title) {
     match = title.match(/^(\d+)\b/)
     if (match) return parseInt(match[1], 10) || 0
 
+    // "3 unread messages - App", "(3 unread) App" и т.п.
+    match = title.match(/(\d+)\s+unread/i)
+    if (match) return parseInt(match[1], 10) || 0
+
     return null
 }
 
+// Общий сборщик по списку селекторов: ищем видимый элемент с числом (из aria-label
+// или из текста) — используется и Telegram-, и generic-эвристикой ниже.
+function scanSelectorsForCount(selectors) {
+    for (const selector of selectors) {
+        let elements
+        try {
+            elements = document.querySelectorAll(selector)
+        } catch {
+            continue // невалидный селектор (например, движок не поддерживает :has) — пропускаем
+        }
+
+        for (const el of elements) {
+            if (!isElementVisible(el)) continue
+
+            const aria = el.getAttribute('aria-label')
+            const ariaNum = parsePositiveInt(aria)
+            if (typeof ariaNum === 'number' && ariaNum > 0) return ariaNum
+
+            const text = (el.textContent || '').trim()
+            if (text.length > 6) continue
+
+            const num = parsePositiveInt(text)
+            if (typeof num === 'number' && num > 0) return num
+        }
+    }
+
+    return null
+}
+
+// ПРИМЕЧАНИЕ по хрупкости: современные веб-мессенджеры (WhatsApp Web, Telegram Web
+// и т.п.) часто используют хэшированные CSS-модули (например, "_ak8h"), где точное
+// имя класса меняется от сборки к сборке — точные селекторы вроде ".badge" быстро
+// устаревают. Поэтому здесь помимо точных легаси-классов используем ЧАСТИЧНОЕ
+// регистронезависимое совпадение по [class*=…], [data-testid*=…], [aria-label*=…] —
+// это заметно устойчивее к обновлениям вёрстки конкретного сайта.
 function extractUnreadTelegram() {
-    const selectors = [
-        '[aria-label*="unread"]',
-        '[aria-label*="Unread"]',
+    return scanSelectorsForCount([
+        '[aria-label*="unread" i]',
         '.ListItem-badge',
         '.badge',
         '.Badge',
         '.counter',
-        '.Counter'
-    ]
-
-    for (const selector of selectors) {
-        const elements = document.querySelectorAll(selector)
-
-        for (const el of elements) {
-            if (!isElementVisible(el)) continue
-
-            const aria = el.getAttribute('aria-label')
-            const ariaNum = parsePositiveInt(aria)
-            if (typeof ariaNum === 'number' && ariaNum > 0) return ariaNum
-
-            const text = (el.textContent || '').trim()
-            if (text.length > 6) continue
-
-            const num = parsePositiveInt(text)
-            if (typeof num === 'number' && num > 0) return num
-        }
-    }
-
-    return null
+        '.Counter',
+        '[class*="unread" i]',
+        '[class*="badge" i]',
+        '[data-testid*="unread" i]',
+        '[data-testid*="badge" i]'
+    ])
 }
 
 function extractUnreadGeneric() {
-    const selectors = [
+    return scanSelectorsForCount([
         '.unread-count',
         '.badge-counter',
         '.chat-unread-count',
         '.conversations-badge',
-        '[aria-label*="unread"]',
-        '[aria-label*="Unread"]'
-    ]
+        '[aria-label*="unread" i]',
+        '[class*="unread" i]',
+        '[class*="badge-count" i]',
+        '[class*="unreadcount" i]',
+        '[data-testid*="unread" i]',
+        '[data-testid*="badge" i]'
+    ])
+}
 
-    for (const selector of selectors) {
-        const elements = document.querySelectorAll(selector)
+// ── Резервный сигнал: бейдж на фавиконе ────────────────────────────────────
+// Многие веб-клиенты (WhatsApp Web, Slack и др.) рисуют бейдж непрочитанных
+// поверх иконки через Canvas и подставляют её в <link rel="icon"> как data:-URI —
+// это не зависит от разметки/классов страницы вообще. Берём это как последний
+// сигнал "есть непрочитанное" (без точного числа), когда DOM- и title-эвристики
+// ничего не нашли. baseline фиксируем один раз спустя паузу после старта, чтобы
+// не поймать иконку самого первого рендера как "с бейджем".
+let baselineFaviconHref = null
+let baselineFaviconAt = 0
 
-        for (const el of elements) {
-            if (!isElementVisible(el)) continue
+function getFaviconHref() {
+    const link = document.querySelector('link[rel~="icon"]')
+    return (link && link.getAttribute('href')) || ''
+}
 
-            const aria = el.getAttribute('aria-label')
-            const ariaNum = parsePositiveInt(aria)
-            if (typeof ariaNum === 'number' && ariaNum > 0) return ariaNum
-
-            const text = (el.textContent || '').trim()
-            if (text.length > 6) continue
-
-            const num = parsePositiveInt(text)
-            if (typeof num === 'number' && num > 0) return num
-        }
+function captureBaselineFavicon() {
+    if (baselineFaviconHref !== null) return
+    const href = getFaviconHref()
+    // Если уже на старте это data:-иконка — сайт мог отрисовать её до нашего замера,
+    // либо вообще не использует этот приём; сравнение будет ненадёжным — не включаем эвристику.
+    if (href && !href.startsWith('data:')) {
+        baselineFaviconHref = href
+        baselineFaviconAt = Date.now()
     }
+}
 
-    return null
+function hasFaviconBadge() {
+    if (!baselineFaviconHref) return false
+    if (Date.now() - baselineFaviconAt < 3000) return false
+    const href = getFaviconHref()
+    return !!href && href.startsWith('data:') && href !== baselineFaviconHref
 }
 
 function extractUnreadCount() {
@@ -140,6 +179,11 @@ function extractUnreadCount() {
     if (typeof domCount === 'number' && domCount > 0) return domCount
 
     if (typeof titleCount === 'number') return titleCount
+
+    // Ни заголовок, ни DOM-эвристики не нашли число — последний шанс: бейдж на фавиконе
+    // (см. hasFaviconBadge). Считаем count = 1 ("есть непрочитанное"), точное число
+    // таким способом не получить, но это лучше, чем ложный 0 при рабочей хрупкой вёрстке.
+    if (hasFaviconBadge()) return 1
 
     return 0
 }
@@ -563,6 +607,8 @@ function init() {
     startObserver()
     startUnreadInterval()
     setTimeout(checkUnread, 1000)
+    // Задержка нужна, чтобы не захватить фавикон самого первого (переходного) рендера как baseline.
+    setTimeout(captureBaselineFavicon, 3000)
 }
 
 // Патчим Notification НЕМЕДЛЕННО — до любых скриптов страницы

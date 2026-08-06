@@ -233,7 +233,9 @@ function bindWindowEvents(win) {
 
         const settings = store.get('settings', {})
         if (settings?.startMinimized) {
-            win.minimize()
+            // Label promises "сразу в трей" (straight to tray), not a regular
+            // taskbar minimize — hide() is what leaves only the tray icon.
+            win.hide()
         } else {
             win.show()
         }

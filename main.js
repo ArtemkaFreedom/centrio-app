@@ -110,7 +110,7 @@ const ALLOWED_STORE_ROOTS = new Set([
     'menuCollapsed', 'messengers', 'mutedMessengers', 'globalMuteAll',
     'globalProxy', 'sidebarOrder', 'vpnAppModes', 'vpnActiveLink',
     'vpnSubUrl', 'vpnSubLinks', 'tabZoomLevel', 'appZoomLevel', 'folders',
-    'lockOnStartup', 'pinEnabled', 'pinHash', 'split'
+    'dividers', 'lockOnStartup', 'pinEnabled', 'pinHash', 'split'
 ])
 
 const DANGEROUS_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype'])

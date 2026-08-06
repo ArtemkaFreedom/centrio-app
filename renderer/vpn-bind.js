@@ -22,7 +22,7 @@ function friendlyVpnError (tGet, result, fallbackKey) {
   return result?.error || tGet(fallbackKey || 'network.vpnError')
 }
 
-function bindVpnUi ({ invokeIpc, tGet }) {
+function bindVpnUi ({ invokeIpc, tGet, onVpnStatusChange }) {
   const btn   = document.getElementById('vpnBtn')
   const panel = document.getElementById('vpnPanel')
   if (!btn || !panel) return
@@ -137,6 +137,10 @@ function bindVpnUi ({ invokeIpc, tGet }) {
   function updateBtn () {
     btn.classList.toggle('vpn-active', !!status.active)
     btn.title = status.active ? `VPN: ${status.name || 'ON'}` : 'VPN'
+    // Уведомляем renderer.js о фактическом статусе подключения, чтобы щиты
+    // мессенджеров в сайдбаре гасли/загорались синхронно с реальным состоянием VPN,
+    // а не только с пользовательским предпочтением "использовать VPN".
+    if (typeof onVpnStatusChange === 'function') onVpnStatusChange(!!status.active)
   }
 
   // ── Найти конфиг по id ────────────────────────────────────────────
@@ -647,7 +651,7 @@ function bindVpnUi ({ invokeIpc, tGet }) {
 
 // ── Инициализация VPN-секции в настройках ────────────────────────────────
 // Рендерит список конфигов, обрабатывает textarea импорта
-function bindVpnSettings ({ invokeIpc, tGet, getActiveMessengers }) {
+function bindVpnSettings ({ invokeIpc, tGet, getActiveMessengers, onAppVpnModeChange }) {
   const listEl   = document.getElementById('settingsVpnList')
   const input    = document.getElementById('settingsVpnInput')
   const importBtn= document.getElementById('settingsVpnImportBtn')
@@ -740,7 +744,11 @@ function bindVpnSettings ({ invokeIpc, tGet, getActiveMessengers }) {
 
     appsListEl.querySelectorAll('.vpn-app-toggle').forEach(cb => {
       cb.addEventListener('change', async () => {
-        await invokeIpc('vpn-set-app-vpn', cb.dataset.id, cb.checked).catch(() => null)
+        const result = await invokeIpc('vpn-set-app-vpn', cb.dataset.id, cb.checked).catch(() => null)
+        // Синхронизируем щит в сайдбаре сразу, не дожидаясь следующего открытия настроек/панели VPN.
+        if (result?.success !== false && typeof onAppVpnModeChange === 'function') {
+          onAppVpnModeChange(cb.dataset.id, cb.checked)
+        }
       })
     })
   }

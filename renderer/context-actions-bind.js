@@ -8,6 +8,8 @@ function bindContextActionsUi({
     removeMessenger,
     moveMessengerToFolder,
     removeFolder,
+    addDivider,
+    removeDivider,
     updateMuteIcon,
     getMessengerById,
     getFolderById,
@@ -44,6 +46,17 @@ function bindContextActionsUi({
         state.activeMessengers.forEach(m => {
             document.getElementById(`webview-${m.id}`)?.reload()
         })
+    })
+
+    document.getElementById('ctxSidebarAddDivider')?.addEventListener('click', () => {
+        hideAllMenus()
+        if (typeof addDivider === 'function') addDivider()
+    })
+
+    document.getElementById('ctxDividerRemove')?.addEventListener('click', () => {
+        const dividerId = state.contextTargetDividerId
+        hideAllMenus()
+        if (dividerId && typeof removeDivider === 'function') removeDivider(dividerId)
     })
 
     document.getElementById('ctxReload')?.addEventListener('click', () => {

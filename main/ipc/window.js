@@ -147,23 +147,51 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
             // (persist:<messengerId>), см. main/services/extensions.js. Без явного
             // указания той же session partition popup открылся бы в defaultSession —
             // расширение там не загружено, chrome.tabs не увидит webview мессенджера.
-            // Разрешаем кастомную session ТОЛЬКО для chrome-extension:// URL и только
-            // для partition реально существующего мессенджера — иначе игнорируем opts.partition,
-            // чтобы этот generic-канал нельзя было использовать для открытия произвольного
-            // URL в произвольной persisted-сессии.
+            // Разрешаем кастомную session ТОЛЬКО для partition реально существующего
+            // мессенджера — иначе игнорируем opts.partition, чтобы этот generic-канал
+            // нельзя было использовать для открытия произвольного URL в произвольной
+            // persisted-сессии.
+            //
+            // BUGFIX (item #1 — popups falling through to the external browser):
+            // this partition-sharing used to be gated on `url.startsWith('chrome-extension://')`,
+            // so any regular http(s) window.open() from a messenger webview (call/
+            // meeting windows, share dialogs, "sign in with X" popups, ...) never
+            // qualified and fell through to shell.openExternal() in a logged-out
+            // default browser profile instead. The scheme check added no real
+            // security value on its own (the partition allowlist below is what
+            // actually prevents session hijacking) — dropped it so any URL can
+            // share a *known* messenger's own partition.
             const webPreferences = {
                 nodeIntegration: false,
                 contextIsolation: true,
                 sandbox: true
             }
 
-            if (typeof url === 'string' && url.startsWith('chrome-extension://') && typeof opts.partition === 'string') {
+            let isSharedMessengerSession = false
+            if (typeof opts.partition === 'string') {
                 const messengers = store.get('messengers', []) || []
                 const isKnownPartition = messengers.some((m) => m && m.id && `persist:${m.id}` === opts.partition)
                 if (isKnownPartition) {
                     webPreferences.session = session.fromPartition(opts.partition)
+                    isSharedMessengerSession = true
                 }
             }
+
+            // ── OAuth broker mode (item #6, renderer/webview-tabs-bind.js) ──
+            // Google (and most other providers) refuse to complete sign-in
+            // inside an Electron <webview> guest page — it gets detected as
+            // an embedded browser and rejected outright ("This browser or
+            // app may not be secure"), which is why "Sign in with Google"
+            // clicked inside a messenger webview used to just hang. A real
+            // popup BrowserWindow sharing the messenger's session (see
+            // isSharedMessengerSession above) passes that detection as long
+            // as it also presents a normal desktop Chrome UA. opts.returnHost
+            // is validated as a bare hostname — it is only ever compared
+            // against navigation targets below, never used to build a URL or
+            // navigate anywhere itself.
+            const isOAuthBroker = isSharedMessengerSession &&
+                typeof opts.returnHost === 'string' &&
+                /^[a-z0-9.-]+$/i.test(opts.returnHost)
 
             const popup = new BrowserWindow({
                 width: w, height: h, x, y,
@@ -175,20 +203,84 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
 
             popup.setMenuBarVisibility(false)
 
+            if (isOAuthBroker) {
+                // Same UA the messenger webviews themselves send (see
+                // renderer/webview-tabs-bind.js addWebview) — the default
+                // Electron popup UA alone is enough to trip some providers'
+                // embedded-browser detection.
+                popup.webContents.setUserAgent(
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                )
+            }
+
             popup.webContents.setWindowOpenHandler(({ url: newUrl }) => {
+                if (isOAuthBroker) return { action: 'deny' } // no nested popups needed for an OAuth flow
                 if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
                     shell.openExternal(newUrl).catch(() => {})
                 }
                 return { action: 'deny' }
             })
 
+            // Once the provider's flow redirects back to the messenger's own
+            // origin (opts.returnHost), the OAuth broker's job is done: close
+            // the popup and tell the renderer so it can reload the messenger
+            // tab and pick up the session that just got authenticated.
+            const maybeFinishOAuth = (navUrl) => {
+                if (!isOAuthBroker) return false
+                try {
+                    const { hostname } = new URL(navUrl)
+                    if (hostname !== opts.returnHost && !hostname.endsWith(`.${opts.returnHost}`)) return false
+                } catch {
+                    return false
+                }
+
+                if (mainWin && !mainWin.isDestroyed()) {
+                    mainWin.webContents.send('oauth-popup-done', { partition: opts.partition })
+                }
+                if (!popup.isDestroyed()) popup.close()
+                return true
+            }
+
             popup.webContents.on('will-navigate', (event, navUrl) => {
+                if (isOAuthBroker) {
+                    // Unlike the plain-popup branch below, an OAuth flow
+                    // legitimately needs multiple full navigations (consent
+                    // screens, 2FA, callback redirects) to complete —
+                    // preventDefault()-ing all of them (like the branch below
+                    // always did) is what made this broker dead on arrival
+                    // before. Only step in once navigation reaches the return
+                    // host.
+                    //
+                    // SECURITY (defense-in-depth, per review): still block
+                    // navigation to any non-http(s) scheme. Nothing in a
+                    // legitimate OAuth redirect chain needs file:/chrome:/
+                    // other privileged schemes, and this popup otherwise has
+                    // no app-level scheme guard of its own (unlike normal
+                    // BrowserWindow creation, which only restricts window.open
+                    // targets, not in-place navigation).
+                    if (!navUrl.startsWith('http://') && !navUrl.startsWith('https://')) {
+                        event.preventDefault()
+                        return
+                    }
+                    maybeFinishOAuth(navUrl)
+                    return
+                }
+
                 if (navUrl.startsWith('about:')) return
                 event.preventDefault()
                 if (navUrl.startsWith('http://') || navUrl.startsWith('https://')) {
                     shell.openExternal(navUrl).catch(() => {})
                 }
             })
+
+            if (isOAuthBroker) {
+                // Some providers finish via a client-side redirect
+                // (history.replaceState/location.hash) once already back on
+                // their own origin, rather than a full navigation — both
+                // need the same completion check.
+                popup.webContents.on('did-navigate', (_event, navUrl) => maybeFinishOAuth(navUrl))
+                popup.webContents.on('did-navigate-in-page', (_event, navUrl) => maybeFinishOAuth(navUrl))
+            }
 
             popup.once('ready-to-show', () => {
                 popup.show()

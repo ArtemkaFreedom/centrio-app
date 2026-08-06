@@ -15,6 +15,20 @@ function safeHandle(channel, handler) {
     ipcMain.handle(channel, handler)
 }
 
+// Реальные расширения — платная Pro-фича. Проверка на клиенте (renderer/extensions-ui.js)
+// защищает только UI; сама установка/включение идёт через IPC, вызываемый из webview-контента
+// в devtools можно дёрнуть window.electronAPI.extInstall/extToggle напрямую — так что источник
+// правды (store.cloud.user.plan) проверяется здесь же, в main, а не только в renderer.
+function isProUser() {
+    try {
+        const store = require('../services/store')
+        const plan = String(store.get('cloud.user', null)?.plan || 'FREE').toUpperCase()
+        return plan !== 'FREE'
+    } catch {
+        return false
+    }
+}
+
 function registerExtensionsIpc() {
     safeHandle('ext:list', () => {
         try {
@@ -29,6 +43,9 @@ function registerExtensionsIpc() {
         if (typeof key !== 'string' || !ext.CATALOG[key]) {
             return { success: false, error: 'unknown-extension' }
         }
+        if (!isProUser()) {
+            return { success: false, error: 'pro-required' }
+        }
         return ext.installExtension(key)
     })
 
@@ -42,6 +59,9 @@ function registerExtensionsIpc() {
     safeHandle('ext:toggle', async (_event, key, enabled) => {
         if (typeof key !== 'string' || !ext.CATALOG[key]) {
             return { success: false, error: 'unknown-extension' }
+        }
+        if (enabled && !isProUser()) {
+            return { success: false, error: 'pro-required' }
         }
         return ext.setEnabledEverywhere(key, !!enabled)
     })
