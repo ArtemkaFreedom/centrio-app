@@ -483,30 +483,29 @@ function bindLinkInterception() {
             return
         }
 
-        // BUGFIX ("клики в Яндекс.Почте — и обычная внутренняя навигация, и
-        // 'скачать файл' — открывали внешний браузер"): раньше это условие
-        // ловило ЛЮБОЙ клик по <a href="http(s)://…">, то есть буквально
-        // каждую обычную ссылку на странице — включая внутреннюю SPA-навигацию
-        // сайта (реальные <a>-теги для роутинга — обычный паттерн) и ссылки
-        // на скачивание файлов (что дополнительно ломало их: клик уводил в
-        // браузер вместо того чтобы дать webview поймать will-download).
-        // Теперь наружу уходит только: (1) сайт сам явно попросил новую
-        // вкладку (target=_blank — как и раньше), либо (2) ссылка ведёт на
-        // другой хост, помечена НЕ как download — то есть похожа на
-        // "внешняя ссылка в переписке", а не на действие самого сайта.
-        // Ссылки на тот же хост и любые download-ссылки остаются
-        // необработанными — их обрабатывает сам webview штатно.
+        // BUGFIX v1.9.4 ("клики — и обычная внутренняя навигация, и 'скачать
+        // файл' — открывали внешний браузер"): раньше это условие ловило
+        // ЛЮБОЙ клик по <a href="http(s)://…"> — то есть каждую обычную
+        // ссылку на странице, включая внутреннюю SPA-навигацию сайта и
+        // ссылки на скачивание.
+        //
+        // BUGFIX v1.9.5 ("вход в Яндекс.Почте снова открывает браузер"):
+        // v1.9.4 сузил условие до "другой хост" вместо "любой http(s)" — но
+        // это снова ловило CAM top-level редирект на страницу входа/OAuth
+        // (обычно другой поддомен, например passport.yandex.ru), причём
+        // РАНЬШЕ, чем клик успевал стать настоящей навигацией. А именно
+        // настоящую навигацию (событие 'will-navigate' на самом <webview>,
+        // не клик на <a> внутри страницы) уже корректно обрабатывает
+        // renderer/webview-tabs-bind.js — там же учтён и OAuth-брокер
+        // (isOAuthProviderUrl, item #6). Дублировать эту логику здесь на
+        // уровне клика не нужно и вредно: наш собственный preventDefault()
+        // тут просто не даёт will-navigate вообще случиться. Поэтому теперь
+        // наружу уходит только явное "открыть в новой вкладке"
+        // (target=_blank) — вся обычная навигация, включая кросс-доменную,
+        // остаётся штатной и попадает под уже правильную обработку хоста.
         if (link.hasAttribute('download')) return
 
-        const isBlank = link.target === '_blank'
-        let isCrossOrigin
-        try {
-            isCrossOrigin = new URL(href, window.location.href).hostname !== window.location.hostname
-        } catch {
-            isCrossOrigin = false
-        }
-
-        if (isBlank || (isCrossOrigin && (href.startsWith('http://') || href.startsWith('https://')))) {
+        if (link.target === '_blank') {
             e.preventDefault()
             e.stopPropagation()
             ipcRenderer.send('open-url', href)
@@ -664,58 +663,22 @@ function bindMsgSentDetection() {
     }, true)
 }
 
-// ── Перетаскивание вложения из одного мессенджера в другой (сплит-экран) ────
-// Задача: перетащить картинку/файл, уже показанный в чате, прямо в другой
-// открытый мессенджер, как обычное вложение.
-//
-// ГРАНИЦЫ ВОЗМОЖНОГО (важно понимать, прежде чем полагаться на это):
-// - Работает только для http(s)-ресурсов (обычный <img src="https://...">
-//   или <a href="https://...файл">). Для них используется 'DownloadURL' в
-//   dataTransfer — тот же приём, что и в панели загрузок (см.
-//   renderer/downloads-bind.js), только тут URL остаётся удалённым: Chromium
-//   сам скачивает его в момент дропа, без похода через наш main-процесс.
-// - НЕ работает для blob:/data: URL, которыми многие мессенджеры (в т.ч.
-//   WhatsApp Web) отдают уже расшифрованные медиа — такой URL валиден только
-//   в контексте этой же страницы и не резолвится снаружи. Скачать его самим
-//   и переотправить как file:// в теории можно, но fetch(blob:) асинхронный,
-//   а нативный drag должен получить данные синхронно в момент dragstart —
-//   к моменту, когда скачивание бы завершилось, жест перетаскивания уже
-//   потерян. Рабочего обхода для этого случая нет.
-function bindAttachmentDragOut() {
-    document.addEventListener('dragstart', (e) => {
-        const el = e.target && e.target.closest ? e.target.closest('img, a[href]') : null
-        if (!el) return
-
-        let url = null
-        let filename = 'file'
-
-        if (el.tagName === 'IMG') {
-            url = el.currentSrc || el.src || ''
-            const clean = url.split('?')[0].split('#')[0]
-            filename = clean.split('/').pop() || 'image.jpg'
-        } else if (el.tagName === 'A') {
-            url = el.href || ''
-            const clean = url.split('?')[0].split('#')[0]
-            filename = el.getAttribute('download') || clean.split('/').pop() || 'file'
-        }
-
-        if (!url || !/^https?:\/\//i.test(url)) return // blob:/data:/относительные — не поддерживаем, см. комментарий выше
-
-        try {
-            e.dataTransfer.setData('DownloadURL', `application/octet-stream:${filename}:${url}`)
-            e.dataTransfer.effectAllowed = 'copy'
-        } catch {
-            // ignore — сайт мог сам уже что-то положить в dataTransfer раньше нас
-        }
-    }, true)
-}
-
+// ── Перетаскивание вложения между мессенджерами — УБРАНО в v1.9.5 ──────────
+// Была попытка (v1.9.3) перетаскивать картинку/файл из одного открытого
+// мессенджера в другой через 'DownloadURL' в dataTransfer. На практике
+// оказалось хуже, чем просто "не работает": Chromium сам добавляет в
+// dataTransfer собственные данные для <img> (uri-list и т.п.), и когда
+// принимающая страница не обрабатывает drop сама, срабатывает штатный
+// fallback браузера — не навигация текущей страницы, а открытие НОВОГО
+// окна, что уже прямая помеха пользователю. preventDefault() на dragstart
+// эту проблему не решает — он отменяет весь жест перетаскивания целиком,
+// а не только дефолтные данные Chromium. Убрано до появления надёжного
+// способа, а не оставлено "полуработающим".
 function init() {
     bindContextMenuForwarding()
     bindKeyboardForwarding()
     bindDownloadImageHandler()
     bindLinkInterception()
-    bindAttachmentDragOut()
     bindMsgSentDetection()
     startObserver()
     startUnreadInterval()
