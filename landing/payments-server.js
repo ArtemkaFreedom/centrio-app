@@ -56,6 +56,13 @@ const PLANS = {
   year:  { price: '1590.00', months: 12, label: 'Centrio Pro — 1 год'  }
 }
 
+// YooKassa payment_method_data.type values we expose in our own UI's
+// method-selector, shown before the redirect to YooKassa's page (see
+// dashboard-server.tsx). save_payment_method (recurring/card-binding) only
+// works for bank_card — silently dropped for every other method below,
+// same as YooKassa itself would do.
+const PAYMENT_METHODS = new Set(['bank_card', 'sbp', 'yoo_money', 'sberbank'])
+
 function ykAuth () { return { username: YK_SHOP, password: YK_SECRET } }
 
 // ── GET /api/payments/plans ────────────────────────────────────────
@@ -76,9 +83,12 @@ router.get('/plans', (_req, res) => {
 // ── POST /api/payments/create ──────────────────────────────────────
 router.post('/create', createPaymentLimiter, authMiddleware, async (req, res) => {
   try {
-    const { plan } = req.body
+    const { plan, method } = req.body
     const cfg = PLANS[plan]
     if (!cfg) return res.status(400).json({ success: false, error: 'Неверный план' })
+    if (method !== undefined && !PAYMENT_METHODS.has(method)) {
+      return res.status(400).json({ success: false, error: 'Неверный способ оплаты' })
+    }
 
     const ikey = uuidv4()
 
@@ -87,7 +97,13 @@ router.post('/create', createPaymentLimiter, authMiddleware, async (req, res) =>
       confirmation: { type: 'redirect', return_url: `${FRONT}/payment/success?plan=${plan}` },
       capture:      true,
       description:  cfg.label,
-      ...(YOOKASSA_RECURRING ? { save_payment_method: true } : {}),
+      // No payment_method_data at all => YooKassa's hosted page shows every
+      // method enabled on the merchant account. When the user picked a
+      // specific method in our own selector, we pin it so YooKassa's page
+      // skips straight to that method's flow instead of showing the picker
+      // again.
+      ...(method ? { payment_method_data: { type: method } } : {}),
+      ...(YOOKASSA_RECURRING && (!method || method === 'bank_card') ? { save_payment_method: true } : {}),
       metadata:     { userId: req.user.id, plan, months: cfg.months },
       receipt: {
         customer: { email: req.user.email },

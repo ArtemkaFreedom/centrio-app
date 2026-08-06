@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 
 const API         = process.env.NEXT_PUBLIC_API_URL || 'https://api.centrio.me'
 const SESSION_KEY = 'centrio_admin_token'
@@ -701,6 +701,154 @@ function PromoCodesTab({ token }: { token: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// TAB: РАССЫЛКИ (email broadcasts)
+// ═══════════════════════════════════════════════════════════════════════════════
+interface Broadcast {
+  id: string; subject: string; bodyText: string; audience: string; status: string
+  totalCount: number; sentCount: number; failedCount: number
+  createdAt: string; finishedAt: string | null
+}
+const BROADCAST_STATUS_LABEL: Record<string, string> = { SENDING: 'Отправляется', SENT: 'Отправлено', FAILED: 'Ошибка' }
+const BROADCAST_STATUS_STYLE: Record<string, React.CSSProperties> = {
+  SENDING: { background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.35)' },
+  SENT:    { background: 'rgba(34,197,94,0.15)',  color: '#22c55e', border: '1px solid rgba(34,197,94,0.35)' },
+  FAILED:  { background: 'rgba(239,68,68,0.15)',  color: '#ef4444', border: '1px solid rgba(239,68,68,0.35)' },
+}
+const BROADCAST_AUDIENCE_LABEL: Record<string, string> = { ALL: 'Все пользователи', FREE: 'Только Free', PRO: 'Только Pro/Team' }
+
+function BroadcastsTab({ token }: { token: string }) {
+  const [list, setList]       = useState<Broadcast[]>([])
+  const [loading, setLoading] = useState(false)
+  const [subject, setSubject] = useState('')
+  const [bodyText, setBodyText] = useState('')
+  const [audience, setAudience] = useState<'ALL' | 'FREE' | 'PRO'>('ALL')
+  const [sending, setSending] = useState(false)
+  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  const headers = { 'x-admin-token': token, 'Content-Type': 'application/json' }
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`${API}/api/admin/broadcasts`, { headers: { 'x-admin-token': token } })
+      const d = await r.json()
+      setList(Array.isArray(d.broadcasts) ? d.broadcasts : [])
+    } catch { setList([]) } finally { setLoading(false) }
+  }, [token])
+
+  useEffect(() => { load() }, [load])
+
+  // Пока хотя бы одна рассылка ещё в статусе "Отправляется" — обновляем
+  // список каждые несколько секунд, чтобы видеть живой прогресс отправки.
+  useEffect(() => {
+    if (!list.some(b => b.status === 'SENDING')) return
+    const t = setInterval(load, 4000)
+    return () => clearInterval(t)
+  }, [list, load])
+
+  async function send() {
+    setSending(true); setMsg(null)
+    try {
+      const res = await fetch(`${API}/api/admin/broadcasts`, {
+        method: 'POST', headers, body: JSON.stringify({ subject: subject.trim(), bodyText: bodyText.trim(), audience })
+      })
+      const d = await res.json()
+      if (!res.ok) { setMsg({ type: 'err', text: d.error || 'Ошибка отправки' }); return }
+      setMsg({ type: 'ok', text: `Рассылка запущена: ${d.broadcast.totalCount} получателей` })
+      setSubject(''); setBodyText('')
+      setConfirmOpen(false)
+      load()
+    } catch {
+      setMsg({ type: 'err', text: 'Ошибка сети' })
+    } finally { setSending(false) }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={S.card}>
+        <div style={{ padding: 20, borderBottom: '1px solid #141420', fontWeight: 700, color: '#fff', fontSize: 14 }}>Новая рассылка</div>
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>Тема письма</label>
+            <input style={S.input} value={subject} onChange={e => setSubject(e.target.value)} placeholder="Например, Новое в Centrio: рассылки и статистика" />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>Текст письма</label>
+            <textarea style={S.textarea} rows={6} value={bodyText} onChange={e => setBodyText(e.target.value)} placeholder="Текст письма. Пустая строка — новый абзац." />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>Кому отправить</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['ALL', 'FREE', 'PRO'] as const).map(a => (
+                <button key={a} onClick={() => setAudience(a)}
+                  style={{ ...S.btnGhost, ...(audience === a ? { background: '#6366f1', color: '#fff', border: '1px solid #6366f1' } : {}) }}>
+                  {BROADCAST_AUDIENCE_LABEL[a]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {msg && <span className="form-msg" style={{ fontSize: 12.5, color: msg.type === 'ok' ? '#22c55e' : '#ef4444' }}>{msg.text}</span>}
+          <div>
+            <button onClick={() => setConfirmOpen(true)} disabled={sending || !subject.trim() || !bodyText.trim()}
+              style={{ ...S.btnPrimary, opacity: sending || !subject.trim() || !bodyText.trim() ? 0.5 : 1 }}>
+              {sending ? 'Отправка…' : 'Отправить рассылку'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Подтверждение перед реальной отправкой — необратимое, массовое
+          действие (письмо уходит всем адресатам выбранной аудитории),
+          поэтому лишний клик-подтверждение оправдан. */}
+      {confirmOpen && (
+        <div onClick={() => !sending && setConfirmOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(6,8,15,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ ...S.card, width: '100%', maxWidth: 420, padding: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Отправить рассылку?</div>
+            <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.6, marginBottom: 18 }}>
+              Письмо «{subject}» уйдёт аудитории: <strong style={{ color: '#aaa' }}>{BROADCAST_AUDIENCE_LABEL[audience]}</strong>. Отменить отправку после запуска нельзя.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmOpen(false)} disabled={sending} style={S.btnGhost}>Отмена</button>
+              <button onClick={send} disabled={sending} style={{ ...S.btnPrimary, opacity: sending ? 0.6 : 1 }}>{sending ? 'Отправка…' : 'Да, отправить'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={S.card}>
+        <div style={{ padding: 20, borderBottom: '1px solid #141420', fontWeight: 700, color: '#fff', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          История рассылок
+          {list.length > 0 && <button onClick={load} style={S.btnGhost}>↺</button>}
+        </div>
+        {loading && list.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: '#333' }}>Загрузка…</div>
+        ) : list.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: '#333' }}>Рассылок пока не было</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {list.map(b => (
+              <div key={b.id} style={{ padding: '14px 20px', borderBottom: '1px solid #141420', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.subject}</div>
+                  <div style={{ fontSize: 11.5, color: '#555', marginTop: 3 }}>
+                    {BROADCAST_AUDIENCE_LABEL[b.audience] || b.audience} · {fmtDate(b.createdAt)} · {b.sentCount}/{b.totalCount} отправлено{b.failedCount > 0 ? `, ${b.failedCount} ошибок` : ''}
+                  </div>
+                </div>
+                <span className="badge" style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 20, ...BROADCAST_STATUS_STYLE[b.status] }}>
+                  {BROADCAST_STATUS_LABEL[b.status] || b.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TAB: SUPPORT TICKETS
 // ═══════════════════════════════════════════════════════════════════════════════
 const TICKET_STATUS_LABEL: Record<string, string> = { OPEN: 'Открыто', ANSWERED: 'Отвечено', CLOSED: 'Закрыто' }
@@ -1003,9 +1151,79 @@ function VisitorsTab({ token }: { token: string }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
+// Как часто опрашивать новые обращения в поддержку для браузерных
+// уведомлений — работает, только пока вкладка админки открыта (обычный
+// Notification API, не push), но этого достаточно: админ и так держит
+// эту вкладку открытой в фоне.
+const TICKET_POLL_MS = 30000
+
+function useNewTicketNotifications(token: string | null) {
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('unsupported')
+  const knownIds  = useRef<Set<string> | null>(null)
+  const firstLoad = useRef(true)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    setPermission(Notification.permission)
+  }, [])
+
+  const requestPermission = useCallback(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    Notification.requestPermission().then(setPermission)
+  }, [])
+
+  useEffect(() => {
+    if (!token) return
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+
+    let cancelled = false
+    knownIds.current = null
+    firstLoad.current = true
+
+    async function poll() {
+      try {
+        const r = await fetch(`${API}/api/admin/tickets?status=OPEN`, { headers: { 'x-admin-token': token! } })
+        if (!r.ok) return
+        const d = await r.json()
+        const list: Ticket[] = Array.isArray(d.tickets) ? d.tickets : []
+        if (cancelled) return
+
+        if (firstLoad.current) {
+          // Первый опрос после открытия админки — просто запоминаем текущие
+          // открытые обращения, БЕЗ уведомлений (иначе при каждом заходе в
+          // админку прилетал бы шквал уведомлений по всей текущей очереди).
+          knownIds.current = new Set(list.map(t => t.id))
+          firstLoad.current = false
+          return
+        }
+
+        const known = knownIds.current || new Set<string>()
+        const fresh = list.filter(t => !known.has(t.id))
+        if (fresh.length > 0 && Notification.permission === 'granted') {
+          for (const t of fresh.slice(0, 5)) {
+            const n = new Notification('Новое обращение в поддержку', {
+              body: `${t.user.email}: ${t.subject}`,
+              tag: `ticket-${t.id}`,
+            })
+            n.onclick = () => { window.focus(); n.close() }
+          }
+        }
+        knownIds.current = new Set(list.map(t => t.id))
+      } catch { /* сеть недоступна — просто пропускаем этот цикл опроса */ }
+    }
+
+    poll()
+    const interval = setInterval(poll, TICKET_POLL_MS)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [token])
+
+  return { permission, requestPermission }
+}
+
 export default function AdminPage() {
   const [token, setToken] = useState<string | null>(null)
-  const [tab, setTab]     = useState<'users' | 'notifications' | 'visitors' | 'promo-codes' | 'tickets'>('users')
+  const [tab, setTab]     = useState<'users' | 'notifications' | 'visitors' | 'promo-codes' | 'tickets' | 'broadcasts'>('users')
+  const { permission: notifPermission, requestPermission: requestNotifPermission } = useNewTicketNotifications(token)
 
   useEffect(() => { const t = sessionStorage.getItem(SESSION_KEY); if (t) setToken(t) }, [])
 
@@ -1019,6 +1237,7 @@ export default function AdminPage() {
     { key: 'visitors',      label: 'Посетители',   icon: '👁' },
     { key: 'promo-codes',   label: 'Промокоды',    icon: '🎟' },
     { key: 'tickets',       label: 'Обращения',    icon: '🎫' },
+    { key: 'broadcasts',    label: 'Рассылки',     icon: '📣' },
   ]
 
   return (
@@ -1039,6 +1258,12 @@ export default function AdminPage() {
         </div>
 
         <div style={{ flex: 1 }} />
+        {notifPermission === 'default' && (
+          <button onClick={requestNotifPermission} title="Уведомлять о новых обращениях в поддержку, пока эта вкладка открыта"
+            style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 8, padding: '6px 14px', color: '#818cf8', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', marginRight: 10 }}>
+            🔔 Включить уведомления
+          </button>
+        )}
         <button onClick={logout} style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '6px 14px', color: '#ef4444', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Выйти</button>
       </div>
 
@@ -1049,6 +1274,7 @@ export default function AdminPage() {
         {tab === 'visitors'      && <VisitorsTab      token={token} />}
         {tab === 'promo-codes'   && <PromoCodesTab token={token} />}
         {tab === 'tickets'       && <TicketsTab token={token} />}
+        {tab === 'broadcasts'    && <BroadcastsTab token={token} />}
       </div>
     </div>
   )

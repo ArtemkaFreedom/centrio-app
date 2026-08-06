@@ -212,32 +212,42 @@ function hasFaviconBadge() {
 }
 
 function extractUnreadCount() {
-    // Авторитетный сигнал — сайт сам вызвал navigator.setAppBadge(). Приоритет
-    // выше любых эвристик ниже.
-    if (typeof badgeApiCount === 'number') return badgeApiCount
-
+    // BUGFIX ("бейджи непрочитанных пропали целиком — были раньше"): раньше
+    // badgeApiCount (сигнал от navigator.setAppBadge, см. injectBadgeApiHook
+    // выше) был АБСОЛЮТНЫМ приоритетом — если сайт хоть раз вызывал
+    // setAppBadge/clearAppBadge (даже с 0, например один раз при загрузке
+    // страницы, до первых сообщений), это НАВСЕГДА перекрывало все остальные
+    // эвристики до конца сессии, даже если реальный счётчик в DOM потом рос.
+    // Не все сайты вызывают Badging API на каждое изменение — если он вызван
+    // непоследовательно (или только для дока/таскбара, а не как общий сигнал),
+    // результат — залипший неверный (часто нулевой) бейдж. Теперь берём МАКСИМУМ
+    // из всех источников, а не даём одному "протухшему нулю" затмевать остальные.
     const hostname = getHostname()
     const title = document.title || ''
 
     const titleCount = extractUnreadFromTitle(title)
-    if (typeof titleCount === 'number' && titleCount > 0) return titleCount
 
     let domCount
-
     if (hostname.includes('telegram')) {
         domCount = extractUnreadTelegram()
     } else {
         domCount = extractUnreadGeneric()
     }
 
-    if (typeof domCount === 'number' && domCount > 0) return domCount
+    const positiveCandidates = [titleCount, domCount, badgeApiCount]
+        .filter((v) => typeof v === 'number' && v > 0)
 
-    if (typeof titleCount === 'number') return titleCount
+    if (positiveCandidates.length > 0) return Math.max(...positiveCandidates)
 
-    // Ни заголовок, ни DOM-эвристики не нашли число — последний шанс: бейдж на фавиконе
-    // (см. hasFaviconBadge). Считаем count = 1 ("есть непрочитанное"), точное число
-    // таким способом не получить, но это лучше, чем ложный 0 при рабочей хрупкой вёрстке.
+    // Ничего не нашло положительного числа — последний шанс: бейдж на
+    // фавиконе (см. hasFaviconBadge). Считаем count = 1 ("есть
+    // непрочитанное"), точное число таким способом не получить, но это
+    // лучше, чем ложный 0 при рабочей хрупкой вёрстке.
     if (hasFaviconBadge()) return 1
+
+    // Явный 0 от Badging API доверяем, только если вообще ничего другого
+    // не нашлось — сайт сам сообщил "непрочитанных нет".
+    if (badgeApiCount === 0) return 0
 
     return 0
 }

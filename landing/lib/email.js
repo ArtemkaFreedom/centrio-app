@@ -27,7 +27,7 @@ async function sendEmail({ to, subject, html, replyTo }) {
   }
   try {
     await axios.post(RESEND_API, {
-      from: FROM_ADDRESS, to, subject, html,
+      from: FROM_ADDRESS, to, subject, html: wrapEmailHtml(html),
       ...(replyTo ? { reply_to: replyTo } : {})
     }, {
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -44,6 +44,44 @@ function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]))
+}
+
+// Every template below only ever built a bare `<p>` fragment with no
+// <!DOCTYPE>/<meta charset>. Resend's own MIME header usually declares UTF-8
+// correctly, but several mail clients (older Outlook builds especially) fall
+// back to sniffing the byte content when a document has no explicit charset
+// declaration of its own — with Cyrillic text that sniffing routinely picks
+// the wrong 8-bit codepage and renders as mojibake ("кракозябры"). Wrapping
+// every outgoing email in one shared, fully-declared HTML document (plus a
+// consistent Centrio-branded layout) fixes that at the source instead of
+// per-template, and gives every email — including the OAuth welcome email —
+// the same "not just a plain paragraph" look in one place.
+function wrapEmailHtml(bodyHtml) {
+  return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Centrio</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+<tr><td style="background:#3b82f6;padding:28px 32px;">
+<span style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">Centrio</span>
+</td></tr>
+<tr><td style="padding:32px;color:#1a1a1a;font-size:15px;line-height:1.6;">
+${bodyHtml}
+</td></tr>
+<tr><td style="padding:20px 32px;background:#fafafa;border-top:1px solid #eee;">
+<p style="margin:0;font-size:12px;color:#999;">Centrio — все ваши мессенджеры в одном окне. Вопросы: <a href="mailto:support@centrio.me" style="color:#3b82f6;">support@centrio.me</a></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
 }
 
 async function sendPaymentReceiptEmail(user, payment) {

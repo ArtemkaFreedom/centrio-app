@@ -1,6 +1,7 @@
 const router = require('express').Router()
 const prisma  = require('../utils/prisma')
 const { getQrDataUrl, verifyTotp, checkSession } = require('../utils/admin-otp')
+const { sendEmail } = require('../lib/email')
 
 // ── Открытые маршруты (без auth) ──────────────────────────────────────────────
 
@@ -534,6 +535,112 @@ router.patch('/tickets/:id/status', async (req, res) => {
     } catch (err) {
         if (err.code === 'P2025') return res.status(404).json({ error: 'Не найден' })
         console.error('Admin PATCH /tickets/:id/status error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+// ── Рассылки (broadcast emails) ─────────────────────────────────────
+// Needs the Broadcast model added to schema.prisma first — see
+// landing/schema-broadcast.js (not yet run on the server, deploys are
+// frozen this session; run it + `npx prisma generate` before this section
+// goes live).
+const BROADCAST_AUDIENCES = { ALL: {}, FREE: { plan: 'FREE' }, PRO: { plan: { in: ['PRO', 'TEAM'] } } }
+
+function broadcastEscapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// Sends are done in small concurrent batches with a short pause between
+// batches — a plain "send to everyone in parallel" risks tripping the
+// email provider's rate limit at any real user count; a fully sequential
+// loop would just be needlessly slow. Runs after the HTTP response is
+// already sent (see POST / below), updating sentCount/failedCount on the
+// Broadcast row as it goes so GET /:id can be polled for live progress.
+const BROADCAST_BATCH_SIZE = 10
+const BROADCAST_BATCH_DELAY_MS = 1000
+
+async function runBroadcastSend(broadcastId, users, subject, html) {
+    let sent = 0
+    let failed = 0
+    for (let i = 0; i < users.length; i += BROADCAST_BATCH_SIZE) {
+        const batch = users.slice(i, i + BROADCAST_BATCH_SIZE)
+        const results = await Promise.allSettled(
+            batch.map(u => sendEmail({ to: u.email, subject, html }))
+        )
+        for (const r of results) {
+            if (r.status === 'fulfilled' && r.value?.ok) sent++
+            else failed++
+        }
+        await prisma.broadcast.update({ where: { id: broadcastId }, data: { sentCount: sent, failedCount: failed } })
+        if (i + BROADCAST_BATCH_SIZE < users.length) {
+            await new Promise(resolve => setTimeout(resolve, BROADCAST_BATCH_DELAY_MS))
+        }
+    }
+    await prisma.broadcast.update({ where: { id: broadcastId }, data: { status: 'SENT', finishedAt: new Date() } })
+}
+
+router.get('/broadcasts', async (req, res) => {
+    try {
+        const broadcasts = await prisma.broadcast.findMany({ orderBy: { createdAt: 'desc' }, take: 50 })
+        res.json({ broadcasts })
+    } catch (err) {
+        console.error('Admin GET /broadcasts error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.get('/broadcasts/:id', async (req, res) => {
+    try {
+        const broadcast = await prisma.broadcast.findUnique({ where: { id: req.params.id } })
+        if (!broadcast) return res.status(404).json({ error: 'Не найдено' })
+        res.json({ broadcast })
+    } catch (err) {
+        console.error('Admin GET /broadcasts/:id error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.post('/broadcasts', async (req, res) => {
+    try {
+        const { subject, bodyText, audience } = req.body || {}
+        if (!subject?.trim() || !bodyText?.trim()) {
+            return res.status(400).json({ error: 'Укажите тему и текст письма' })
+        }
+        const aud = BROADCAST_AUDIENCES[audience] ? audience : 'ALL'
+
+        const users = await prisma.user.findMany({
+            where: { isActive: true, ...BROADCAST_AUDIENCES[aud] },
+            select: { email: true }
+        })
+
+        const broadcast = await prisma.broadcast.create({
+            data: {
+                subject: subject.trim(),
+                bodyText: bodyText.trim(),
+                audience: aud,
+                status: 'SENDING',
+                totalCount: users.length,
+            }
+        })
+
+        const html = broadcastEscapeHtml(bodyText.trim())
+            .split(/\n{2,}/)
+            .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+            .join('')
+
+        // Respond immediately with the created broadcast (status SENDING) —
+        // the actual send loop can take a while for a large audience, no
+        // reason to hold the admin's request open for it.
+        res.status(201).json({ ok: true, broadcast })
+        audit(req, 'broadcast.create', { id: broadcast.id, audience: aud, totalCount: users.length })
+
+        runBroadcastSend(broadcast.id, users, subject.trim(), html).catch(e => {
+            console.error('[broadcast] send loop failed:', e.message)
+            prisma.broadcast.update({ where: { id: broadcast.id }, data: { status: 'FAILED', finishedAt: new Date() } }).catch(() => {})
+        })
+    } catch (err) {
+        console.error('Admin POST /broadcasts error:', err)
         res.status(500).json({ error: 'Server error' })
     }
 })

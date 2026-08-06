@@ -7,6 +7,7 @@
 
 const store  = require('./store')
 const api    = require('./api')
+const { decryptValue } = require('./secureStore')
 
 // ── State ─────────────────────────────────────────────────────────
 let _focusStart  = Date.now()  // when window was last focused
@@ -65,7 +66,12 @@ function addMsgReceived(count = 1) { _msgReceived   += count }
 // ── Flush to API ─────────────────────────────────────────────────
 async function flush() {
     try {
-        const token = store.get('cloud.accessToken')
+        // cloud.accessToken is written encrypted (safeStorage, see main.js's
+        // 'store:secure-set' handler and main/services/secureStore.js) — a raw
+        // store.get() here returned the "__enc__<base64>" ciphertext itself as
+        // the Bearer token, so every flush 401'd silently and stats stopped
+        // recording the moment a token was first written via secure storage.
+        const token = decryptValue(store.get('cloud.accessToken', null))
         if (!token) return
 
         const appTime = _getFocusedSecs()

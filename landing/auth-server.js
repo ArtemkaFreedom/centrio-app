@@ -232,9 +232,18 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true, emailVerified: true }
+      select: {
+        id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true, emailVerified: true,
+        googleId: true, yandexId: true, githubId: true, telegramId: true, vkId: true, mailId: true
+      }
     })
-    res.json({ user })
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' })
+    const { googleId, yandexId, githubId, telegramId, vkId, mailId, ...rest } = user
+    // Аккаунты через OAuth уже подтверждены провайдером на этапе входа — кнопка
+    // "подтвердить email" им не нужна в принципе, даже если emailVerified почему-то
+    // не проставился (например, старая запись до появления этого поля).
+    const hasOAuth = !!(googleId || yandexId || githubId || telegramId || vkId || mailId)
+    res.json({ user: { ...rest, hasOAuth } })
   } catch (err) {
     res.status(500).json({ error: 'Ошибка получения профиля' })
   }

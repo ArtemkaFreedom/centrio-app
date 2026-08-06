@@ -9906,6 +9906,33 @@ body.startup-locked #lockScreen {
     transition: width 0.2s ease;
 }
 
+.downloads-item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.downloads-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.downloads-thumb {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 7px;
+    object-fit: cover;
+    background: var(--bg-active);
+}
+
+.downloads-thumb-generic {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+
 /* ── Версия в статусбаре ────────────────────────────────────────── */
 .status-version-btn {
     cursor: pointer;

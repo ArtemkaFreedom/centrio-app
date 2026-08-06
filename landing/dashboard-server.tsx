@@ -380,10 +380,10 @@ function DashboardPageInner() {
     }
   }
 
-  const handleBuyPlan = async (plan: 'month' | 'year') => {
+  const handleBuyPlan = async (plan: 'month' | 'year', method?: string) => {
     setBuyingPlan(plan)
     try {
-      const { data } = await api.post('/api/payments/create', { plan })
+      const { data } = await api.post('/api/payments/create', { plan, ...(method ? { method } : {}) })
       if (data?.data?.confirmationUrl) {
         window.location.href = data.data.confirmationUrl
       }
@@ -392,6 +392,22 @@ function DashboardPageInner() {
     } finally {
       setBuyingPlan(null)
     }
+  }
+
+  // Способ оплаты выбирается в НАШЕМ интерфейсе, до перехода на страницу
+  // ЮKassa (см. showPaymentMethodModal ниже) — раньше выбор был только на
+  // самой странице ЮKassa post-redirect.
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState<'month' | 'year' | null>(null)
+  const PAYMENT_METHOD_OPTIONS: { id: string; label: string; sub: string }[] = [
+    { id: 'bank_card', label: 'Банковская карта', sub: 'Visa, Mastercard, МИР' },
+    { id: 'sbp',       label: 'СБП',              sub: 'Система быстрых платежей' },
+    { id: 'yoo_money', label: 'ЮMoney',           sub: 'Кошелёк ЮMoney' },
+    { id: 'sberbank',  label: 'SberPay',          sub: 'Оплата через СберБанк Онлайн' },
+  ]
+  const selectPaymentMethod = (method: string) => {
+    const plan = showPaymentMethodModal
+    setShowPaymentMethodModal(null)
+    if (plan) handleBuyPlan(plan, method)
   }
 
   const loadPayments = useCallback(() => {
@@ -1476,7 +1492,7 @@ function DashboardPageInner() {
                     : 'Базовый доступ · до 5 мессенджеров'}
                 </div>
               </div>
-              <button className="btn-primary" onClick={() => handleBuyPlan('month')} disabled={buyingPlan !== null} style={{ zIndex:1 }}>
+              <button className="btn-primary" onClick={() => setShowPaymentMethodModal('month')} disabled={buyingPlan !== null} style={{ zIndex:1 }}>
                 {buyingPlan === 'month' ? 'Загрузка…' : isPro ? <>Продлить подписку <IcoArrow /></> : <>Купить Pro <IcoArrow /></>}
               </button>
             </div>
@@ -1517,7 +1533,10 @@ function DashboardPageInner() {
                   // рекуррент одобрен, кнопка ведёт на настоящий платёж через
                   // тот же безопасный редирект на ЮKassa, что и обычная
                   // покупка/продление — карта сохранится автоматически.
-                  <button onClick={() => handleBuyPlan('month')} disabled={buyingPlan !== null}
+                  {/* Card binding only works with method='bank_card' (YooKassa's
+                      save_payment_method is card-only) — this button skips the
+                      general method selector and goes straight to a card payment. */}
+                  <button onClick={() => handleBuyPlan('month', 'bank_card')} disabled={buyingPlan !== null}
                     style={{ background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:10, padding:'9px 20px', color:'#60a5fa', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s', opacity: buyingPlan !== null ? 0.6 : 1 }}>
                     {buyingPlan === 'month' ? 'Загрузка…' : 'Привязать карту'}
                   </button>
@@ -1590,7 +1609,7 @@ function DashboardPageInner() {
                     </div>
                   ))}
                 </div>
-                <button className="btn-primary" onClick={() => handleBuyPlan('month')} disabled={buyingPlan !== null}
+                <button className="btn-primary" onClick={() => setShowPaymentMethodModal('month')} disabled={buyingPlan !== null}
                   style={{ marginTop:'auto', fontSize:13, padding:'11px 16px' }}>
                   {buyingPlan === 'month' ? '...' : isPro ? <>Продлить <IcoArrow /></> : <>Купить <IcoArrow /></>}
                 </button>
@@ -1615,7 +1634,7 @@ function DashboardPageInner() {
                     </div>
                   ))}
                 </div>
-                <button className="btn-primary" onClick={() => handleBuyPlan('year')} disabled={buyingPlan !== null}
+                <button className="btn-primary" onClick={() => setShowPaymentMethodModal('year')} disabled={buyingPlan !== null}
                   style={{ marginTop:'auto', fontSize:13, padding:'11px 16px', background:'linear-gradient(135deg,#1d4ed8,#2563eb)', boxShadow:'0 4px 16px rgba(37,99,235,0.3)' }}>
                   {buyingPlan === 'year' ? '...' : isPro ? <>Продлить <IcoArrow /></> : <>Купить <IcoArrow /></>}
                 </button>
@@ -1960,6 +1979,59 @@ function DashboardPageInner() {
           </div>
         )}
       </main>
+
+      {/* Payment method selection — shown BEFORE redirecting to YooKassa, so
+          the choice happens in our own UI instead of on YooKassa's page. */}
+      {showPaymentMethodModal && (
+        <div
+          onClick={() => buyingPlan === null && setShowPaymentMethodModal(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(6,8,15,0.72)', backdropFilter:'blur(6px)', WebkitBackdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:20 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="glass-card"
+            style={{ width:'100%', maxWidth:420, padding:32, position:'relative', animation:'fadeIn .2s ease both' }}
+          >
+            <button
+              onClick={() => buyingPlan === null && setShowPaymentMethodModal(null)}
+              style={{ position:'absolute', top:18, right:18, width:30, height:30, borderRadius:9, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.04)', color:'rgba(255,255,255,0.5)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, lineHeight:1 }}
+            >
+              ×
+            </button>
+
+            <div style={{ width:44, height:44, borderRadius:12, background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.3)', display:'flex', alignItems:'center', justifyContent:'center', color:'#60a5fa', marginBottom:16 }}>
+              <IcoCard />
+            </div>
+            <div style={{ fontSize:19, fontWeight:800, letterSpacing:'-.02em', marginBottom:6 }}>Способ оплаты</div>
+            <div style={{ fontSize:12.5, color:'rgba(255,255,255,0.4)', lineHeight:1.5, marginBottom:22 }}>
+              Выберите, как хотите оплатить {showPaymentMethodModal === 'year' ? 'годовую' : 'месячную'} подписку. Оплата проходит через защищённую страницу ЮKassa.
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {PAYMENT_METHOD_OPTIONS.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => selectPaymentMethod(m.id)}
+                  disabled={buyingPlan !== null}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', textAlign:'left', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:'14px 16px', cursor: buyingPlan !== null ? 'default' : 'pointer', fontFamily:'inherit', opacity: buyingPlan !== null ? 0.6 : 1, transition:'all 0.15s' }}
+                  onMouseEnter={(e) => { if (buyingPlan === null) e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+                >
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:700, color:'#fff' }}>{m.label}</div>
+                    <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.35)', marginTop:2 }}>{m.sub}</div>
+                  </div>
+                  <IcoArrow />
+                </button>
+              ))}
+            </div>
+
+            {buyingPlan !== null && (
+              <div style={{ marginTop:16, fontSize:12.5, color:'rgba(255,255,255,0.4)', textAlign:'center' }}>Переходим к оплате…</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Account deletion confirmation modal */}
       {showDeleteModal && (

@@ -28,10 +28,10 @@ export default function PrivacyPage() {
             Политика конфиденциальности
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>
-            Дата вступления в силу: <span style={{ color: 'rgba(255,255,255,0.55)' }}>1 января 2025 года</span>
+            Дата последнего обновления: <span style={{ color: 'rgba(255,255,255,0.55)' }}>6 августа 2026 года</span>
           </p>
           <p style={{ ...pS, marginTop: 20, fontSize: 16 }}>
-            Настоящая Политика описывает, как <strong style={strongS}>ООО «Центрио»</strong> (далее — «Centrio», «мы») собирает, использует и защищает информацию при использовании приложения Centrio и связанных сервисов.
+            Настоящая Политика описывает, как <strong style={strongS}>ИП Козловский Артём Сергеевич</strong> (далее — «Centrio», «мы») собирает, использует и защищает информацию при использовании приложения Centrio и связанных сервисов.
           </p>
         </div>
 
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
           <p style={pS}>Мы не продаём ваши данные и не передаём их рекламным сетям.</p>
 
           <h2 style={h2S}>3. Хранение и безопасность</h2>
-          <p style={pS}><strong style={strongS}>3.1 Серверы</strong> расположены в Европейском союзе.</p>
+          <p style={pS}><strong style={strongS}>3.1 Серверы</strong> расположены на территории Российской Федерации.</p>
           <p style={pS}><strong style={strongS}>3.2 Шифрование.</strong> Все данные передаются по HTTPS/TLS. Синхронизированные данные хранятся в зашифрованном виде.</p>
           <p style={pS}><strong style={strongS}>3.3 Локальные данные.</strong> Сеансы мессенджеров хранятся на вашем устройстве в изолированном хранилище. У нас нет к ним доступа.</p>
           <p style={pS}><strong style={strongS}>3.4 Меры защиты:</strong></p>
@@ -99,12 +99,7 @@ export default function PrivacyPage() {
           <p style={pS}>При существенных изменениях мы уведомим вас по email и через уведомление в приложении не менее чем за 7 дней до вступления в силу.</p>
 
           <h2 style={h2S}>9. Контакты</h2>
-          <p style={pS}>По вопросам обработки данных обращайтесь:</p>
-          <ul style={ulS}>
-            <li>Email: <strong style={strongS}>privacy@centrio.me</strong></li>
-            <li>Telegram: <strong style={strongS}>@centrioapp</strong></li>
-            <li>Компания: <strong style={strongS}>ООО «Центрио»</strong></li>
-          </ul>
+          <p style={pS}>По вопросам обработки данных — <strong style={strongS}>support@centrio.me</strong></p>
         </div>
       </main>
 

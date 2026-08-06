@@ -19,6 +19,42 @@ function bindDownloadsUi({
     let contextTargetId = null
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+    // Превью картинки в списке загрузок — как в браузере: для завершённых
+    // загрузок изображений показываем реальную миниатюру (file:// на уже
+    // скачанный файл), для остального — универсальную иконку документа.
+    const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|bmp|svg|ico|avif)$/i
+
+    function isImageFile(filename) {
+        return IMAGE_EXT_RE.test(filename || '')
+    }
+
+    function toFileUrl(filePath) {
+        let normalized = String(filePath || '').replace(/\\/g, '/')
+        if (!normalized.startsWith('/')) normalized = '/' + normalized
+        const segments = normalized.split('/').map((seg, i) => {
+            // Буква диска ("C:") остаётся как есть — иначе encodeURIComponent
+            // превратит двоеточие в %3A и получится невалидный file:// URL
+            if (i === 1 && /^[a-zA-Z]:$/.test(seg)) return seg
+            return encodeURIComponent(seg)
+        })
+        return 'file://' + segments.join('/')
+    }
+
+    const GENERIC_FILE_ICON = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    `
+
+    function thumbnailHtml(d) {
+        if (d.state === 'completed' && d.savePath && isImageFile(d.filename)) {
+            const url = toFileUrl(d.savePath)
+            return `<img class="downloads-thumb" data-image-thumb="1" src="${escapeHtml(url)}" alt="">`
+        }
+        return `<div class="downloads-thumb downloads-thumb-generic">${GENERIC_FILE_ICON}</div>`
+    }
+
     function escapeHtml(str) {
         return String(str || '')
             .replace(/&/g, '&amp;')
@@ -103,13 +139,30 @@ function bindDownloadsUi({
 
             return `
                 <div class="app-notif-item downloads-item" data-id="${escapeHtml(d.id)}" title="${escapeHtml(d.filename)}">
-                    <div class="app-notif-item-title">${escapeHtml(d.filename)}</div>
-                    ${progressHtml}
-                    <div class="app-notif-item-body">${escapeHtml(bodyText)}</div>
-                    <div class="app-notif-item-time">${formatDate(d.startTime)}</div>
+                    <div class="downloads-item-row">
+                        ${thumbnailHtml(d)}
+                        <div class="downloads-item-info">
+                            <div class="app-notif-item-title">${escapeHtml(d.filename)}</div>
+                            ${progressHtml}
+                            <div class="app-notif-item-body">${escapeHtml(bodyText)}</div>
+                            <div class="app-notif-item-time">${formatDate(d.startTime)}</div>
+                        </div>
+                    </div>
                 </div>
             `
         }).join('')
+
+        // Если файл-картинка удалили/переместили с диска после загрузки,
+        // file:// не резолвится — откатываемся на обычную иконку документа
+        // вместо сломанной иконки браузера.
+        list.querySelectorAll('img.downloads-thumb[data-image-thumb]').forEach(img => {
+            img.addEventListener('error', () => {
+                const fallback = document.createElement('div')
+                fallback.className = 'downloads-thumb downloads-thumb-generic'
+                fallback.innerHTML = GENERIC_FILE_ICON
+                img.replaceWith(fallback)
+            }, { once: true })
+        })
 
         // Перетаскивание файла из этой панели прямо в мессенджер — убрано в
         // v1.9.5. Пробовали дважды (startDrag() из main-процесса, затем
