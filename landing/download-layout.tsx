@@ -4,7 +4,7 @@ import { DEFAULT_OG_IMAGE } from '@/lib/seo'
 export const metadata: Metadata = {
   title: 'Скачать Centrio — Windows, macOS, Linux',
   description:
-    'Скачайте Centrio бесплатно. Windows 10/11 (x64) · macOS 12 Monterey+ · Ubuntu/Debian/Arch. Установка за 30 секунд. Версия 1.8.7.',
+    'Скачайте Centrio бесплатно. Windows 10/11 (x64) · macOS 12 Monterey+ · Ubuntu/Debian/Arch. Установка за 30 секунд. Версия 1.9.0.',
   keywords: [
     'скачать centrio', 'centrio download', 'centrio windows',
     'centrio macos', 'centrio linux', 'установить мессенджер',

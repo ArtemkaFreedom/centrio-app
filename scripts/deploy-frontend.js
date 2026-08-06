@@ -60,6 +60,16 @@ const UPLOADS = [
     { local: path.join(__dirname, '..', 'landing', 'blog-vs-franz.tsx'),   remote: `${REMOTE_BASE}/src/app/blog/vs-franz/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-vs-wavebox.tsx'), remote: `${REMOTE_BASE}/src/app/blog/vs-wavebox/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-top-apps.tsx'),   remote: `${REMOTE_BASE}/src/app/blog/top-apps/page.tsx` },
+    // Added for the v1.9.0 version-string sweep — confirmed live on the
+    // server (`test -f`) before being added here, same as the entries above.
+    { local: path.join(__dirname, '..', 'landing', 'layout.tsx'),         remote: `${REMOTE_BASE}/src/app/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-vs-ferdium.tsx'),               remote: `${REMOTE_BASE}/src/app/blog/vs-ferdium/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-who-needs-it.tsx'),             remote: `${REMOTE_BASE}/src/app/blog/who-needs-it/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-is-it-safe.tsx'),               remote: `${REMOTE_BASE}/src/app/blog/is-it-safe/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-stop-switching-tabs.tsx'),      remote: `${REMOTE_BASE}/src/app/blog/stop-switching-tabs/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-messenger-vpn-guide.tsx'),      remote: `${REMOTE_BASE}/src/app/blog/messenger-vpn-guide/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-remote-team-messengers.tsx'),   remote: `${REMOTE_BASE}/src/app/blog/remote-team-messengers/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-how-to-combine-messengers.tsx'), remote: `${REMOTE_BASE}/src/app/blog/how-to-combine-messengers/page.tsx` },
 ]
 
 function exec(conn, cmd) {
