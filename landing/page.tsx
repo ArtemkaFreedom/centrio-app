@@ -7,7 +7,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { GlassPricingSection, type PricingCardProps } from '@/components/ui/animated-glassy-pricing'
 import { COMPARE_LINKS } from '@/lib/site-nav'
 
-const VERSION = '1.9.4'
+const VERSION = '1.9.5'
 const WIN_DOWNLOAD = `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`
 
 /* ─── SVG icons ──────────────────────────────────────────────────────────── */
