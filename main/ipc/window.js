@@ -203,6 +203,38 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
 
             popup.setMenuBarVisibility(false)
 
+            // BUGFIX ("лишнее окно при скачивании файла"): a messenger's
+            // download link often fires window.open()/target=_blank rather
+            // than a plain same-tab navigation (call/meeting windows and
+            // "open in new tab" download buttons both do this) — that's what
+            // routes it through open-popup-window in the first place (see
+            // the BUGFIX comment above 'new-window' in webview-tabs-bind.js).
+            // But a download isn't a page: the popup's own navigation to that
+            // URL resolves to a file save, not content to display, so it
+            // never gets anything to show and just sits there empty. The
+            // actual download itself still works correctly — this session is
+            // the same persist:<messengerId> session object the messenger's
+            // webview already uses, already wired to Centrio's download
+            // manager via wireSessionDownloads() at webview attach time — so
+            // there's nothing to fix about the download path, only about the
+            // now-pointless blank window left behind. session-level
+            // 'will-download' fires for the whole partition, not just this
+            // popup, so the webContents argument scopes the close to
+            // downloads THIS popup itself triggered.
+            // session.fromPartition() returns the same singleton across every
+            // popup ever opened for this messenger — without removing this
+            // listener on close, each popup would leak one more 'will-download'
+            // listener onto that shared session for the rest of the app's
+            // lifetime.
+            const popupSession = popup.webContents.session
+            const onSessionDownload = (_e, _item, downloadWebContents) => {
+                if (downloadWebContents === popup.webContents && !popup.isDestroyed()) {
+                    popup.close()
+                }
+            }
+            popupSession.on('will-download', onSessionDownload)
+            popup.once('closed', () => popupSession.removeListener('will-download', onSessionDownload))
+
             if (isOAuthBroker) {
                 // Same UA the messenger webviews themselves send (see
                 // renderer/webview-tabs-bind.js addWebview) — the default

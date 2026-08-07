@@ -1805,6 +1805,16 @@ body:has(.modal.show) .split-handle { display: none !important; }
     opacity:    0.7;
 }
 
+.split-layout-option.is-current {
+    outline: 1.5px solid var(--accent);
+    border-radius: 8px;
+}
+
+.split-layout-option.is-current .split-layout-preview i {
+    background: var(--accent);
+    opacity: 0.7;
+}
+
 .split-layout-preview-2x2 {
     flex-wrap: wrap;
 }
@@ -1812,6 +1822,100 @@ body:has(.modal.show) .split-handle { display: none !important; }
 .split-layout-preview-2x2 i {
     flex:  0 0 calc(50% - 1.5px);
     height: calc(50% - 1.5px);
+}
+
+.split-layout-preview-2top1bottom,
+.split-layout-preview-1top2bottom {
+    flex-wrap: wrap;
+}
+
+.split-layout-preview-2top1bottom i:nth-child(1),
+.split-layout-preview-2top1bottom i:nth-child(2) {
+    flex: 0 0 calc(50% - 1.5px);
+    height: calc(50% - 1.5px);
+}
+.split-layout-preview-2top1bottom i:nth-child(3) {
+    flex: 0 0 100%;
+    height: calc(50% - 1.5px);
+}
+
+.split-layout-preview-1top2bottom i:nth-child(1) {
+    flex: 0 0 100%;
+    height: calc(50% - 1.5px);
+}
+.split-layout-preview-1top2bottom i:nth-child(2),
+.split-layout-preview-1top2bottom i:nth-child(3) {
+    flex: 0 0 calc(50% - 1.5px);
+    height: calc(50% - 1.5px);
+}
+
+/* ── Пресеты сплит-режима ──────────────────────────────────────── */
+.split-presets-title {
+    margin-top: 10px;
+}
+
+.split-presets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.split-preset-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: var(--bg-hover);
+    cursor: pointer;
+    font-size: 12.5px;
+}
+
+.split-preset-row:hover {
+    background: var(--bg-active);
+}
+
+.split-preset-row-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.split-preset-row-delete {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 4px;
+    opacity: 0.6;
+}
+
+.split-preset-row-delete:hover {
+    opacity: 1;
+    color: var(--danger);
+}
+
+.split-save-preset-btn {
+    width: 100%;
+    background: none;
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 4px;
+}
+
+.split-save-preset-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 /* ── Зоны сетки-раскладок (3col / 2x2) ──────────────────────────── */

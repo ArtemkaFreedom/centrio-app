@@ -32,15 +32,26 @@ const GRID_LAYOUTS = {
         { left: 50, top: 0,  width: 50, height: 50 },
         { left: 0,  top: 50, width: 50, height: 50 },
         { left: 50, top: 50, width: 50, height: 50 }
+    ],
+    '2top1bottom': [
+        { left: 0,  top: 0,  width: 50,  height: 50 },
+        { left: 50, top: 0,  width: 50,  height: 50 },
+        { left: 0,  top: 50, width: 100, height: 50 }
+    ],
+    '1top2bottom': [
+        { left: 0,  top: 0,  width: 100, height: 50 },
+        { left: 0,  top: 50, width: 50,  height: 50 },
+        { left: 50, top: 50, width: 50,  height: 50 }
     ]
 }
 
-function createSplitApi ({ state, tabsContent, contentArea, store }) {
+function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) {
     const splitHandle     = document.getElementById('splitHandle')
     const splitPicker     = document.getElementById('splitPicker')
     const splitPickerList = document.getElementById('splitPickerList')
     const splitBtn        = document.getElementById('splitBtn')
     const splitCloseBtn   = document.getElementById('splitCloseBtn')
+    const splitExitBtn    = document.getElementById('splitExitBtn')
 
     // ── Сетка-раскладки: доп. DOM-узлы ─────────────────────────────────────────
     const splitLayoutPicker   = document.getElementById('splitLayoutPicker')
@@ -332,6 +343,11 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         }
         document.dispatchEvent(new CustomEvent('close-all-popups'))
 
+        if (splitExitBtn) splitExitBtn.style.display = state.splitMode ? 'block' : 'none'
+        splitLayoutPicker.querySelectorAll('.split-layout-option').forEach(optionBtn => {
+            optionBtn.classList.toggle('is-current', state.splitMode && optionBtn.dataset.layout === state.splitLayout)
+        })
+
         const rect = splitBtn.getBoundingClientRect()
         splitLayoutPicker.style.display = 'block'
         splitLayoutPicker.style.left = `${rect.right + 10}px`
@@ -358,14 +374,28 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         optionBtn.addEventListener('click', () => {
             const layout = optionBtn.dataset.layout
             hideLayoutPicker()
-            if (layout === '2col') enterSplitMode()
-            else enterGridSplitMode(layout)
+            // Уже в сплите — перестраиваем раскладку на месте, перенося
+            // текущие назначения (см. switchSplitLayout), вместо того чтобы
+            // требовать сначала выйти из сплита целиком.
+            if (state.splitMode) {
+                switchSplitLayout(layout)
+            } else if (layout === '2col') {
+                enterSplitMode()
+            } else {
+                enterGridSplitMode(layout)
+            }
         })
     })
 
     // ── Вход в сетку-раскладку ────────────────────────────────────────────────
 
-    function enterGridSplitMode (layout) {
+    // presetZoneIds (optional) — carries over messenger assignments from a
+    // previous layout when reconfiguring in place (see switchSplitLayout),
+    // or from a saved preset (see applyPreset). Truncated/padded to the new
+    // layout's zone count; zone 0 always ends up as the current active tab,
+    // matching the "left pane mirrors activeTabId" convention used
+    // everywhere else in this file.
+    function enterGridSplitMode (layout, presetZoneIds) {
         const zones = GRID_LAYOUTS[layout]
         if (!zones) return false
         if (state.activeMessengers.length < 2) {
@@ -383,12 +413,25 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         state.splitZoneIds   = new Array(zones.length).fill(null)
         state.splitZoneIds[0] = state.activeTabId
 
+        if (Array.isArray(presetZoneIds)) {
+            const validIds = new Set(state.activeMessengers.map(m => m.id))
+            let nextZone = 1
+            for (const id of presetZoneIds) {
+                if (nextZone >= zones.length) break
+                if (!id || id === state.activeTabId || !validIds.has(id)) continue
+                if (state.splitZoneIds.includes(id)) continue
+                state.splitZoneIds[nextZone] = id
+                nextZone++
+            }
+        }
+
         contentArea.classList.add('split-active', 'split-grid')
         splitBtn?.classList.add('split-active')
         if (splitZones) splitZones.style.display = 'block'
 
-        _applyGridZoneWebview(0, state.activeTabId)
+        state.splitZoneIds.forEach((id, i) => { if (id) _applyGridZoneWebview(i, id) })
         renderGridZones()
+        _persistGridSplit()
         return true
     }
 
@@ -491,7 +534,11 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
 
     // ── Enter / exit ──────────────────────────────────────────────────────────
 
-    function enterSplitMode () {
+    // presetSecondaryId (optional) — right-pane messenger to auto-assign
+    // right away, used when reconfiguring in place from a grid layout (see
+    // switchSplitLayout) or applying a saved preset. Falls back to the
+    // normal "open the picker and let the user choose" flow when omitted.
+    function enterSplitMode (presetSecondaryId) {
         if (state.activeMessengers.length < 2) {
             if (splitBtn) {
                 const orig = splitBtn.title
@@ -513,11 +560,22 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         applyLeft(state.splitLeftPct || 50)
 
         splitBtn?.classList.add('split-active')
-        showPicker()
+
+        const validSecondary = presetSecondaryId && presetSecondaryId !== state.activeTabId &&
+            state.activeMessengers.some(m => m.id === presetSecondaryId)
+        if (validSecondary) {
+            switchSplitTab(presetSecondaryId)
+        } else {
+            showPicker()
+        }
         return true
     }
 
-    function exitSplitMode () {
+    // DOM-часть выхода из ТЕКУЩЕЙ раскладки — без сброса state.splitMode и
+    // связанных полей. Общая для exitSplitMode (выход насовсем) и
+    // switchSplitLayout (переключение на другую раскладку без полного
+    // сброса, см. ниже) — та же очистка нужна в обоих случаях.
+    function _cleanupCurrentLayoutDom () {
         if (state.splitLayout === '2col') {
             if (state.splitTabId) {
                 const wv = document.getElementById(`webview-${state.splitTabId}`)
@@ -533,6 +591,21 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
                 splitZones.style.display = 'none'
             }
         }
+    }
+
+    // Список messenger id, реально занятых зон/панелей ТЕКУЩЕЙ раскладки —
+    // используется, чтобы перенести назначения при переключении раскладки
+    // (switchSplitLayout) или при сохранении текущей раскладки как пресета.
+    function _currentAssignedIds () {
+        if (!state.splitMode) return state.activeTabId ? [state.activeTabId] : []
+        if (state.splitLayout === '2col') {
+            return [state.activeTabId, state.splitTabId].filter(Boolean)
+        }
+        return state.splitZoneIds.filter(Boolean)
+    }
+
+    function exitSplitMode () {
+        _cleanupCurrentLayoutDom()
 
         state.splitMode       = false
         state.splitTabId      = null
@@ -551,6 +624,125 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         // Сбрасываем сохранённое состояние
         store?.delete?.('split.saved')
     }
+
+    // Переключить раскладку БЕЗ полного выхода из сплит-режима — переносит
+    // текущие назначения мессенджеров по зонам в новую раскладку (best
+    // effort: зона 0 всегда = текущий активный таб, остальные — по порядку
+    // из старых назначений, лишние отбрасываются, недостающие остаются
+    // пустыми). Если сплит ещё не активен — просто входит в раскладку
+    // (эквивалент enterGridSplitMode/enterSplitMode).
+    function switchSplitLayout (layout) {
+        const assignedIds = _currentAssignedIds()
+
+        if (state.splitMode) _cleanupCurrentLayoutDom()
+
+        if (layout === '2col') {
+            return enterSplitMode(assignedIds.find(id => id !== state.activeTabId))
+        }
+        return enterGridSplitMode(layout, assignedIds)
+    }
+
+    // ── Пресеты сплит-режима ─────────────────────────────────────────────────
+    // Сохранённый пресет = { id, name, layout, memberIds } — memberIds[0]
+    // становится основным (активным) табом при применении, остальные
+    // расставляются по зонам новой раскладки в порядке списка (та же логика
+    // переноса, что и в enterGridSplitMode/switchSplitLayout выше).
+
+    function getPresets () {
+        return store?.get?.('splitPresets', []) || []
+    }
+
+    function saveCurrentAsPreset (name) {
+        const trimmed = String(name || '').trim()
+        if (!trimmed) return false
+
+        const memberIds = state.splitMode
+            ? _currentAssignedIds()
+            : (state.activeTabId ? [state.activeTabId] : [])
+        if (memberIds.length < 2) return false
+
+        const presets = getPresets()
+        presets.push({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            name: trimmed,
+            layout: state.splitMode ? state.splitLayout : '2col',
+            memberIds
+        })
+        store?.set?.('splitPresets', presets)
+        renderPresetsList()
+        return true
+    }
+
+    function deletePreset (id) {
+        const presets = getPresets().filter(p => p.id !== id)
+        store?.set?.('splitPresets', presets)
+        renderPresetsList()
+    }
+
+    // Применяет пресет одним кликом: переключается на его основной таб
+    // (если такой мессенджер всё ещё существует), затем входит в нужную
+    // раскладку с перенесёнными назначениями — работает и когда сплит уже
+    // активен (перестраивает в новую раскладку), и когда он выключен.
+    function applyPreset (id) {
+        const preset = getPresets().find(p => p.id === id)
+        if (!preset) return false
+
+        const existingIds = preset.memberIds.filter(mid => state.activeMessengers.some(m => m.id === mid))
+        if (existingIds.length < 2) return false
+
+        const primaryId = existingIds[0]
+        if (primaryId !== state.activeTabId && typeof switchTab === 'function') {
+            switchTab(primaryId)
+        }
+
+        if (state.splitMode) _cleanupCurrentLayoutDom()
+
+        if (preset.layout === '2col') {
+            return enterSplitMode(existingIds[1])
+        }
+        return enterGridSplitMode(preset.layout, existingIds)
+    }
+
+    function renderPresetsList () {
+        const listEl  = document.querySelector('.split-presets-list')
+        const titleEl = document.querySelector('.split-presets-title')
+        if (!listEl) return
+
+        const presets = getPresets()
+        titleEl && (titleEl.style.display = presets.length ? '' : 'none')
+
+        listEl.innerHTML = presets.map(p => `
+            <div class="split-preset-row" data-id="${p.id}" title="Применить пресет «${p.name.replace(/"/g, '&quot;')}»">
+                <span class="split-preset-row-name">${p.name.replace(/</g, '&lt;')}</span>
+                <button type="button" class="split-preset-row-delete" data-delete-id="${p.id}" title="Удалить пресет">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+        `).join('')
+
+        listEl.querySelectorAll('.split-preset-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.split-preset-row-delete')) return
+                hideLayoutPicker()
+                applyPreset(row.dataset.id)
+            })
+        })
+        listEl.querySelectorAll('.split-preset-row-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation()
+                deletePreset(btn.dataset.deleteId)
+            })
+        })
+    }
+
+    document.querySelector('.split-save-preset-btn')?.addEventListener('click', () => {
+        const name = prompt('Название пресета:')
+        if (name) saveCurrentAsPreset(name)
+    })
+
+    renderPresetsList()
 
     // ── Switch secondary tab ──────────────────────────────────────────────────
 
@@ -678,15 +870,17 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
 
     // ── Button wiring ─────────────────────────────────────────────────────────
 
-    splitBtn?.addEventListener('click', () => {
-        if (state.splitMode) {
-            exitSplitMode()
-        } else {
-            showLayoutPicker()
-        }
-    })
+    // Раньше клик по кнопке сплита, пока сплит уже активен, сразу его
+    // выключал — единственным способом сменить раскладку (например, с
+    // тройной на двойную) было сначала полностью выйти, а потом заходить
+    // заново и пересобирать всё вручную. Теперь клик всегда открывает
+    // список раскладок/пресетов (showLayoutPicker подсвечивает текущую и
+    // показывает кнопку "Выключить сплит-режим" — см. splitExitBtn ниже),
+    // а полный выход — отдельное явное действие.
+    splitBtn?.addEventListener('click', () => showLayoutPicker())
 
     splitCloseBtn?.addEventListener('click', () => exitSplitMode())
+    splitExitBtn?.addEventListener('click', () => { hideLayoutPicker(); exitSplitMode() })
 
     // ── Focus tracking ────────────────────────────────────────────────────────
 
@@ -707,6 +901,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         enterSplitMode,
         enterGridSplitMode,
         exitSplitMode,
+        switchSplitLayout,
         switchSplitTab,
         switchGridZone,
         setSplitFocus,
@@ -715,7 +910,11 @@ function createSplitApi ({ state, tabsContent, contentArea, store }) {
         showLayoutPicker,
         onPrimaryChanged,
         onMessengerRemoved,
-        onWebviewFocus
+        onWebviewFocus,
+        getPresets,
+        saveCurrentAsPreset,
+        applyPreset,
+        deletePreset
     }
 }
 

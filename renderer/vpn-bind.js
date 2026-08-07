@@ -22,7 +22,7 @@ function friendlyVpnError (tGet, result, fallbackKey) {
   return result?.error || tGet(fallbackKey || 'network.vpnError')
 }
 
-function bindVpnUi ({ invokeIpc, tGet, onVpnStatusChange }) {
+function bindVpnUi ({ invokeIpc, tGet, ipcRenderer, onVpnStatusChange }) {
   const btn   = document.getElementById('vpnBtn')
   const panel = document.getElementById('vpnPanel')
   if (!btn || !panel) return
@@ -653,6 +653,16 @@ function bindVpnUi ({ invokeIpc, tGet, onVpnStatusChange }) {
 
   // Инициализация статуса при запуске (тихое восстановление)
   invokeIpc('vpn-status').then(s => { status = s; updateBtn() }).catch(() => {})
+
+  // BUGFIX ("VPN-щиты/кнопка не обновляются после авто-восстановления"):
+  // main/window.js подключает VPN асинхронно, спустя ~3 сек после загрузки
+  // окна (_tryRestoreVpn), и шлёт 'vpn-restored' по завершении — но здесь
+  // этот канал никогда не слушался. Единственный статус, который видел
+  // рендерер, — это самый первый vpn-status выше, снятый ДО того, как
+  // авто-восстановление вообще началось (VPN тогда ещё не активен), так что
+  // кнопка/щиты в сайдбаре навсегда застревали в состоянии "выключено", пока
+  // пользователь вручную не открывал панель VPN.
+  ipcRenderer?.on('vpn-restored', (s) => { status = s || status; updateBtn() })
 }
 
 // ── Инициализация VPN-секции в настройках ────────────────────────────────

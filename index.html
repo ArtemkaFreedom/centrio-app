@@ -416,7 +416,19 @@
                     <span class="split-layout-preview split-layout-preview-2x2"><i></i><i></i><i></i><i></i></span>
                     <span class="split-layout-option-label">Сетка 2×2</span>
                 </button>
+                <button type="button" class="split-layout-option" data-layout="2top1bottom" title="2 сверху, 1 снизу">
+                    <span class="split-layout-preview split-layout-preview-2top1bottom"><i></i><i></i><i></i></span>
+                    <span class="split-layout-option-label">2 сверху, 1 снизу</span>
+                </button>
+                <button type="button" class="split-layout-option" data-layout="1top2bottom" title="1 сверху, 2 снизу">
+                    <span class="split-layout-preview split-layout-preview-1top2bottom"><i></i><i></i><i></i></span>
+                    <span class="split-layout-option-label">1 сверху, 2 снизу</span>
+                </button>
             </div>
+            <div class="split-layout-picker-title split-presets-title" style="display:none">Пресеты</div>
+            <div class="split-presets-list"></div>
+            <button type="button" class="split-save-preset-btn">+ Сохранить текущую раскладку как пресет</button>
+            <button type="button" id="splitExitBtn" class="split-close-btn" style="display:none">Выключить сплит-режим</button>
         </div>
         <!-- Контейнер для зон сетки-раскладок (3col/2x2) — сами зоны и их
              плейсхолдеры "выбрать мессенджер" создаются в renderer/split.js -->

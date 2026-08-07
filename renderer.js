@@ -1383,7 +1383,7 @@ function applyTabZoom(level) {
     // ==============================
     // SPLIT MODE
     // ==============================
-    splitApi = createSplitApi({ state, tabsContent, contentArea, store })
+    splitApi = createSplitApi({ state, tabsContent, contentArea, store, switchTab })
 
     // Expose focus-tracker for webview-tabs-bind.js
     window.__centrioSplitFocus = (webview) => splitApi.onWebviewFocus(webview)
@@ -2113,7 +2113,7 @@ function applyTabZoom(level) {
         tGet
     })
 
-    bindVpnUi({ invokeIpc, tGet, state, onVpnStatusChange: refreshAllVpnBadges })
+    bindVpnUi({ invokeIpc, tGet, state, ipcRenderer, onVpnStatusChange: refreshAllVpnBadges })
     bindVpnSettings({
         invokeIpc,
         tGet,

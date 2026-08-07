@@ -58,7 +58,11 @@ function bindWindowUi({
         if (typeof openSettings === 'function') openSettings()
     })
 
-    ipcRenderer.on('notification-clicked-id', (event, messengerId) => {
+    // Same parameter-shape bug as auto-launch-result in settings-bind.js —
+    // preload's .on() wrapper passes the payload only, no event object, so
+    // messengerId was always undefined and clicking a notification never
+    // actually switched to that messenger's tab.
+    ipcRenderer.on('notification-clicked-id', (messengerId) => {
         if (!messengerId) return
         switchTab(messengerId)
     })

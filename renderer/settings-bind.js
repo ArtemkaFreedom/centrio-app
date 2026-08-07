@@ -98,7 +98,15 @@ function bindSettingsUi({
             // Settings (get-auto-launch correctly reporting the real,
             // unchanged OS state) with zero indication why. Listen for the
             // reply and surface failures explicitly instead of masking them.
-            ipcRenderer.once('auto-launch-result', (_event, result) => {
+            // BUGFIX ("Не удалось применить настройку автозапуска" — always
+            // shown, even on real success): preload.js's once() wrapper calls
+            // listener(...args) with the IPC payload only (no synthetic event
+            // object — see preload.js, every other .on()/.once() listener in
+            // this codebase follows that shape). This listener was written as
+            // if it were raw ipcRenderer.once(channel, (event, result) => ...)
+            // — so `result` was always undefined and every attempt, success or
+            // not, hit the "!result?.success" failure branch.
+            ipcRenderer.once('auto-launch-result', (result) => {
                 if (!result?.success && autoLaunch) autoLaunch.checked = !autoLaunchRequested
 
                 const autoLaunchWarning = document.getElementById('settingAutoLaunchWarning')
