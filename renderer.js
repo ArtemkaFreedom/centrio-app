@@ -598,7 +598,12 @@ async function bootstrap() {
                         appZoomLevel:    store.get('appZoomLevel', 0),
                         vpnAppModes:     store.get('vpnAppModes', {}) || {},
                         // extensionsState включает состояние всех расширений, в т.ч. нативного 'split'
-                        extensionsState: store.get('extensionsState', {}) || {}
+                        extensionsState: store.get('extensionsState', {}) || {},
+                        // Позиция разделителя сплит-экрана и сохранённые пресеты — чтобы
+                        // пользователь получал привычную раскладку сразу на любой машине,
+                        // а не подгонял её заново при каждом входе (см. renderer/split.js).
+                        splitLeftPctPref: store.get('splitLeftPctPref', 50),
+                        splitPresets:     store.get('splitPresets', []) || []
                     }
                 }
             }
@@ -661,6 +666,8 @@ async function bootstrap() {
                         if (extra.appZoomLevel !== undefined) await store.setAsync('appZoomLevel', extra.appZoomLevel)
                         if (extra.vpnAppModes !== undefined) await store.setAsync('vpnAppModes', extra.vpnAppModes)
                         if (extra.extensionsState !== undefined) await store.setAsync('extensionsState', extra.extensionsState)
+                        if (extra.splitLeftPctPref !== undefined) await store.setAsync('splitLeftPctPref', extra.splitLeftPctPref)
+                        if (extra.splitPresets !== undefined) await store.setAsync('splitPresets', extra.splitPresets)
                     }
                 }
                 const muted = {}
@@ -1726,6 +1733,8 @@ function applyTabZoom(level) {
                             if (extra.appZoomLevel !== undefined) store.set('appZoomLevel', extra.appZoomLevel)
                             if (extra.vpnAppModes !== undefined) store.set('vpnAppModes', extra.vpnAppModes)
                             if (extra.extensionsState !== undefined) store.set('extensionsState', extra.extensionsState)
+                            if (extra.splitLeftPctPref !== undefined) store.set('splitLeftPctPref', extra.splitLeftPctPref)
+                            if (extra.splitPresets !== undefined) store.set('splitPresets', extra.splitPresets)
                         }
                     }
 

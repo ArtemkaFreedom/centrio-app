@@ -126,6 +126,10 @@ function createUnreadApi({
             }
 
             const sidebarItem = document.getElementById(`sidebar-${messengerId}`)
+            // ВРЕМЕННАЯ ДИАГНОСТИКА — см. webview-preload.js checkUnread() и
+            // webview-notify.js watchWebview(). DevTools главного окна (F12).
+            console.log('[CENTRIO-DEBUG] updateUnreadCount', messengerId,
+                'effectiveCount:', effectiveCount, 'sidebarItem found:', !!sidebarItem, 'muted:', isMessengerMuted(messengerId))
             if (sidebarItem) {
                 let badge = sidebarItem.querySelector('.messenger-badge')
                 if (effectiveCount > 0) {

@@ -53,6 +53,16 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     const splitCloseBtn   = document.getElementById('splitCloseBtn')
     const splitExitBtn    = document.getElementById('splitExitBtn')
 
+    // Дефолт позиции разделителя из предыдущей сессии (см. mouseup-обработчик
+    // ниже, где splitLeftPctPref сохраняется на каждом перетаскивании) — без
+    // этого state.splitLeftPct всегда стартовал бы с дефолта 50 из state.js
+    // при каждом свежем запуске приложения, даже если пользователь всегда
+    // подгоняет разделитель под себя.
+    const _savedPct = store?.get?.('splitLeftPctPref', null)
+    if (typeof _savedPct === 'number' && _savedPct >= 15 && _savedPct <= 85) {
+        state.splitLeftPct = _savedPct
+    }
+
     // ── Сетка-раскладки: доп. DOM-узлы ─────────────────────────────────────────
     const splitLayoutPicker   = document.getElementById('splitLayoutPicker')
     const splitZones          = document.getElementById('splitZones')
@@ -866,6 +876,15 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         if (state.splitMode && state.splitTabId) {
             store?.set?.('split.saved', { splitTabId: state.splitTabId, splitLeftPct: state.splitLeftPct || 50 })
         }
+        // BUGFIX ("позиция разделителя не запоминается при выходе и входе"):
+        // 'split.saved' (above) — только для восстановления АКТИВНОЙ сессии
+        // сплита при перезапуске приложения, и explicitly стирается при
+        // обычном выходе из сплита (exitSplitMode). Пользовательское
+        // ПРЕДПОЧТЕНИЕ позиции разделителя — отдельная, более долгоживущая
+        // настройка: сохраняем её всегда, независимо от того, выходят потом
+        // из сплита или нет, и подхватываем как дефолт при следующем входе
+        // (см. чтение ниже, сразу после объявления createSplitApi).
+        store?.set?.('splitLeftPctPref', state.splitLeftPct || 50)
     })
 
     // ── Button wiring ─────────────────────────────────────────────────────────

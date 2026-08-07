@@ -252,6 +252,11 @@ function extractUnreadCount() {
     return 0
 }
 
+// ВРЕМЕННАЯ ДИАГНОСТИКА (бейджи непрочитанных не появляются в сайдбаре):
+// логируем в консоль DevTools этой страницы (ПКМ по мессенджеру в сайдбаре →
+// "Инструменты разработчика") каждый раз, когда меняется отправляемое
+// значение — чтобы понять, доходит ли пайплайн вообще до extractUnreadCount()
+// и что именно он вычисляет. Убрать после диагностики.
 function checkUnread() {
     try {
         const count = extractUnreadCount()
@@ -261,6 +266,7 @@ function checkUnread() {
 
             if (count !== lastSentCount) {
                 lastSentCount = count
+                console.log('[CENTRIO-DEBUG] preload sending unread-count:', count, 'href:', location.href)
                 ipcRenderer.sendToHost('unread-count', count)
             }
             return
@@ -271,11 +277,12 @@ function checkUnread() {
         if (zeroStreak < 3) return
 
         if (lastSentCount !== 0) {
+            console.log('[CENTRIO-DEBUG] preload sending unread-count: 0 (was', lastSentCount, ')')
             lastSentCount = 0
             ipcRenderer.sendToHost('unread-count', 0)
         }
-    } catch {
-        // ignore
+    } catch (e) {
+        console.warn('[CENTRIO-DEBUG] checkUnread threw:', e)
     }
 }
 

@@ -75,6 +75,9 @@ function createWebviewNotifyApi({
             if (e.channel === 'unread-count') {
                 const rawCount = Number(e.args[0])
                 const count = Number.isFinite(rawCount) && rawCount >= 0 ? rawCount : 0
+                // ВРЕМЕННАЯ ДИАГНОСТИКА — см. webview-preload.js checkUnread(). Эта
+                // консоль — в DevTools ГЛАВНОГО окна (F12), не в DevTools мессенджера.
+                console.log('[CENTRIO-DEBUG] host received unread-count from', messenger.name, ':', count)
                 updateUnreadCount(messenger.id, count)
                 return
             }
