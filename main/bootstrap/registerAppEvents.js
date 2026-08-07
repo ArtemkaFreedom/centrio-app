@@ -84,6 +84,17 @@ function registerAppEvents({
                 const normalizedActual = normalizePreloadPath(webPreferences.preload)
                 const preloadOk = !!normalizedExpected && normalizedExpected === normalizedActual
 
+                // ВРЕМЕННАЯ ДИАГНОСТИКА (бейджи непрочитанных не работают — preload
+                // ни разу не залогировал ничего в DevTools гостевой страницы, даже
+                // безусловный маркер на самом верху файла — проверяем, не блокирует
+                // ли или не подменяет ли этот гейт preload незаметно для рендерера).
+                // Смотреть в %APPDATA%\Centrio\logs\main.log.
+                log.info('[CENTRIO-DEBUG] will-attach-webview', {
+                    partition, isKnownPartition, preloadOk,
+                    expectedPreload, actualPreload: webPreferences.preload,
+                    sandbox: webPreferences.sandbox
+                })
+
                 if (!isKnownPartition || !preloadOk) {
                     log.warn('[security] will-attach-webview blocked — unexpected partition or preload', {
                         partition,
