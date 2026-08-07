@@ -1533,9 +1533,9 @@ function DashboardPageInner() {
                   // рекуррент одобрен, кнопка ведёт на настоящий платёж через
                   // тот же безопасный редирект на ЮKassa, что и обычная
                   // покупка/продление — карта сохранится автоматически.
-                  {/* Card binding only works with method='bank_card' (YooKassa's
-                      save_payment_method is card-only) — this button skips the
-                      general method selector and goes straight to a card payment. */}
+                  // Card binding only works with method='bank_card' (YooKassa's
+                  // save_payment_method is card-only) — this button skips the
+                  // general method selector and goes straight to a card payment.
                   <button onClick={() => handleBuyPlan('month', 'bank_card')} disabled={buyingPlan !== null}
                     style={{ background:'rgba(59,130,246,0.1)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:10, padding:'9px 20px', color:'#60a5fa', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s', opacity: buyingPlan !== null ? 0.6 : 1 }}>
                     {buyingPlan === 'month' ? 'Загрузка…' : 'Привязать карту'}
