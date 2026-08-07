@@ -1,3 +1,10 @@
+// ВРЕМЕННАЯ ДИАГНОСТИКА: безусловный маркер в самом верху файла, до любых
+// функций/условий — если этой строки нет в консоли DevTools (Electron
+// Isolated Context), значит webview-preload.js в принципе не подключился к
+// этому webview, и все остальные [CENTRIO-DEBUG] логи ниже по пайплайну
+// бессмысленны — проблема на уровне preload-атрибута, не в логике детекта.
+try { console.log('[CENTRIO-DEBUG] webview-preload.js TOP-LEVEL loaded, href:', location.href) } catch {}
+
 const { ipcRenderer } = require('electron')
 
 let lastSentCount = -1
@@ -692,6 +699,7 @@ function bindMsgSentDetection() {
 // а не только дефолтные данные Chromium. Убрано до появления надёжного
 // способа, а не оставлено "полуработающим".
 function init() {
+    console.log('[CENTRIO-DEBUG] init() running, readyState:', document.readyState)
     bindContextMenuForwarding()
     bindKeyboardForwarding()
     bindDownloadImageHandler()
