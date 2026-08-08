@@ -45,6 +45,27 @@ const GRID_LAYOUTS = {
     ]
 }
 
+// Раскладки с двигаемыми границами ('2top1bottom'/'1top2bottom') считаются
+// динамически из state.gridRowPct/gridSidePct вместо статических % выше —
+// см. getGridLayout(). '3col'/'2x2' пока остаются фиксированными.
+function computeRowLayout (layout, rowPct, sidePct) {
+    if (layout === '2top1bottom') {
+        return [
+            { left: 0,      top: 0,      width: sidePct,       height: rowPct },
+            { left: sidePct, top: 0,     width: 100 - sidePct, height: rowPct },
+            { left: 0,      top: rowPct, width: 100,           height: 100 - rowPct }
+        ]
+    }
+    if (layout === '1top2bottom') {
+        return [
+            { left: 0,      top: 0,           width: 100,           height: 100 - rowPct },
+            { left: 0,      top: 100 - rowPct, width: sidePct,       height: rowPct },
+            { left: sidePct, top: 100 - rowPct, width: 100 - sidePct, height: rowPct }
+        ]
+    }
+    return null
+}
+
 function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) {
     const splitHandle     = document.getElementById('splitHandle')
     const splitPicker     = document.getElementById('splitPicker')
@@ -52,6 +73,18 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     const splitBtn        = document.getElementById('splitBtn')
     const splitCloseBtn   = document.getElementById('splitCloseBtn')
     const splitExitBtn    = document.getElementById('splitExitBtn')
+    const gridRowHandle    = document.getElementById('splitGridRowHandle')
+    const gridSideHandle   = document.getElementById('splitGridSideHandle')
+
+    function getGridLayout (layout) {
+        return computeRowLayout(layout, state.gridRowPct || 50, state.gridSidePct || 50) || GRID_LAYOUTS[layout]
+    }
+
+    // Восстанавливаем предпочтение позиций границ, как для splitLeftPct ниже.
+    const _savedRowPct  = store?.get?.('gridRowPctPref', null)
+    const _savedSidePct = store?.get?.('gridSidePctPref', null)
+    if (typeof _savedRowPct === 'number' && _savedRowPct >= 15 && _savedRowPct <= 85) state.gridRowPct = _savedRowPct
+    if (typeof _savedSidePct === 'number' && _savedSidePct >= 15 && _savedSidePct <= 85) state.gridSidePct = _savedSidePct
 
     // Дефолт позиции разделителя из предыдущей сессии (см. mouseup-обработчик
     // ниже, где splitLeftPctPref сохраняется на каждом перетаскивании) — без
@@ -78,17 +111,17 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     }
     if (splitHandle) {
         splitHandle.style.position = 'fixed'
-        // BUGFIX ("фиолетовая рамка вылезает поверх настроек"): z-index
-        // 99998/99999 here long predates .modal (z-index:1000, see styles.css)
-        // — position:fixed + body-level sibling is what actually beats a
-        // webview's own compositor stacking (proven by .modal itself already
-        // rendering above webviews at just 1000), the huge z-index number was
-        // never load-bearing for that part. It WAS high enough to also sit
-        // above modals, so opening Settings/any modal while split mode was
-        // active left the resize handle/pickers visibly bleeding through on
-        // top of the dialog. Keeping the same relative order (handle below
-        // pickers) but dropping both under modals' 1000.
-        splitHandle.style.zIndex   = '900'
+        // BUGFIX-history: dropping this to 900 (below .modal's 1000, to stop
+        // the purple handle/pickers bleeding through the Settings dialog)
+        // broke clicking/hovering the split UI entirely — turns out the huge
+        // number WAS load-bearing after all: a webview's native compositor
+        // layer doesn't respect normal CSS stacking the way .modal (which
+        // isn't fighting a webview directly underneath it in the same spot)
+        // gets away with at 1000. Restored to the original, proven-working
+        // value; the modal-overlap case is now handled separately below by
+        // hiding these elements while any .modal is open, instead of
+        // permanently lowering their z-index.
+        splitHandle.style.zIndex   = '99998'
         splitHandle.style.display  = 'none'
     }
 
@@ -97,7 +130,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     }
     if (splitPicker) {
         splitPicker.style.position = 'fixed'
-        splitPicker.style.zIndex   = '950'
+        splitPicker.style.zIndex   = '99999'
         splitPicker.style.display  = 'none'
     }
 
@@ -105,8 +138,33 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         if (!el) return
         if (el.parentElement !== document.body) document.body.appendChild(el)
         el.style.position = 'fixed'
-        el.style.zIndex   = '950'
+        el.style.zIndex   = '99999'
     })
+
+    // BUGFIX ("фиолетовая рамка вылезает поверх настроек"), take 2: instead
+    // of permanently lowering z-index (which broke click/hover on the split
+    // UI — see comment above), hide these body-level fixed elements only
+    // while an actual .modal is open, and restore whatever display value
+    // they had before. MutationObserver on class changes covers every modal
+    // open/close call site in the app without needing to hook each one.
+    const _splitFixedEls = [splitHandle, splitPicker, splitLayoutPicker, splitZones, splitZonePicker].filter(Boolean)
+    const _splitFixedPrevDisplay = new Map()
+    function _syncSplitUiVisibilityWithModals () {
+        const modalOpen = !!document.querySelector('.modal.show')
+        _splitFixedEls.forEach(el => {
+            if (modalOpen) {
+                if (el.style.display !== 'none') {
+                    _splitFixedPrevDisplay.set(el, el.style.display)
+                    el.style.display = 'none'
+                }
+            } else if (_splitFixedPrevDisplay.has(el)) {
+                el.style.display = _splitFixedPrevDisplay.get(el)
+                _splitFixedPrevDisplay.delete(el)
+            }
+        })
+    }
+    new MutationObserver(_syncSplitUiVisibilityWithModals)
+        .observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true })
 
     // splitZones — просто контейнер для плейсхолдеров/рамок зон, у самих
     // плейсхолдеров position:absolute (см. .split-zone-placeholder в CSS).

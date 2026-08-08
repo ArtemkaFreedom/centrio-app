@@ -31,7 +31,20 @@ function isDisabledByWindows() {
     try {
         const { openAtLogin, launchItems } = app.getLoginItemSettings()
         if (!openAtLogin || !Array.isArray(launchItems) || launchItems.length === 0) return false
-        const ours = launchItems.find((item) => item.path === process.execPath) || launchItems[0]
+
+        // BUGFIX ("Windows отключила автозапуск для Centrio" shown even
+        // though Task Manager's Startup tab clearly says Enabled): Windows
+        // paths are case-insensitive but the old `===` comparison here was
+        // case-sensitive, so a harmless casing difference between
+        // process.execPath and what Windows reports back made the match
+        // fail — falling through to the `|| launchItems[0]` fallback, which
+        // could be a COMPLETELY UNRELATED startup entry (any other app on
+        // the system), reporting ITS enabled state as ours. Case-insensitive
+        // compare, and no more guessing via launchItems[0] — if we can't
+        // positively identify our own entry, don't claim anything about it.
+        const ours = launchItems.find((item) =>
+            typeof item.path === 'string' && item.path.toLowerCase() === process.execPath.toLowerCase()
+        )
         return ours ? ours.enabled === false : false
     } catch (err) {
         log.warn('[autoLaunch] isDisabledByWindows check failed:', err.message)

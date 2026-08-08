@@ -42,9 +42,14 @@ const state = {
     // Сетка-раскладки (3 колонки / 2×2) — независимы от 2col-полей выше,
     // чтобы не трогать уже работающий 2col-код. Зона 0 всегда зеркалит
     // activeTabId, как и в 2col (та же конвенция "первая зона = основная вкладка").
-    splitLayout:    '2col', // '2col' | '3col' | '2x2'
-    splitZoneIds:   [],     // messenger id по зонам, только для '3col'/'2x2'
-    splitZoneFocus: 0       // индекс зоны, получающей переключение вкладок, только для '3col'/'2x2'
+    splitLayout:    '2col', // '2col' | '3col' | '2x2' | '2top1bottom' | '1top2bottom'
+    splitZoneIds:   [],     // messenger id по зонам, только для '3col'/'2x2'/'2top1bottom'/'1top2bottom'
+    splitZoneFocus: 0,      // индекс зоны, получающей переключение вкладок
+    // Двигаемые границы для '2top1bottom'/'1top2bottom' (в %, независимо от
+    // splitLeftPct выше — тот только для 2col). gridRowPct — высота ряда с
+    // двумя панелями, gridSidePct — ширина первой панели внутри этого ряда.
+    gridRowPct:  50,
+    gridSidePct: 50
 }
 
 module.exports = state

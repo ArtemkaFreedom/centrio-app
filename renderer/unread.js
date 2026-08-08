@@ -192,6 +192,23 @@ function createUnreadApi({
         })
     }
 
+    // BUGFIX ("бейджи пропали из сайдбара, но в трее/таскбаре число верное"):
+    // updateUnreadCount() silently no-ops when #sidebar-<id> doesn't exist
+    // yet (item not mounted, e.g. main-process polling reached it before the
+    // renderer finished building the sidebar). state.rawUnreadCounts still
+    // gets updated correctly (which is why the tray/taskbar total — driven
+    // by the same state — stays right), but since a later poll with the SAME
+    // unchanged count never re-sends (dedup in startUnreadPolling), the
+    // sidebar badge for that messenger is then never (re)painted at all.
+    // Call once after the sidebar is fully populated to repaint every badge
+    // from whatever's already tracked, independent of new updates arriving.
+    function repaintAllUnreadBadges() {
+        state.activeMessengers.forEach(m => {
+            const raw = state.rawUnreadCounts[m.id]
+            if (typeof raw === 'number' && raw > 0) updateUnreadCount(m.id, raw)
+        })
+    }
+
     return {
         isMessengerMuted,
         getEffectiveUnreadCount,
@@ -201,6 +218,7 @@ function createUnreadApi({
         updateContextMuteLabel,
         updateMuteAllBtn,
         updateUnreadCount,
+        repaintAllUnreadBadges,
         toggleMuteMessenger,
         toggleMuteAll
     }
