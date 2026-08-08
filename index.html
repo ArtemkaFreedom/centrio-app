@@ -428,6 +428,14 @@
             <div class="split-layout-picker-title split-presets-title" style="display:none">Пресеты</div>
             <div class="split-presets-list"></div>
             <button type="button" class="split-save-preset-btn">+ Сохранить текущую раскладку как пресет</button>
+            <!-- Инлайн-форма ввода имени пресета — вместо нативного window.prompt(),
+                 который в этом приложении (кастомный frameless-титлбар) не
+                 отображается надёжно; весь остальной UI использует свои модалки. -->
+            <div class="split-save-preset-form" style="display:none">
+                <input type="text" class="split-save-preset-input" placeholder="Название пресета" maxlength="40">
+                <button type="button" class="split-save-preset-confirm">Сохранить</button>
+                <button type="button" class="split-save-preset-cancel">Отмена</button>
+            </div>
             <button type="button" id="splitExitBtn" class="split-close-btn" style="display:none">Выключить сплит-режим</button>
         </div>
         <!-- Контейнер для зон сетки-раскладок (3col/2x2) — сами зоны и их

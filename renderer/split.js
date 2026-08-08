@@ -757,10 +757,43 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         })
     }
 
-    document.querySelector('.split-save-preset-btn')?.addEventListener('click', () => {
-        const name = prompt('Название пресета:')
-        if (name) saveCurrentAsPreset(name)
+    // BUGFIX ("пресет не сохраняется"): window.prompt() never actually
+    // appeared in this app's frameless custom-titlebar window (confirmed —
+    // splitPresets never made it into the store no matter how many times
+    // the button was clicked), while every other save/rename flow in this
+    // codebase uses its own inline UI or modal, never a native dialog.
+    // Swapped for a small inline input inside this same popup.
+    const savePresetBtn   = document.querySelector('.split-save-preset-btn')
+    const savePresetForm  = document.querySelector('.split-save-preset-form')
+    const savePresetInput = document.querySelector('.split-save-preset-input')
+
+    function hideSavePresetForm () {
+        if (savePresetForm) savePresetForm.style.display = 'none'
+        if (savePresetBtn) savePresetBtn.style.display = ''
+        if (savePresetInput) savePresetInput.value = ''
+    }
+
+    function confirmSavePreset () {
+        const name = savePresetInput?.value?.trim()
+        if (!name) return
+        saveCurrentAsPreset(name)
+        hideSavePresetForm()
+    }
+
+    savePresetBtn?.addEventListener('click', () => {
+        if (savePresetBtn) savePresetBtn.style.display = 'none'
+        if (savePresetForm) savePresetForm.style.display = 'flex'
+        savePresetInput?.focus()
     })
+
+    document.querySelector('.split-save-preset-confirm')?.addEventListener('click', confirmSavePreset)
+    document.querySelector('.split-save-preset-cancel')?.addEventListener('click', hideSavePresetForm)
+    savePresetInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmSavePreset()
+        if (e.key === 'Escape') hideSavePresetForm()
+    })
+
+    document.addEventListener('close-all-popups', hideSavePresetForm)
 
     renderPresetsList()
 
