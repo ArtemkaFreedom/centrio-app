@@ -421,6 +421,19 @@ async function bootstrap() {
         ['mutedMessengers', {}],
         ['globalMuteAll', false],
         ['extensionsState', {}],
+        // BUGFIX ("состояние сплита/пресеты не восстанавливаются после
+        // перезапуска"): store.get() in this renderer shim is a pure
+        // cache-only read (see `get(key, def)` above — never fetches, only
+        // returns whatever hydrate() already populated). These keys were
+        // added to split.js/renderer.js after this hydrate() list was
+        // written and never added here, so every startup-time
+        // store.get('split.saved', ...) etc. silently returned the default
+        // (empty) no matter what was actually saved on disk.
+        ['split.saved', null],
+        ['splitPresets', []],
+        ['splitLeftPctPref', 50],
+        ['gridRowPctPref', 50],
+        ['gridSidePctPref', 50],
         // Cloud non-secret fields
         ['cloud.user', null],
         ['cloud.lastSyncAt', null],
