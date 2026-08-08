@@ -2126,6 +2126,7 @@ function applyTabZoom(level) {
     bindVpnSettings({
         invokeIpc,
         tGet,
+        applyI18n,
         getActiveMessengers: () => state.activeMessengers,
         onAppVpnModeChange: updateVpnBadge
     })

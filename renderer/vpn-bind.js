@@ -667,7 +667,7 @@ function bindVpnUi ({ invokeIpc, tGet, ipcRenderer, onVpnStatusChange }) {
 
 // ── Инициализация VPN-секции в настройках ────────────────────────────────
 // Рендерит список конфигов, обрабатывает textarea импорта
-function bindVpnSettings ({ invokeIpc, tGet, getActiveMessengers, onAppVpnModeChange }) {
+function bindVpnSettings ({ invokeIpc, tGet, applyI18n, getActiveMessengers, onAppVpnModeChange }) {
   const listEl   = document.getElementById('settingsVpnList')
   const input    = document.getElementById('settingsVpnInput')
   const importBtn= document.getElementById('settingsVpnImportBtn')

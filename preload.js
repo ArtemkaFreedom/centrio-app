@@ -19,7 +19,8 @@ const validReceiveChannels = new Set([
     'deep-link-route',
     'oauth-popup-done',
     'downloads:item-update',
-    'auto-launch-result'
+    'auto-launch-result',
+    'messenger-unread-count'
 ])
 
 const invokeChannelMap = {

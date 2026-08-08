@@ -78,7 +78,17 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     }
     if (splitHandle) {
         splitHandle.style.position = 'fixed'
-        splitHandle.style.zIndex   = '99998'
+        // BUGFIX ("фиолетовая рамка вылезает поверх настроек"): z-index
+        // 99998/99999 here long predates .modal (z-index:1000, see styles.css)
+        // — position:fixed + body-level sibling is what actually beats a
+        // webview's own compositor stacking (proven by .modal itself already
+        // rendering above webviews at just 1000), the huge z-index number was
+        // never load-bearing for that part. It WAS high enough to also sit
+        // above modals, so opening Settings/any modal while split mode was
+        // active left the resize handle/pickers visibly bleeding through on
+        // top of the dialog. Keeping the same relative order (handle below
+        // pickers) but dropping both under modals' 1000.
+        splitHandle.style.zIndex   = '900'
         splitHandle.style.display  = 'none'
     }
 
@@ -87,7 +97,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     }
     if (splitPicker) {
         splitPicker.style.position = 'fixed'
-        splitPicker.style.zIndex   = '99999'
+        splitPicker.style.zIndex   = '950'
         splitPicker.style.display  = 'none'
     }
 
@@ -95,7 +105,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         if (!el) return
         if (el.parentElement !== document.body) document.body.appendChild(el)
         el.style.position = 'fixed'
-        el.style.zIndex   = '99999'
+        el.style.zIndex   = '950'
     })
 
     // splitZones — просто контейнер для плейсхолдеров/рамок зон, у самих

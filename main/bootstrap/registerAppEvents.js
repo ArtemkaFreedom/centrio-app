@@ -1,4 +1,4 @@
-const { shell } = require('electron')
+const { shell, session } = require('electron')
 const { fileURLToPath } = require('url')
 const path = require('path')
 const tracker = require('../services/tracker')
@@ -24,6 +24,106 @@ function normalizePreloadPath(value) {
 
 let log
 try { log = require('electron-log') } catch { log = console }
+
+// ── Детект непрочитанных ────────────────────────────────────────────────────
+// BUGFIX ("бейджи непрочитанных не появляются"): изначально это делалось из
+// webview-preload.js (атрибут preload у <webview>). Диагностика подтвердила,
+// что этот механизм на текущей версии Electron (39.x) для <webview> тегов не
+// исполняется вообще — ни console.log, ни созданный им DOM-узел ни разу не
+// появились на гостевой странице, хотя will-attach-webview репортит
+// preloadOk:true с верным путём к файлу. contents.executeJavaScript() на
+// dom-ready — подтверждённо рабочий альтернативный канал инъекции (тот же
+// тест с видимым DOM-маркером сработал через него сразу) — поэтому детект
+// строится на нём: реального Node/ipcRenderer в этом мире нет (contextIsolation
+// не даёт), поэтому просто вычисляем число и забираем его через возвращаемое
+// значение промиса, без событий изнутри страницы.
+const UNREAD_DETECT_SCRIPT = `(function() {
+    function parsePositiveInt(v) {
+        if (v == null) return null
+        var t = String(v).trim()
+        if (!t) return null
+        var m = t.match(/\\d+/)
+        if (!m) return null
+        var n = parseInt(m[0], 10)
+        if (!isFinite(n) || n < 0 || n >= 10000) return null
+        return n
+    }
+    function isVisible(el) {
+        if (!el) return false
+        var s = window.getComputedStyle(el)
+        if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') return false
+        var r = el.getBoundingClientRect()
+        return r.width > 0 && r.height > 0
+    }
+    function fromTitle(title) {
+        if (!title) return null
+        var m = title.match(/^\\((\\d+)\\)\\s*/); if (m) return parseInt(m[1], 10) || 0
+        m = title.match(/\\((\\d+)\\)\\s*$/); if (m) return parseInt(m[1], 10) || 0
+        m = title.match(/^(\\d+)\\b/); if (m) return parseInt(m[1], 10) || 0
+        m = title.match(/(\\d+)\\s+unread/i); if (m) return parseInt(m[1], 10) || 0
+        return null
+    }
+    function scanSelectors(selectors) {
+        for (var i = 0; i < selectors.length; i++) {
+            var els
+            try { els = document.querySelectorAll(selectors[i]) } catch (e) { continue }
+            for (var j = 0; j < els.length; j++) {
+                var el = els[j]
+                if (!isVisible(el)) continue
+                var ariaNum = parsePositiveInt(el.getAttribute('aria-label'))
+                if (typeof ariaNum === 'number' && ariaNum > 0) return ariaNum
+                var text = (el.textContent || '').trim()
+                if (text.length > 6) continue
+                var num = parsePositiveInt(text)
+                if (typeof num === 'number' && num > 0) return num
+            }
+        }
+        return null
+    }
+    var hostname = location.hostname || ''
+    var titleCount = fromTitle(document.title || '')
+    var selectors = hostname.indexOf('telegram') !== -1
+        ? ['[aria-label*="unread" i]', '.ListItem-badge', '.badge', '.Badge', '.counter', '.Counter', '[class*="unread" i]', '[class*="badge" i]', '[data-testid*="unread" i]', '[data-testid*="badge" i]']
+        : ['.unread-count', '.badge-counter', '.chat-unread-count', '.conversations-badge', '[aria-label*="unread" i]', '[class*="unread" i]', '[class*="badge-count" i]', '[class*="unreadcount" i]', '[data-testid*="unread" i]', '[data-testid*="badge" i]']
+    var domCount = scanSelectors(selectors)
+    if (typeof titleCount === 'number' && titleCount > 0) return titleCount
+    if (typeof domCount === 'number' && domCount > 0) return domCount
+    return 0
+})()`
+
+const UNREAD_POLL_MS = 5000
+
+function findMessengerIdForSession(targetSession) {
+    try {
+        const messengers = store.get('messengers', []) || []
+        for (const m of messengers) {
+            if (m && m.id && session.fromPartition(`persist:${m.id}`) === targetSession) return m.id
+        }
+    } catch {}
+    return null
+}
+
+function startUnreadPolling(contents, getMainWindow) {
+    const messengerId = findMessengerIdForSession(contents.session)
+    if (!messengerId) return
+
+    let lastSent = -1
+    const sendIfChanged = (count) => {
+        const n = Number.isFinite(count) && count >= 0 ? count : 0
+        if (n === lastSent) return
+        lastSent = n
+        const win = getMainWindow()
+        if (win && !win.isDestroyed()) win.webContents.send('messenger-unread-count', messengerId, n)
+    }
+    const poll = () => {
+        if (contents.isDestroyed()) return
+        contents.executeJavaScript(UNREAD_DETECT_SCRIPT).then(sendIfChanged).catch(() => {})
+    }
+
+    poll()
+    const timer = setInterval(poll, UNREAD_POLL_MS)
+    contents.once('destroyed', () => clearInterval(timer))
+}
 
 function registerAppEvents({
     app,
@@ -67,6 +167,22 @@ function registerAppEvents({
             try { wireSessionDownloads(contents.session, getMainWindow) } catch (err) {
                 log.error('[downloads] failed to wire webview session:', err.message)
             }
+
+            // Непрочитанные сообщения — детект через executeJavaScript on
+            // dom-ready (см. startUnreadPolling выше), не через preload:
+            // preload-атрибут <webview> подтверждённо не исполняется на этой
+            // версии Electron (диагностика: ни console.log, ни созданный им
+            // DOM-узел ни разу не появились на гостевой странице, хотя
+            // will-attach-webview ниже репортит верный путь к файлу),
+            // executeJavaScript — подтверждённо рабочая альтернатива. dom-ready
+            // может сработать повторно при перезагрузке страницы — не
+            // запускаем второй параллельный интервал поверх уже идущего.
+            let unreadPollingStarted = false
+            contents.on('dom-ready', () => {
+                if (unreadPollingStarted) return
+                unreadPollingStarted = true
+                startUnreadPolling(contents, getMainWindow)
+            })
         }
 
         contents.on('will-attach-webview', (event, webPreferences, params) => {
@@ -83,17 +199,6 @@ function registerAppEvents({
                 const normalizedExpected = normalizePreloadPath(expectedPreload)
                 const normalizedActual = normalizePreloadPath(webPreferences.preload)
                 const preloadOk = !!normalizedExpected && normalizedExpected === normalizedActual
-
-                // ВРЕМЕННАЯ ДИАГНОСТИКА (бейджи непрочитанных не работают — preload
-                // ни разу не залогировал ничего в DevTools гостевой страницы, даже
-                // безусловный маркер на самом верху файла — проверяем, не блокирует
-                // ли или не подменяет ли этот гейт preload незаметно для рендерера).
-                // Смотреть в %APPDATA%\Centrio\logs\main.log.
-                log.info('[CENTRIO-DEBUG] will-attach-webview', {
-                    partition, isKnownPartition, preloadOk,
-                    expectedPreload, actualPreload: webPreferences.preload,
-                    sandbox: webPreferences.sandbox
-                })
 
                 if (!isKnownPartition || !preloadOk) {
                     log.warn('[security] will-attach-webview blocked — unexpected partition or preload', {

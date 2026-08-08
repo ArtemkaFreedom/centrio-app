@@ -42,7 +42,15 @@ function isDisabledByWindows() {
 function registerAutoLaunchIpc() {
     ipcMain.on('set-auto-launch', async (event, enabled) => {
         try {
+            log.info('[CENTRIO-DEBUG][autoLaunch] set-auto-launch called', {
+                enabled: !!enabled,
+                execPath: process.execPath,
+                isPackaged: app.isPackaged,
+                before: app.getLoginItemSettings()
+            })
             app.setLoginItemSettings({ openAtLogin: !!enabled })
+            const after = app.getLoginItemSettings()
+            log.info('[CENTRIO-DEBUG][autoLaunch] after setLoginItemSettings', after)
             event.reply('auto-launch-result', {
                 success: true,
                 enabled: !!enabled,

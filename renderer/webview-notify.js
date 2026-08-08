@@ -73,11 +73,13 @@ function createWebviewNotifyApi({
 
         webview.addEventListener('ipc-message', (e) => {
             if (e.channel === 'unread-count') {
+                // Приходит из webview-preload.js — сейчас на этой версии
+                // Electron не исполняется для <webview> (см. комментарий в
+                // начале webview-preload.js), основной канал детекта теперь
+                // 'messenger-unread-count' ниже. Оставлено на случай, если
+                // preload когда-нибудь снова заработает сам по себе.
                 const rawCount = Number(e.args[0])
                 const count = Number.isFinite(rawCount) && rawCount >= 0 ? rawCount : 0
-                // ВРЕМЕННАЯ ДИАГНОСТИКА — см. webview-preload.js checkUnread(). Эта
-                // консоль — в DevTools ГЛАВНОГО окна (F12), не в DevTools мессенджера.
-                console.log('[CENTRIO-DEBUG] host received unread-count from', messenger.name, ':', count)
                 updateUnreadCount(messenger.id, count)
                 return
             }
@@ -93,6 +95,16 @@ function createWebviewNotifyApi({
             }
         })
     }
+
+    // Основной канал детекта непрочитанных — main-процесс сам опрашивает
+    // каждую гостевую страницу через executeJavaScript (см.
+    // main/bootstrap/registerAppEvents.js, startUnreadPolling) и шлёт сюда
+    // результат напрямую, в обход preload/webview 'ipc-message' выше.
+    ipcRenderer?.on?.('messenger-unread-count', (messengerId, count) => {
+        if (!messengerId) return
+        const n = Number.isFinite(count) && count >= 0 ? count : 0
+        updateUnreadCount(messengerId, n)
+    })
 
     return {
         sendPushNotificationFromSite,

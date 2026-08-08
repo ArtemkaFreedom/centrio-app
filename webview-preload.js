@@ -1,9 +1,15 @@
-// ВРЕМЕННАЯ ДИАГНОСТИКА: безусловный маркер в самом верху файла, до любых
-// функций/условий — если этой строки нет в консоли DevTools (Electron
-// Isolated Context), значит webview-preload.js в принципе не подключился к
-// этому webview, и все остальные [CENTRIO-DEBUG] логи ниже по пайплайну
-// бессмысленны — проблема на уровне preload-атрибута, не в логике детекта.
-try { console.log('[CENTRIO-DEBUG] webview-preload.js TOP-LEVEL loaded, href:', location.href) } catch {}
+// ПРИМЕЧАНИЕ: детект непрочитанных сообщений (extractUnreadCount и всё, что
+// его вызывает) ниже по факту не исполняется в текущей сборке — диагностика
+// подтвердила, что preload-атрибут <webview> на используемой версии Electron
+// (39.x) не подключается к гостевой странице вовсе (ни console.log, ни
+// созданный им DOM-узел ни разу не появились, хотя main-процесс репортует
+// верный путь к файлу). Реальный, рабочий детект теперь в
+// main/bootstrap/registerAppEvents.js (startUnreadPolling, через
+// contents.executeJavaScript на dom-ready — подтверждённо рабочий канал).
+// Код ниже оставлен как есть (не удалён) — начнёт снова работать сам собой,
+// если апстрим-баг Electron с preload у <webview> когда-нибудь пофиксят, и
+// остальной функционал файла (перехват ссылок, контекстное меню и т.д.)
+// может по-прежнему нормально исполняться там, где preload всё же цепляется.
 
 const { ipcRenderer } = require('electron')
 
@@ -259,11 +265,6 @@ function extractUnreadCount() {
     return 0
 }
 
-// ВРЕМЕННАЯ ДИАГНОСТИКА (бейджи непрочитанных не появляются в сайдбаре):
-// логируем в консоль DevTools этой страницы (ПКМ по мессенджеру в сайдбаре →
-// "Инструменты разработчика") каждый раз, когда меняется отправляемое
-// значение — чтобы понять, доходит ли пайплайн вообще до extractUnreadCount()
-// и что именно он вычисляет. Убрать после диагностики.
 function checkUnread() {
     try {
         const count = extractUnreadCount()
@@ -273,7 +274,6 @@ function checkUnread() {
 
             if (count !== lastSentCount) {
                 lastSentCount = count
-                console.log('[CENTRIO-DEBUG] preload sending unread-count:', count, 'href:', location.href)
                 ipcRenderer.sendToHost('unread-count', count)
             }
             return
@@ -284,12 +284,11 @@ function checkUnread() {
         if (zeroStreak < 3) return
 
         if (lastSentCount !== 0) {
-            console.log('[CENTRIO-DEBUG] preload sending unread-count: 0 (was', lastSentCount, ')')
             lastSentCount = 0
             ipcRenderer.sendToHost('unread-count', 0)
         }
-    } catch (e) {
-        console.warn('[CENTRIO-DEBUG] checkUnread threw:', e)
+    } catch {
+        // ignore
     }
 }
 
@@ -699,7 +698,6 @@ function bindMsgSentDetection() {
 // а не только дефолтные данные Chromium. Убрано до появления надёжного
 // способа, а не оставлено "полуработающим".
 function init() {
-    console.log('[CENTRIO-DEBUG] init() running, readyState:', document.readyState)
     bindContextMenuForwarding()
     bindKeyboardForwarding()
     bindDownloadImageHandler()
