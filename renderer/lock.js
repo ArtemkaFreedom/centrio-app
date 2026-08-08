@@ -1,3 +1,10 @@
+const LOCK_ICON_SVG = `
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+`
+
 function createLockApi({
     state,
     store,
@@ -8,6 +15,27 @@ function createLockApi({
     pinInputConfirm,
     pinDisableInput
 }) {
+    // Показываем аватар аккаунта Centrio вместо иконки замка, если пользователь
+    // вошёл в облако и у него есть аватар — то же самое фото, что в шапке ЛК.
+    function applyLockAvatar() {
+        const wrap = document.querySelector('.lock-logo-circle')
+        if (!wrap) return
+        const user = store.get('cloud.user', null)
+        wrap.innerHTML = ''
+        wrap.classList.remove('has-avatar')
+
+        if (user?.avatar) {
+            const img = document.createElement('img')
+            img.className = 'lock-avatar-img'
+            img.alt = ''
+            img.onerror = () => { wrap.innerHTML = LOCK_ICON_SVG; wrap.classList.remove('has-avatar') }
+            img.src = user.avatar
+            wrap.appendChild(img)
+            wrap.classList.add('has-avatar')
+        } else {
+            wrap.innerHTML = LOCK_ICON_SVG
+        }
+    }
     function isPasswordEnabled() {
         const sec = store.get('security', {})
         return sec.enabled === true && !!sec.hash
@@ -56,6 +84,7 @@ function createLockApi({
         lockInput.value = ''
         updateLockDots('')
         document.getElementById('lockError').style.display = 'none'
+        applyLockAvatar()
         setTimeout(() => lockInput.focus(), 150)
     }
 

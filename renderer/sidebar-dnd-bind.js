@@ -28,9 +28,11 @@ function createSidebarDndApi({
 
     function loadOrder() {
         const order = store.get('sidebarOrder', [])
+        console.log('[CENTRIO-DEBUG] loadOrder read', order.length, 'entries:', JSON.stringify(order))
         if (!order.length) return
         order.forEach(({ type, id }) => {
             const el = document.getElementById(elIdFor(type, id))
+            console.log('[CENTRIO-DEBUG] loadOrder placing', type, id, 'found el?', !!el, 'parent ok?', el && el.parentElement === messengerList)
             if (el && el.parentElement === messengerList) messengerList.appendChild(el)
         })
     }

@@ -141,18 +141,27 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         el.style.zIndex   = '99999'
     })
 
-    // BUGFIX ("фиолетовая рамка вылезает поверх настроек"), take 2: instead
-    // of permanently lowering z-index (which broke click/hover on the split
-    // UI — see comment above), hide these body-level fixed elements only
-    // while an actual .modal is open, and restore whatever display value
-    // they had before. MutationObserver on class changes covers every modal
-    // open/close call site in the app without needing to hook each one.
+    // BUGFIX ("фиолетовая рамка вылезает поверх настроек" / "разделители
+    // вылезли на экран блокировки"), take 2: instead of permanently
+    // lowering z-index (which broke click/hover on the split UI — see
+    // comment above), hide these body-level fixed elements only while
+    // another full-screen overlay is open, and restore whatever display
+    // value they had before. Covers both .modal (class toggle) and
+    // #lockScreen (plain style.display toggle, see renderer/lock.js) —
+    // watching both class AND style attributes, not just class, is what
+    // actually catches the lock screen case.
     const _splitFixedEls = [splitHandle, splitPicker, splitLayoutPicker, splitZones, splitZonePicker].filter(Boolean)
     const _splitFixedPrevDisplay = new Map()
+    function _isOverlayOpen () {
+        if (document.querySelector('.modal.show')) return true
+        const lockScreen = document.getElementById('lockScreen')
+        if (lockScreen && lockScreen.style.display !== 'none' && lockScreen.style.display !== '') return true
+        return false
+    }
     function _syncSplitUiVisibilityWithModals () {
-        const modalOpen = !!document.querySelector('.modal.show')
+        const overlayOpen = _isOverlayOpen()
         _splitFixedEls.forEach(el => {
-            if (modalOpen) {
+            if (overlayOpen) {
                 if (el.style.display !== 'none') {
                     _splitFixedPrevDisplay.set(el, el.style.display)
                     el.style.display = 'none'
@@ -164,7 +173,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         })
     }
     new MutationObserver(_syncSplitUiVisibilityWithModals)
-        .observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true })
+        .observe(document.body, { attributes: true, attributeFilter: ['class', 'style'], subtree: true })
 
     // splitZones — просто контейнер для плейсхолдеров/рамок зон, у самих
     // плейсхолдеров position:absolute (см. .split-zone-placeholder в CSS).
@@ -732,12 +741,17 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
 
     function saveCurrentAsPreset (name) {
         const trimmed = String(name || '').trim()
+        console.log('[CENTRIO-DEBUG] saveCurrentAsPreset called, name=', trimmed, 'splitMode=', state.splitMode)
         if (!trimmed) return false
 
         const memberIds = state.splitMode
             ? _currentAssignedIds()
             : (state.activeTabId ? [state.activeTabId] : [])
-        if (memberIds.length < 2) return false
+        console.log('[CENTRIO-DEBUG] saveCurrentAsPreset memberIds=', JSON.stringify(memberIds))
+        if (memberIds.length < 2) {
+            console.log('[CENTRIO-DEBUG] saveCurrentAsPreset ABORTED: fewer than 2 members')
+            return false
+        }
 
         const presets = getPresets()
         presets.push({
@@ -746,6 +760,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
             layout: state.splitMode ? state.splitLayout : '2col',
             memberIds
         })
+        console.log('[CENTRIO-DEBUG] saveCurrentAsPreset writing', presets.length, 'presets')
         store?.set?.('splitPresets', presets)
         renderPresetsList()
         return true
@@ -834,7 +849,22 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     function confirmSavePreset () {
         const name = savePresetInput?.value?.trim()
         if (!name) return
-        saveCurrentAsPreset(name)
+        // BUGFIX ("сплит сохранил позиции, но не сохранил сохранённые
+        // пресеты"): saveCurrentAsPreset() silently returns false when
+        // fewer than 2 zones are assigned (e.g. just entered a grid layout
+        // without picking messengers for the other zones yet) — this used
+        // to close the form regardless, looking like a successful save with
+        // zero feedback that nothing was actually written. Show an error
+        // and keep the form open so the user can actually fix it.
+        const ok = saveCurrentAsPreset(name)
+        if (!ok) {
+            if (savePresetInput) {
+                savePresetInput.placeholder = 'Сначала назначьте мессенджеров по зонам'
+                savePresetInput.classList.add('input-error')
+                setTimeout(() => savePresetInput.classList.remove('input-error'), 1500)
+            }
+            return
+        }
         hideSavePresetForm()
     }
 

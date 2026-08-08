@@ -1941,6 +1941,15 @@ body:has(.modal.show) .split-handle { display: none !important; }
     border-color: var(--accent);
 }
 
+.split-save-preset-input.input-error {
+    border-color: var(--danger);
+    animation: pinShake 0.35s ease;
+}
+
+.split-save-preset-input.input-error::placeholder {
+    color: var(--danger);
+}
+
 .split-save-preset-confirm,
 .split-save-preset-cancel {
     background: none;
@@ -5447,15 +5456,32 @@ body:has(.modal.show) .split-handle { display: none !important; }
     align-items: center;
     justify-content: center;
     background: var(--bg-primary);
+    overflow: hidden;
 }
 
+/* Медленный дрейфующий градиент вместо статичного пятна — фон "живой", но
+   не отвлекает (долгий цикл, мягкие цвета, без резких скачков). */
 .lock-bg-blur {
     position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 50% 0%,
-        var(--accent-dim) 0%,
-        transparent 70%);
+    inset: -10%;
+    background:
+        radial-gradient(ellipse at 30% 20%, var(--accent-dim) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 75%, var(--accent-dim) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 100%, var(--accent-glow) 0%, transparent 60%);
+    filter: blur(40px);
+    opacity: 0.7;
     pointer-events: none;
+    animation: lockBgDrift 18s ease-in-out infinite alternate;
+}
+
+@keyframes lockBgDrift {
+    0%   { transform: translate(0, 0) scale(1); }
+    50%  { transform: translate(-3%, 2%) scale(1.06); }
+    100% { transform: translate(3%, -2%) scale(1.02); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lock-bg-blur { animation: none; }
 }
 
 .lock-box {
@@ -5463,15 +5489,15 @@ body:has(.modal.show) .split-handle { display: none !important; }
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
-    padding: 40px 48px 36px;
+    gap: 18px;
+    padding: 48px 56px 42px;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.5),
+    border-radius: 24px;
+    box-shadow: 0 32px 100px rgba(0,0,0,0.55),
                 0 0 0 1px var(--border);
-    min-width: 320px;
-    animation: lockAppear 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    min-width: 380px;
+    animation: lockAppear 0.35s cubic-bezier(0.34,1.56,0.64,1);
 }
 
 @keyframes lockAppear {
@@ -5484,8 +5510,8 @@ body:has(.modal.show) .split-handle { display: none !important; }
 }
 
 .lock-logo-circle {
-    width: 72px;
-    height: 72px;
+    width: 76px;
+    height: 76px;
     border-radius: 50%;
     background: var(--accent-dim);
     border: 2px solid var(--accent);
@@ -5493,21 +5519,35 @@ body:has(.modal.show) .split-handle { display: none !important; }
     align-items: center;
     justify-content: center;
     color: var(--accent);
-    box-shadow: 0 0 24px var(--accent-glow);
+    box-shadow: 0 0 28px var(--accent-glow);
+    overflow: hidden;
+}
+
+/* Аватар аккаунта вместо иконки замка — см. renderer/lock.js applyLockAvatar() */
+.lock-logo-circle.has-avatar {
+    background: transparent;
+}
+
+.lock-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .lock-title {
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 25px;
+    font-weight: 800;
     color: var(--text-primary);
     margin: 0;
-    letter-spacing: 0.3px;
+    letter-spacing: -0.4px;
 }
 
 .lock-sub {
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--text-secondary);
     margin: 0;
+    letter-spacing: 0.1px;
 }
 
 /* PIN точки */
@@ -5576,14 +5616,18 @@ body:has(.modal.show) .split-handle { display: none !important; }
 .lock-numpad {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    gap: 12px;
     margin-top: 4px;
 }
 
 .lock-key {
-    width: 72px;
-    height: 56px;
+    width: 82px;
+    height: 58px;
     border-radius: 12px;
+    /* Цифры и SVG-иконки (⌫/→) центрируются одной и той же flex-логикой
+       ниже — так что вертикальный "оптический вес" любого символа в кнопке
+       одинаков, не зависит от того, текст это или svg. */
+    line-height: 1;
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
     color: var(--text-primary);
