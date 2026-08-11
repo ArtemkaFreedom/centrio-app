@@ -485,14 +485,6 @@ function bindDropFileHandler() {
     // хоста, не единственный (основная проверка размера уже в main).
     const MAX_DROP_FILE_BYTES = 100 * 1024 * 1024
 
-    // TEMP DIAGNOSTIC — mirrors to a file via main (see centrio-debug-log in
-    // main/ipc/downloads.js) because attaching DevTools to a specific guest
-    // <webview> during live testing has been unreliable. Remove once the
-    // drag-and-drop UX is confirmed good end-to-end.
-    function dlog(msg) {
-        try { ipcRenderer.send('centrio-debug-log', 'guest:' + location.hostname, msg) } catch {}
-    }
-
     function describeEl(el) {
         if (!el) return 'null'
         const id = el.id ? '#' + el.id : ''
@@ -521,10 +513,8 @@ function bindDropFileHandler() {
                 dataTransfer: dt
             })
             const notCancelled = el.dispatchEvent(ev)
-            dlog(`fired ${type} on ${describeEl(el)} at (${x},${y}) -> dispatchEvent returned ${notCancelled} (defaultPrevented=${ev.defaultPrevented})`)
         } catch (err) {
             console.warn('[centrio-drop-file] dispatch failed:', type, err)
-            dlog(`ERROR dispatching ${type} on ${describeEl(el)}: ${err && err.message}`)
         }
     }
 
@@ -567,7 +557,6 @@ function bindDropFileHandler() {
     function fireAtExtraTargets(type, dt, x, y, alreadyFired) {
         for (const el of findExtraDropTargets()) {
             if (alreadyFired && alreadyFired.has(el)) continue
-            dlog(`(extra target) ${describeEl(el)}`)
             fireAt(type, el, dt, x, y)
             if (alreadyFired) alreadyFired.add(el)
         }
@@ -627,7 +616,6 @@ function bindDropFileHandler() {
             if (!dragActive) {
                 dragActive = true
                 lastHoverTarget = target
-                dlog(`hover start at (${x},${y}) -> ${describeEl(target)}`)
                 fireAt('dragenter', window, dt, x, y)
                 fireAt('dragenter', document, dt, x, y)
                 fireAt('dragenter', target, dt, x, y)
@@ -648,7 +636,6 @@ function bindDropFileHandler() {
                 // element than last tick (new element scrolled/mounted
                 // under the cursor), fire dragenter on it too, mirroring
                 // real per-element dragenter/dragover semantics.
-                dlog(`hover target changed -> ${describeEl(target)}`)
                 fireAt('dragenter', target, dt, x, y)
                 lastHoverTarget = target
             }
@@ -666,14 +653,12 @@ function bindDropFileHandler() {
                 if (el === target) continue
                 if (!enteredExtraTargets.has(el)) {
                     enteredExtraTargets.add(el)
-                    dlog(`(extra target) entered ${describeEl(el)}`)
                     fireAt('dragenter', el, dt, x, y)
                 }
                 fireAt('dragover', el, dt, x, y)
             }
         } catch (err) {
             console.warn('[centrio-drag-hover] failed:', err)
-            dlog('ERROR centrio-drag-hover: ' + (err && err.message))
         }
     })
 
@@ -685,13 +670,11 @@ function bindDropFileHandler() {
         try {
             const dt = buildDt(new Uint8Array(1), 'drag-leave', '')
             const target = document.elementFromPoint(lastX, lastY) || document.body
-            dlog(`hover end (leave) at (${lastX},${lastY}) -> ${describeEl(target)}`)
             fireAt('dragleave', target, dt, lastX, lastY)
             fireAt('dragleave', document, dt, lastX, lastY)
             fireAt('dragend', target, dt, lastX, lastY)
         } catch (err) {
             console.warn('[centrio-drag-leave] failed:', err)
-            dlog('ERROR centrio-drag-leave: ' + (err && err.message))
         }
     })
 
@@ -715,11 +698,9 @@ function bindDropFileHandler() {
     const SETTLE_DELAY_MS = 60
 
     ipcRenderer.on('centrio-drop-file', async (_event, payload) => {
-        dlog(`received payload: filename=${payload && payload.filename}, dataLen=${payload && payload.data && payload.data.length}, x=${payload && payload.x}, y=${payload && payload.y}`)
         try {
             if (!payload || !payload.data || !payload.filename) {
                 console.warn('[centrio-drop-file] invalid payload', payload)
-                dlog('ABORT: invalid payload')
                 return
             }
 
@@ -728,12 +709,10 @@ function bindDropFileHandler() {
                 : new Uint8Array(payload.data)
             if (!bytes.length || bytes.length > MAX_DROP_FILE_BYTES) {
                 console.warn('[centrio-drop-file] rejected byte length', bytes.length)
-                dlog('ABORT: rejected byte length ' + bytes.length)
                 return
             }
 
             const dt = buildDt(bytes, payload.filename, payload.mimeType)
-            dlog(`built File+DataTransfer OK: file.size=${dt.files[0] && dt.files[0].size}, dt.items.length=${dt.items.length}, dt.files.length=${dt.files.length}`)
 
             const x = Number.isFinite(payload.x) ? payload.x : lastX
             const y = Number.isFinite(payload.y) ? payload.y : lastY
@@ -742,7 +721,6 @@ function bindDropFileHandler() {
             lastHoverTarget = null
 
             let target = document.elementFromPoint(x, y) || document.body
-            dlog(`settle: initial elementFromPoint(${x},${y}) -> ${describeEl(target)}`)
             fireAt('dragenter', window, dt, x, y)
             fireAt('dragenter', document, dt, x, y)
             fireAt('dragenter', target, dt, x, y)
@@ -763,14 +741,12 @@ function bindDropFileHandler() {
             for (const el of findExtraDropTargets()) {
                 if (el === target) continue
                 extraEntered.add(el)
-                dlog(`(extra target) entered ${describeEl(el)}`)
                 fireAt('dragenter', el, dt, x, y)
             }
 
             for (let i = 1; i <= SETTLE_PULSES; i++) {
                 await wait(SETTLE_DELAY_MS)
                 target = document.elementFromPoint(x, y) || document.body
-                dlog(`settle pulse ${i}/${SETTLE_PULSES}: elementFromPoint -> ${describeEl(target)}`)
                 fireAt('dragover', window, dt, x, y)
                 fireAt('dragover', document, dt, x, y)
                 fireAt('dragover', target, dt, x, y)
@@ -779,7 +755,6 @@ function bindDropFileHandler() {
                     if (el === target) continue
                     if (!extraEntered.has(el)) {
                         extraEntered.add(el)
-                        dlog(`(extra target) entered ${describeEl(el)}`)
                         fireAt('dragenter', el, dt, x, y)
                     }
                     fireAt('dragover', el, dt, x, y)
@@ -787,7 +762,6 @@ function bindDropFileHandler() {
             }
 
             target = document.elementFromPoint(x, y) || document.body
-            dlog(`drop: elementFromPoint -> ${describeEl(target)}`)
             fireAt('drop', target, dt, x, y)
             fireAt('drop', document, dt, x, y)
             fireAt('drop', window, dt, x, y)
@@ -800,14 +774,11 @@ function bindDropFileHandler() {
             // 'drop' listener bound to that specific descendant element.
             for (const el of findExtraDropTargets()) {
                 if (el === target) continue
-                dlog(`(extra target) drop -> ${describeEl(el)}`)
                 fireAt('drop', el, dt, x, y)
                 fireAt('dragend', el, dt, x, y)
             }
-            dlog('sequence complete')
         } catch (err) {
             console.warn('[centrio-drop-file] failed:', err)
-            dlog('ERROR top-level: ' + (err && err.message))
         }
     })
 }

@@ -200,12 +200,6 @@ function bindDownloadsUi({
     const DRAG_START_THRESHOLD_PX = 6
     let dragCtx = null // { ghostEl, targetWv }
 
-    // TEMP DIAGNOSTIC — see matching dlog() in webview-preload.js. Remove once
-    // the drag-and-drop root cause is confirmed and fixed.
-    function dlog(msg) {
-        try { ipcRenderer.send('centrio-debug-log', 'host', msg) } catch {}
-    }
-
     function setWebviewsPointerEvents(enabled) {
         // <webview> — отдельный слой композитора со своим процессом; пока
         // курсор над ним, host-документ вообще не получает mousemove (это же
@@ -250,7 +244,6 @@ function bindDownloadsUi({
     const HOVER_THROTTLE_MS = 40
 
     function beginDrag(record) {
-        dlog(`beginDrag: filename=${record.filename}, webviewCount=${document.querySelectorAll('webview').length}`)
         setWebviewsPointerEvents(false)
         dragCtx = { ghostEl: createGhost(record.filename), targetWv: null, record, lastHoverSentAt: 0 }
     }
@@ -258,7 +251,6 @@ function bindDownloadsUi({
     function sendLeave(wv) {
         if (!wv) return
         try { wv.send('centrio-drag-leave') } catch (err) {
-            dlog('sendLeave: webview.send() threw: ' + (err && err.message))
         }
     }
 
@@ -286,7 +278,6 @@ function bindDownloadsUi({
             if (wv) wv.classList.add('downloads-drag-target')
             dragCtx.targetWv = wv
             dragCtx.lastHoverSentAt = 0
-            dlog(`updateDrag: target changed at (${x},${y}) -> ${wv ? (wv.id || wv.getAttribute('src')) : 'none'}`)
         }
         dragCtx.ghostEl.classList.toggle('drag-invalid', !wv)
 
@@ -303,7 +294,6 @@ function bindDownloadsUi({
                         y: Math.round(y - rect.top)
                     })
                 } catch (err) {
-                    dlog('updateDrag: webview.send(centrio-drag-hover) threw: ' + (err && err.message))
                 }
             }
         }
@@ -311,26 +301,22 @@ function bindDownloadsUi({
 
     async function finishDrag(x, y, record) {
         const targetWv = dragCtx?.targetWv
-        dlog(`finishDrag: at (${x},${y}), targetWv=${targetWv ? (targetWv.id || targetWv.getAttribute('src')) : 'NONE'}`)
         dragCtx?.ghostEl?.remove()
         clearDragTargetHighlight()
         setWebviewsPointerEvents(true)
         dragCtx = null
 
-        if (!targetWv) { dlog('finishDrag: ABORT no targetWv'); return }
+        if (!targetWv) return
         const rect = targetWv.getBoundingClientRect()
 
         const result = await invokeIpc('downloads:read-file-bytes', record.id).catch((err) => {
             console.warn('[downloads-drag] read-file-bytes failed:', err)
-            dlog('finishDrag: read-file-bytes threw: ' + (err && err.message))
             return null
         })
         if (!result?.success || !result.data) {
             console.warn('[downloads-drag] no usable file data, aborting drop:', result?.error)
-            dlog('finishDrag: ABORT no usable data: ' + (result && result.error))
             return
         }
-        dlog(`finishDrag: read-file-bytes OK, dataLen=${result.data.length}, filename=${result.filename}, sending to webview.send()`)
 
         try {
             targetWv.send('centrio-drop-file', {
@@ -340,10 +326,8 @@ function bindDownloadsUi({
                 x: Math.round(x - rect.left),
                 y: Math.round(y - rect.top)
             })
-            dlog('finishDrag: webview.send() completed without throwing')
         } catch (err) {
             console.warn('[downloads-drag] webview.send(centrio-drop-file) failed:', err)
-            dlog('finishDrag: webview.send() THREW: ' + (err && err.message))
         }
     }
 
@@ -368,7 +352,6 @@ function bindDownloadsUi({
             document.removeEventListener('mousemove', onMove)
             document.removeEventListener('mouseup', onUp)
             if (armed) finishDrag(upEv.clientX, upEv.clientY, record)
-            else dlog(`onUp: never armed (threshold not reached) at (${upEv.clientX},${upEv.clientY})`)
         }
 
         document.addEventListener('mousemove', onMove)

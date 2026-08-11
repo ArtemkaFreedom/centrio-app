@@ -162,7 +162,6 @@ function createFoldersUiApi({
     }
 
     function applyFoldersEnabled(enabled) {
-        console.log('[CENTRIO-DEBUG] applyFoldersEnabled called with', enabled)
         if (enabled) {
             document.querySelectorAll('.folder-item').forEach(f => { f.style.display = 'flex' })
             state.activeMessengers.forEach(m => {
@@ -202,7 +201,6 @@ function createFoldersUiApi({
                     extractedCount++
                 }
             })
-            console.log('[CENTRIO-DEBUG] applyFoldersEnabled(false) extracted', extractedCount, 'messengers from folders, left the rest untouched')
         }
         store.set('foldersEnabled', enabled)
     }

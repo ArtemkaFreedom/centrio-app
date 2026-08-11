@@ -875,15 +875,12 @@ function createSplitApi ({
 
     function saveCurrentAsPreset (name) {
         const trimmed = String(name || '').trim()
-        console.log('[CENTRIO-DEBUG] saveCurrentAsPreset called, name=', trimmed, 'splitMode=', state.splitMode)
         if (!trimmed) return false
 
         const memberIds = state.splitMode
             ? _currentAssignedIds()
             : (state.activeTabId ? [state.activeTabId] : [])
-        console.log('[CENTRIO-DEBUG] saveCurrentAsPreset memberIds=', JSON.stringify(memberIds))
         if (memberIds.length < 2) {
-            console.log('[CENTRIO-DEBUG] saveCurrentAsPreset ABORTED: fewer than 2 members')
             return false
         }
 
@@ -894,7 +891,6 @@ function createSplitApi ({
             layout: state.splitMode ? state.splitLayout : '2col',
             memberIds
         })
-        console.log('[CENTRIO-DEBUG] saveCurrentAsPreset writing', presets.length, 'presets')
         store?.set?.('splitPresets', presets)
         _pushSplitPresetsToCloud()
         renderPresetsList()

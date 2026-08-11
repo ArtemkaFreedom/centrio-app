@@ -212,20 +212,6 @@ function registerDownloadsIpc({ getMainWindow }) {
         }
     })
 
-    // TEMP DIAGNOSTIC (drag-and-drop-into-messenger investigation): both the
-    // guest-side dispatch (webview-preload.js) and the host-side drag gesture
-    // (renderer/downloads-bind.js) already console.warn on failure, but
-    // getting DevTools reliably attached to a specific <webview>'s guest page
-    // during live testing has been unreliable. Mirror every breadcrumb to a
-    // plain file instead so it can be read directly after a test run. Remove
-    // once the root cause is confirmed and fixed.
-    safeOn('centrio-debug-log', (_event, tag, msg) => {
-        try {
-            const line = `[${new Date().toISOString()}] [${tag}] ${msg}\n`
-            fs.appendFileSync(path.join(app.getPath('userData'), 'drop-debug.log'), line)
-        } catch {}
-    })
-
     safeOn('downloads:remove', (_event, id) => {
         downloadsHistory = downloadsHistory.filter(d => d.id !== id)
         persistDownloadsHistory()
