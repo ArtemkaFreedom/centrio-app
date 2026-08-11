@@ -153,6 +153,23 @@ function bindWindowEvents(win) {
     let _lastCrashTime = 0
     let _crashCount = 0
 
+    // TEMP DIAGNOSTIC: mirror renderer console.log lines tagged
+    // "[CENTRIO-DEBUG]" into a plain-text file in userData, so the
+    // sidebar-order/split-preset restore bugs can be diagnosed by reading
+    // this file directly instead of depending on the user to keep DevTools
+    // open and screenshot the console. Filtered to the debug tag only —
+    // never mirrors ordinary app logs or (obviously) any webview/guest-page
+    // content, since this listens on the main window's own webContents.
+    // Remove this block once the underlying bugs are confirmed fixed.
+    win.webContents.on('console-message', (_event, _level, message) => {
+        if (typeof message !== 'string' || !message.includes('[CENTRIO-DEBUG]')) return
+        try {
+            const { app } = require('electron')
+            const logPath = path.join(app.getPath('userData'), 'centrio-debug.log')
+            fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${message}\n`)
+        } catch {}
+    })
+
     win.webContents.on('did-finish-load', () => {
         _crashCount = 0
         injectAppLogo(win)

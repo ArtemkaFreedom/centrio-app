@@ -105,7 +105,17 @@ const store = {
         storeCache.set(key, value)
 
         if (window.electronAPI?.storeSet) {
-            return window.electronAPI.storeSet(key, value)
+            const result = window.electronAPI.storeSet(key, value)
+            // BUGFIX: writes to keys missing from main.js's ALLOWED_STORE_ROOTS
+            // used to fail silently (main returns { success: false }, nobody
+            // ever looked at it) — surface it loudly so this class of bug is
+            // never invisible again.
+            result?.then?.(res => {
+                if (res && res.success === false) {
+                    console.error(`[store] set('${key}') was rejected by main process:`, res.error)
+                }
+            })
+            return result
         }
 
         return undefined
@@ -115,7 +125,11 @@ const store = {
         storeCache.set(key, value)
 
         if (window.electronAPI?.storeSet) {
-            return await window.electronAPI.storeSet(key, value)
+            const res = await window.electronAPI.storeSet(key, value)
+            if (res && res.success === false) {
+                console.error(`[store] setAsync('${key}') was rejected by main process:`, res.error)
+            }
+            return res
         }
 
         return undefined
@@ -434,6 +448,18 @@ async function bootstrap() {
         ['splitLeftPctPref', 50],
         ['gridRowPctPref', 50],
         ['gridSidePctPref', 50],
+        // BUGFIX ("выбранный мессенджер не восстанавливался"): last-active
+        // tab id, written by switchTab() on every tab switch.
+        ['activeTabId', null],
+        // BUGFIX ("ВПН стартует включённым для всех мессенджеров"): this
+        // synchronous store.get() shim only ever returns whatever hydrate()
+        // populated (see get(key, def) above) — never fetches on demand.
+        // vpnAppModes was read synchronously in createMessengerItem() below
+        // without ever being hydrated, so it always fell back to {} on every
+        // startup, which (per "unset === enabled" default in main/ipc/vpn.js)
+        // made every messenger's VPN badge show "protected" regardless of
+        // what the user had actually toggled off before restart.
+        ['vpnAppModes', {}],
         // Cloud non-secret fields
         ['cloud.user', null],
         ['cloud.lastSyncAt', null],
@@ -681,6 +707,7 @@ async function bootstrap() {
                         if (extra.extensionsState !== undefined) await store.setAsync('extensionsState', extra.extensionsState)
                         if (extra.splitLeftPctPref !== undefined) await store.setAsync('splitLeftPctPref', extra.splitLeftPctPref)
                         if (extra.splitPresets !== undefined) await store.setAsync('splitPresets', extra.splitPresets)
+                        if (extra.activeTabId !== undefined) await store.setAsync('activeTabId', extra.activeTabId)
                     }
                 }
                 const muted = {}
@@ -1224,6 +1251,16 @@ function switchTab(id) {
     _tkStart    = Date.now()
 
     state.activeTabId = id
+    // BUGFIX ("не сохраняется выбранный мессенджер"): state.activeTabId only
+    // ever lived in memory — it was read into the cloud-push payload's
+    // settings.extra.activeTabId (see getPushPayload above), but nothing
+    // wrote it to local persistent storage, and nothing on cloud-pull wrote
+    // it back either. loadData() expected to find it at
+    // store.get('settings').extra.activeTabId, a path that was never
+    // populated locally by anyone — so the restore always silently fell
+    // back to the first tab. Persist it directly under its own top-level key
+    // (added to main.js's ALLOWED_STORE_ROOTS) instead.
+    store.set('activeTabId', id)
 
     document.querySelectorAll('.messenger-item').forEach(item => item.classList.remove('active'))
     const sidebarItem = document.getElementById(`sidebar-${id}`)
@@ -1239,6 +1276,25 @@ function switchTab(id) {
         tab.classList.add('active')
         tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
     }
+
+    // BUGFIX ("окно мессенджера выше окна сплита"): onPrimaryChanged() is what
+    // sets the correct inline left/top/width/height for the new primary
+    // webview in split mode (2col via _applyWebviewInlineStyles, grid layouts
+    // via _applyGridZoneWebview). It used to run at the very end of this
+    // function, AFTER the webview already got its 'active' class added below
+    // — for a webview that had never been positioned as a split pane before
+    // (e.g. switching straight to a brand-new tab), that meant it briefly
+    // became visible at the *default* full-size CSS geometry (webview {
+    // width:100%; height:100% } / inset:0) before the correct split geometry
+    // was applied a few lines later. Both happen synchronously so a normal
+    // DOM element wouldn't visibly flash, but Electron's <webview> is a
+    // separate compositor layer that doesn't reliably pick up a same-tick
+    // follow-up resize the way regular elements do (same class of quirk
+    // documented at the top of split.js re: z-index/stacking) — the
+    // oversized first-paint geometry was sticking. Fix: compute the correct
+    // split geometry BEFORE the webview is ever shown (before the 'active'
+    // class is added), so there's no wrong size to ever get latched in.
+    splitApi?.onPrimaryChanged(id)
 
     document.querySelectorAll('webview').forEach(wv => wv.classList.remove('active'))
 
@@ -1263,9 +1319,6 @@ function switchTab(id) {
 
     // Адаптивная тема: обновить цвета под новую вкладку
     updateAdaptiveTheme(() => document.getElementById(`webview-${id}`))
-
-    // Notify split API that primary changed (e.g. update picker, resolve overlap)
-    splitApi?.onPrimaryChanged(id)
 }
 
     // ==============================
@@ -1404,7 +1457,15 @@ function applyTabZoom(level) {
     // ==============================
     // SPLIT MODE
     // ==============================
-    splitApi = createSplitApi({ state, tabsContent, contentArea, store, switchTab })
+    splitApi = createSplitApi({
+        state,
+        tabsContent,
+        contentArea,
+        store,
+        switchTab,
+        cloudSyncPush,
+        isCloudLoggedIn: () => cloudStore.isLoggedIn()
+    })
 
     // Expose focus-tracker for webview-tabs-bind.js
     window.__centrioSplitFocus = (webview) => splitApi.onWebviewFocus(webview)
@@ -1558,7 +1619,9 @@ function applyTabZoom(level) {
         state,
         store,
         messengerList,
-        moveMessengerToFolder
+        moveMessengerToFolder,
+        cloudSyncPush,
+        isCloudLoggedIn: () => cloudStore.isLoggedIn()
     })
 
     const {
@@ -1749,6 +1812,10 @@ function applyTabZoom(level) {
                             if (extra.extensionsState !== undefined) store.set('extensionsState', extra.extensionsState)
                             if (extra.splitLeftPctPref !== undefined) store.set('splitLeftPctPref', extra.splitLeftPctPref)
                             if (extra.splitPresets !== undefined) store.set('splitPresets', extra.splitPresets)
+                            // BUGFIX ("не сохраняется выбранный мессенджер"): restore
+                            // last-active tab from cloud too, mirroring every other
+                            // extra.* field here — see switchTab()/loadData() above.
+                            if (extra.activeTabId !== undefined) store.set('activeTabId', extra.activeTabId)
                         }
                     }
 
@@ -1820,8 +1887,10 @@ function applyTabZoom(level) {
         })
 
         if (savedMessengers.length > 0) {
-            const savedSettings = store.get('settings', {}) || {}
-            const lastActiveId = savedSettings.extra?.activeTabId
+            // BUGFIX ("не сохраняется выбранный мессенджер"): settings.extra.activeTabId
+            // was never actually written locally by anyone (see switchTab() above) —
+            // read the dedicated top-level key it now persists to instead.
+            const lastActiveId = await store.getAsync('activeTabId', null)
             const tabToOpen = lastActiveId && savedMessengers.find(m => m.id === lastActiveId)
                 ? lastActiveId
                 : savedMessengers[0].id
@@ -1850,7 +1919,14 @@ function applyTabZoom(level) {
         // таскбара/трея, использующий те же данные) внутри всё ещё
         // правильный. Перерисовываем ещё раз спустя паузу, когда сайдбар
         // точно смонтирован и опрос точно успел хотя бы раз отработать.
-        setTimeout(repaintAllUnreadBadges, 3000)
+        //
+        // BUGFIX #2 ("иногда всё равно не отрисовывает"): a single fixed
+        // 3s shot still loses the race on a slow machine / many webviews /
+        // slow network — the first real dom-ready poll can land well after
+        // 3s. Repaint is idempotent and cheap (skips messengers with no
+        // tracked unread count), so retry a few times at increasing delays
+        // instead of gambling on one fixed timeout.
+        [3000, 6000, 10000].forEach(delay => setTimeout(repaintAllUnreadBadges, delay))
 
         updateStatusBar()
         // Тур — только для новых пользователей (см. ветку выше с пустым
@@ -2042,6 +2118,16 @@ function applyTabZoom(level) {
         const newEnabled = !current
         await invokeIpc('vpn-set-app-vpn', messengerId, newEnabled).catch(() => null)
         updateVpnBadge(messengerId, newEnabled)
+        // BUGFIX ("статус VPN сбрасывался после выхода/входа"): vpn-set-app-vpn
+        // (main/ipc/vpn.js) only ever wrote vpnAppModes to the LOCAL store —
+        // nothing here pushed the change to the cloud. Meanwhile loadData()
+        // unconditionally runs cloudSyncPull() on every startup when logged
+        // in and overwrites local vpnAppModes with extra.vpnAppModes from
+        // the (now stale) cloud copy — silently reverting any per-app VPN
+        // toggle the user made since the last push. Same disease as the
+        // sidebarOrder bug: a local-only write later clobbered by a stale
+        // pull. Push immediately so the cloud copy never falls behind.
+        if (cloudStore.isLoggedIn()) cloudSyncPush()
     }
 
     // При открытии контекстного меню обновляем label VPN-пункта
@@ -2156,7 +2242,14 @@ function applyTabZoom(level) {
         tGet,
         applyI18n,
         getActiveMessengers: () => state.activeMessengers,
-        onAppVpnModeChange: updateVpnBadge
+        onAppVpnModeChange: (messengerId, enabled) => {
+            updateVpnBadge(messengerId, enabled)
+            // Тот же паттерн, что и toggleMessengerVpn() выше — переключатель
+            // VPN из Настроек → Сеть писал только в локальный store, и
+            // следующий cloudSyncPull() при старте тихо откатывал его обратно.
+            // Пушим сразу, чтобы облачная копия не отставала от локальной.
+            if (cloudStore.isLoggedIn()) cloudSyncPush()
+        }
     })
 
     bindUpdater({

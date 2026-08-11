@@ -459,6 +459,359 @@ function bindDownloadImageHandler() {
     })
 }
 
+// ── Приём файла из панели загрузок Centrio (drag-and-drop в мессенджер) ────
+// См. подробный комментарий про два провалившихся подхода у init() ниже и
+// в renderer/downloads-bind.js. Третий подход НЕ использует настоящую
+// OS/браузерную drag-сессию вообще: host (renderer/downloads-bind.js) сам
+// отслеживает жест мышью, находит целевой <webview> по геометрии (у него
+// есть доступ к списку вкладок — здесь, внутри guest-страницы, его нет и
+// быть не должно) и присылает сюда координаты через webview.send() — тот же
+// host→guest push-паттерн, что уже проверен на 'download-image', только в
+// обратную сторону. Протокол — два сообщения: 'centrio-drag-hover'
+// (повторяется, пока реальная мышь движется над этим webview — не несёт
+// байтов файла, только имя/тип, как и настоящий браузерный dragover) и
+// 'centrio-drop-file' (один раз, при реальном отпускании кнопки мыши — уже с
+// байтами). Здесь мы сами строим File/DataTransfer и диспатчим синтетические
+// dragenter/dragover/drop DragEvent на реальный элемент под курсором:
+// document.elementFromPoint работает нормально ИЗНУТРИ guest-страницы (в
+// отличие от host-документа, который не видит сквозь <webview>). Мы никогда
+// не инициируем настоящий dragstart на реальном DOM-элементе страницы —
+// именно это в прошлый раз (v1.9.3, см. ниже) заставляло Chromium
+// подмешивать в dataTransfer собственные данные и уводить drop в открытие
+// нового окна; здесь dataTransfer с нуля содержит только наш File.
+function bindDropFileHandler() {
+    // Держим в синхроне с MAX_DRAG_FILE_BYTES в main/ipc/downloads.js —
+    // просто ещё один рубеж защиты на случай измененного/скомпрометированного
+    // хоста, не единственный (основная проверка размера уже в main).
+    const MAX_DROP_FILE_BYTES = 100 * 1024 * 1024
+
+    // TEMP DIAGNOSTIC — mirrors to a file via main (see centrio-debug-log in
+    // main/ipc/downloads.js) because attaching DevTools to a specific guest
+    // <webview> during live testing has been unreliable. Remove once the
+    // drag-and-drop UX is confirmed good end-to-end.
+    function dlog(msg) {
+        try { ipcRenderer.send('centrio-debug-log', 'guest:' + location.hostname, msg) } catch {}
+    }
+
+    function describeEl(el) {
+        if (!el) return 'null'
+        const id = el.id ? '#' + el.id : ''
+        const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(' ').join('.') : ''
+        return `<${el.tagName}${id}${cls}>`
+    }
+
+    function buildDt(bytes, filename, mimeType) {
+        const file = new File([bytes], String(filename), {
+            type: mimeType || 'application/octet-stream'
+        })
+        const dt = new DataTransfer()
+        dt.items.add(file)
+        return dt
+    }
+
+    function fireAt(type, el, dt, x, y) {
+        if (!el) return
+        try {
+            const ev = new DragEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                clientX: x,
+                clientY: y,
+                dataTransfer: dt
+            })
+            const notCancelled = el.dispatchEvent(ev)
+            dlog(`fired ${type} on ${describeEl(el)} at (${x},${y}) -> dispatchEvent returned ${notCancelled} (defaultPrevented=${ev.defaultPrevented})`)
+        } catch (err) {
+            console.warn('[centrio-drop-file] dispatch failed:', type, err)
+            dlog(`ERROR dispatching ${type} on ${describeEl(el)}: ${err && err.message}`)
+        }
+    }
+
+    // BUGFIX (Telegram: overlay visibly appears — `body.is-dragging` — but
+    // the file never lands): diagnostic logs show Telegram flips a class on
+    // `<body>` immediately (that's the full-page tint/overlay the user
+    // sees) and its `dragover` on <body> does get `preventDefault()`'d, but
+    // the actual file-accepting drop handler is bound directly to a small
+    // reactively-mounted card (`.drops-container .drop`) that is centered
+    // in the viewport rather than covering every pixel — so if the cursor's
+    // exact (x,y) at drop time isn't within that card's bounds,
+    // elementFromPoint resolves to <body> instead, and since 'drop' only
+    // bubbles *up* the tree, a synthetic drop fired at <body> never reaches
+    // a listener bound to that descendant card. MAX has the analogous
+    // `.zone`/`.zone--active`. Rather than relying purely on cursor
+    // coordinates, also look these specific elements up directly by
+    // selector (when present/visible) and dispatch straight at them —
+    // belt-and-suspenders alongside the point-based target above.
+    const EXTRA_DROP_TARGET_SELECTORS = [
+        '.drops-container .drop', // Telegram Web (K/A) — centered "drop here" card
+        '.zone.zone--active',     // MAX — once fully expanded
+        '.zone'                   // MAX — before the --active class lands
+    ]
+
+    function findExtraDropTargets() {
+        const found = []
+        for (const sel of EXTRA_DROP_TARGET_SELECTORS) {
+            let el = null
+            try { el = document.querySelector(sel) } catch { el = null }
+            // offsetParent is null for display:none (or fixed-position with
+            // no containing block edge case, acceptable false-negative here
+            // since these overlays are never position:fixed with a
+            // display:none ancestor in practice) — cheap visibility check
+            // so we don't dispatch onto a card that hasn't mounted yet.
+            if (el && el.offsetParent !== null) found.push(el)
+        }
+        return found
+    }
+
+    function fireAtExtraTargets(type, dt, x, y, alreadyFired) {
+        for (const el of findExtraDropTargets()) {
+            if (alreadyFired && alreadyFired.has(el)) continue
+            dlog(`(extra target) ${describeEl(el)}`)
+            fireAt(type, el, dt, x, y)
+            if (alreadyFired) alreadyFired.add(el)
+        }
+    }
+
+    // BUGFIX ("файлы перетаскиваются, но мессенджер не показывает область
+    // куда вставляешь — как это показывается из проводника"): the previous
+    // version only ever heard about the drop at mouseup (finishDrag in
+    // renderer/downloads-bind.js) and had to fake the *entire*
+    // dragenter→dragover→drop sequence in one artificially-paced burst
+    // (~250ms of synthetic setTimeout pulses) after the fact. That's why the
+    // app's own drop-zone overlay only ever flashed briefly right at the end
+    // instead of staying open for as long as the user actually hovers, the
+    // way it does when dragging a real file in from Windows Explorer.
+    //
+    // Fix: split the guest-side protocol into a real hover phase and a drop
+    // phase, driven directly by the host's live mouse position
+    // (renderer/downloads-bind.js now calls webview.send('centrio-drag-hover',
+    // ...) on every throttled mousemove while the cursor is over this
+    // webview, and 'centrio-drag-leave' when it moves off). dragenter fires
+    // once when hovering starts; dragover repeats for as long as the real
+    // drag continues, so any reactively-mounted drop-zone overlay (MAX's
+    // svelte `.zone`, Telegram's `.drop` element, etc.) gets exactly the
+    // same lifetime a native OS drag would give it. The hover phase uses a
+    // tiny placeholder file (native browsers don't expose real file bytes
+    // during dragover either — only on drop), and centrio-drop-file swaps in
+    // the real file content only at the very end.
+    let dragActive = false
+    let lastX = 0
+    let lastY = 0
+    // Tracks whichever element elementFromPoint() last resolved to during the
+    // live-hover phase. See BUGFIX comment below — needed to notice when a
+    // reactively-mounted overlay (MAX's `.zone`, Telegram's `.drops-container`
+    // / `.drop`) appears *underneath* the cursor mid-drag, since that element
+    // never got its own 'dragenter' otherwise.
+    let lastHoverTarget = null
+    // Extra (selector-based, see findExtraDropTargets) elements that have
+    // already received a 'dragenter' this hover session, so we don't keep
+    // re-entering the same element on every tick — only dragover repeats.
+    let enteredExtraTargets = new Set()
+
+    function wait(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms))
+    }
+
+    ipcRenderer.on('centrio-drag-hover', (_event, payload) => {
+        try {
+            if (!payload || !payload.filename) return
+            const x = Number.isFinite(payload.x) ? payload.x : Math.floor(window.innerWidth / 2)
+            const y = Number.isFinite(payload.y) ? payload.y : Math.floor(window.innerHeight / 2)
+            lastX = x
+            lastY = y
+
+            const dt = buildDt(new Uint8Array(1), payload.filename, payload.mimeType)
+            const target = document.elementFromPoint(x, y) || document.body
+
+            if (!dragActive) {
+                dragActive = true
+                lastHoverTarget = target
+                dlog(`hover start at (${x},${y}) -> ${describeEl(target)}`)
+                fireAt('dragenter', window, dt, x, y)
+                fireAt('dragenter', document, dt, x, y)
+                fireAt('dragenter', target, dt, x, y)
+            } else if (target !== lastHoverTarget) {
+                // BUGFIX (MAX/Telegram drop-zone flakiness with live hover):
+                // apps like MAX (Svelte) and Telegram Web mount their
+                // drop-zone overlay reactively, in direct response to a
+                // 'dragenter' event — a plain repeated 'dragover' on an
+                // element that appeared *after* the original dragenter is
+                // not enough to make some of these components register as
+                // "entered" (their own dragenter listener, on that specific
+                // element, simply never fired). Diagnostic logs showed
+                // MAX's `.zone` and Telegram's `.drops-container`/`.drop`
+                // either never mounting at all or mounting then immediately
+                // reverting, in gestures where the resolved target element
+                // kept changing under the cursor without a fresh dragenter.
+                // Fix: whenever elementFromPoint resolves to a *different*
+                // element than last tick (new element scrolled/mounted
+                // under the cursor), fire dragenter on it too, mirroring
+                // real per-element dragenter/dragover semantics.
+                dlog(`hover target changed -> ${describeEl(target)}`)
+                fireAt('dragenter', target, dt, x, y)
+                lastHoverTarget = target
+            }
+
+            fireAt('dragover', window, dt, x, y)
+            fireAt('dragover', document, dt, x, y)
+            fireAt('dragover', target, dt, x, y)
+
+            // Same "not under the cursor" problem as at drop time (see
+            // BUGFIX above findExtraDropTargets): once Telegram/MAX's
+            // specific drop-hint element mounts, make sure IT also gets a
+            // real dragenter→dragover lifecycle, not just whatever's
+            // literally under the pointer.
+            for (const el of findExtraDropTargets()) {
+                if (el === target) continue
+                if (!enteredExtraTargets.has(el)) {
+                    enteredExtraTargets.add(el)
+                    dlog(`(extra target) entered ${describeEl(el)}`)
+                    fireAt('dragenter', el, dt, x, y)
+                }
+                fireAt('dragover', el, dt, x, y)
+            }
+        } catch (err) {
+            console.warn('[centrio-drag-hover] failed:', err)
+            dlog('ERROR centrio-drag-hover: ' + (err && err.message))
+        }
+    })
+
+    ipcRenderer.on('centrio-drag-leave', () => {
+        if (!dragActive) return
+        dragActive = false
+        lastHoverTarget = null
+        enteredExtraTargets = new Set()
+        try {
+            const dt = buildDt(new Uint8Array(1), 'drag-leave', '')
+            const target = document.elementFromPoint(lastX, lastY) || document.body
+            dlog(`hover end (leave) at (${lastX},${lastY}) -> ${describeEl(target)}`)
+            fireAt('dragleave', target, dt, lastX, lastY)
+            fireAt('dragleave', document, dt, lastX, lastY)
+            fireAt('dragend', target, dt, lastX, lastY)
+        } catch (err) {
+            console.warn('[centrio-drag-leave] failed:', err)
+            dlog('ERROR centrio-drag-leave: ' + (err && err.message))
+        }
+    })
+
+    // BUGFIX (files stopped landing after switching to live hover, even
+    // though the overlay now showed): with live hover, dragover pulses are
+    // paced by the REAL mousemove cadence, which is fine while the cursor is
+    // moving — but users naturally stop moving for a beat right before
+    // releasing the button, so the final elementFromPoint target can be
+    // stale/still-animating (diagnostic logs showed MAX landing on a sidebar
+    // list item and Telegram's `.drops-container` catching a *closing*
+    // ("backwards") animation frame right as drop fired, both times because
+    // no further dragover reached the real target for 1+ second before
+    // drop). A single immediate dragover+drop right at mouseup doesn't give
+    // these reactive UIs (Svelte/React) time to settle. So — same as the
+    // proven-working earlier "pulse" implementation — re-settle with a
+    // short paced burst (real setTimeout delays, re-resolving
+    // elementFromPoint before each pulse since the DOM keeps changing
+    // underneath) immediately before the actual drop, regardless of
+    // whatever the live-hover phase's target was.
+    const SETTLE_PULSES = 3
+    const SETTLE_DELAY_MS = 60
+
+    ipcRenderer.on('centrio-drop-file', async (_event, payload) => {
+        dlog(`received payload: filename=${payload && payload.filename}, dataLen=${payload && payload.data && payload.data.length}, x=${payload && payload.x}, y=${payload && payload.y}`)
+        try {
+            if (!payload || !payload.data || !payload.filename) {
+                console.warn('[centrio-drop-file] invalid payload', payload)
+                dlog('ABORT: invalid payload')
+                return
+            }
+
+            const bytes = payload.data instanceof Uint8Array
+                ? payload.data
+                : new Uint8Array(payload.data)
+            if (!bytes.length || bytes.length > MAX_DROP_FILE_BYTES) {
+                console.warn('[centrio-drop-file] rejected byte length', bytes.length)
+                dlog('ABORT: rejected byte length ' + bytes.length)
+                return
+            }
+
+            const dt = buildDt(bytes, payload.filename, payload.mimeType)
+            dlog(`built File+DataTransfer OK: file.size=${dt.files[0] && dt.files[0].size}, dt.items.length=${dt.items.length}, dt.files.length=${dt.files.length}`)
+
+            const x = Number.isFinite(payload.x) ? payload.x : lastX
+            const y = Number.isFinite(payload.y) ? payload.y : lastY
+
+            dragActive = false
+            lastHoverTarget = null
+
+            let target = document.elementFromPoint(x, y) || document.body
+            dlog(`settle: initial elementFromPoint(${x},${y}) -> ${describeEl(target)}`)
+            fireAt('dragenter', window, dt, x, y)
+            fireAt('dragenter', document, dt, x, y)
+            fireAt('dragenter', target, dt, x, y)
+
+            // BUGFIX (Telegram: overlay shows via body.is-dragging, file
+            // still doesn't land): same "not under the cursor" problem as
+            // during hover — Telegram's real file-accepting element is a
+            // reactively-mounted `.drops-container .drop` card that
+            // elementFromPoint(x,y) may never resolve to, since it isn't
+            // necessarily centered on the cursor's exact drop coordinates.
+            // 'drop' only bubbles upward, so a synthetic 'drop' dispatched
+            // on <body>/document/window can never reach a listener bound
+            // directly to that descendant. Track known extra selector-based
+            // targets (see findExtraDropTargets) through the whole settle+
+            // drop sequence so they get their own real dragenter/dragover/
+            // drop lifecycle regardless of exact pointer position.
+            const extraEntered = new Set()
+            for (const el of findExtraDropTargets()) {
+                if (el === target) continue
+                extraEntered.add(el)
+                dlog(`(extra target) entered ${describeEl(el)}`)
+                fireAt('dragenter', el, dt, x, y)
+            }
+
+            for (let i = 1; i <= SETTLE_PULSES; i++) {
+                await wait(SETTLE_DELAY_MS)
+                target = document.elementFromPoint(x, y) || document.body
+                dlog(`settle pulse ${i}/${SETTLE_PULSES}: elementFromPoint -> ${describeEl(target)}`)
+                fireAt('dragover', window, dt, x, y)
+                fireAt('dragover', document, dt, x, y)
+                fireAt('dragover', target, dt, x, y)
+
+                for (const el of findExtraDropTargets()) {
+                    if (el === target) continue
+                    if (!extraEntered.has(el)) {
+                        extraEntered.add(el)
+                        dlog(`(extra target) entered ${describeEl(el)}`)
+                        fireAt('dragenter', el, dt, x, y)
+                    }
+                    fireAt('dragover', el, dt, x, y)
+                }
+            }
+
+            target = document.elementFromPoint(x, y) || document.body
+            dlog(`drop: elementFromPoint -> ${describeEl(target)}`)
+            fireAt('drop', target, dt, x, y)
+            fireAt('drop', document, dt, x, y)
+            fireAt('drop', window, dt, x, y)
+            fireAt('dragend', target, dt, x, y)
+            fireAt('dragend', document, dt, x, y)
+
+            // Also fire the terminal drop/dragend directly on any extra
+            // selector-matched target (e.g. Telegram's `.drop` card) — this
+            // is the actual fix: it's the one dispatch that can reach a
+            // 'drop' listener bound to that specific descendant element.
+            for (const el of findExtraDropTargets()) {
+                if (el === target) continue
+                dlog(`(extra target) drop -> ${describeEl(el)}`)
+                fireAt('drop', el, dt, x, y)
+                fireAt('dragend', el, dt, x, y)
+            }
+            dlog('sequence complete')
+        } catch (err) {
+            console.warn('[centrio-drop-file] failed:', err)
+            dlog('ERROR top-level: ' + (err && err.message))
+        }
+    })
+}
+
 // ── Диплинки других мессенджеров (MAX / Telegram) ──────────────────────────
 // Этот preload инжектится и исполняется ВНУТРИ произвольной чужой страницы
 // (Telegram Web, WhatsApp Web и т.п.), поэтому распознавание должно быть
@@ -686,21 +1039,27 @@ function bindMsgSentDetection() {
     }, true)
 }
 
-// ── Перетаскивание вложения между мессенджерами — УБРАНО в v1.9.5 ──────────
+// ── Перетаскивание вложения между мессенджерами — история ──────────────────
 // Была попытка (v1.9.3) перетаскивать картинку/файл из одного открытого
-// мессенджера в другой через 'DownloadURL' в dataTransfer. На практике
-// оказалось хуже, чем просто "не работает": Chromium сам добавляет в
-// dataTransfer собственные данные для <img> (uri-list и т.п.), и когда
-// принимающая страница не обрабатывает drop сама, срабатывает штатный
-// fallback браузера — не навигация текущей страницы, а открытие НОВОГО
-// окна, что уже прямая помеха пользователю. preventDefault() на dragstart
-// эту проблему не решает — он отменяет весь жест перетаскивания целиком,
-// а не только дефолтные данные Chromium. Убрано до появления надёжного
-// способа, а не оставлено "полуработающим".
+// мессенджера в другой через 'DownloadURL' в dataTransfer, убрана в v1.9.5.
+// На практике оказалось хуже, чем просто "не работает": Chromium сам
+// добавляет в dataTransfer собственные данные для <img> (uri-list и т.п.),
+// и когда принимающая страница не обрабатывает drop сама, срабатывает
+// штатный fallback браузера — не навигация текущей страницы, а открытие
+// НОВОГО окна, что уже прямая помеха пользователю. preventDefault() на
+// dragstart эту проблему не решает — он отменяет весь жест перетаскивания
+// целиком, а не только дефолтные данные Chromium.
+//
+// Перетаскивание из ПАНЕЛИ ЗАГРУЗОК в мессенджер — отдельная, третья
+// попытка, реализована через bindDropFileHandler() выше: никакой настоящей
+// OS-drag-сессии, только синтетические DragEvent с DataTransfer, которую мы
+// сами построили с нуля (без участия Chromium) — та же ловушка здесь не
+// воспроизводится, потому что нет реального dragstart на DOM-элементе.
 function init() {
     bindContextMenuForwarding()
     bindKeyboardForwarding()
     bindDownloadImageHandler()
+    bindDropFileHandler()
     bindLinkInterception()
     bindMsgSentDetection()
     startObserver()

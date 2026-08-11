@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Content Security Policy: разрешаем только локальные ресурсы + Google Fonts -->
+    <!-- Content Security Policy: разрешаем только локальные ресурсы. Inter теперь
+         самоxостится (assets/fonts/inter/), внешние Google Fonts домены больше
+         не нужны — CSP сужен вслед за этим. -->
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self';
                    script-src 'self';
-                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-                   font-src 'self' https://fonts.gstatic.com;
+                   style-src 'self' 'unsafe-inline';
+                   font-src 'self';
                    img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.mds.yandex.net https://www.gravatar.com;
                    connect-src 'self' https://api.centrio.me https://centrio.me;
                    media-src 'self';
@@ -386,6 +388,13 @@
         <div id="tabsContent" class="tabs-content"></div>
         <!-- Split-screen divider handle (только для раскладки 2col) -->
         <div id="splitHandle" class="split-handle"></div>
+        <!-- Split-screen divider handles для 2top1bottom/1top2bottom: строка
+             (горизонтальная граница между рядами) и сторона (вертикальная
+             граница внутри разделённого ряда). Скрыты по умолчанию —
+             показываются/позиционируются только в этих двух раскладках,
+             см. renderer/split.js _positionGridHandles(). -->
+        <div id="splitGridRowHandle" class="split-handle split-handle-row" style="display:none"></div>
+        <div id="splitGridSideHandle" class="split-handle split-handle-side" style="display:none"></div>
         <!-- Split-screen messenger picker (2col: единственная вторая панель) -->
         <div id="splitPicker" class="split-picker" style="display:none">
             <div class="split-picker-inner">
@@ -655,6 +664,20 @@
         <button class="changelog-popup-close" id="changelogPopupClose">✕</button>
     </div>
     <div class="changelog-popup-body">
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.9.8</div>
+            <ul class="changelog-list">
+                <li>Исправлен баг: перетаскивание загрузки в Telegram Web показывало зону вставки файла, но сам файл не прикреплялся к сообщению — теперь перетаскивание работает и в MAX, и в Telegram</li>
+                <li>Исправлен баг: в режиме сплит-экрана с сеткой (3 колонки, 2×2 и т.п.), если хотя бы в одной зоне не выбран мессенджер, окно выбора мессенджера перекрывало окно выбора раскладки и кнопку «Выключить сплит-режим» — выйти из сплита было невозможно</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.9.7</div>
+            <ul class="changelog-list">
+                <li>Исправлен баг: экран блокировки грузил шрифт через интернет, из-за чего при слабой сети или сразу при запуске он на секунду-две показывался «не тем» шрифтом с некрасиво расставленными иконками PIN-клавиш — шрифт теперь встроен в приложение и не зависит от сети</li>
+                <li>Исправлен баг: переключатель VPN для отдельного мессенджера в Настройках → Сеть не сохранялся — после выхода и повторного входа в аккаунт он мог тихо сброситься обратно</li>
+            </ul>
+        </div>
         <div class="changelog-entry">
             <div class="changelog-version">v1.9.6</div>
             <ul class="changelog-list">

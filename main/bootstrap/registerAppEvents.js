@@ -3,7 +3,7 @@ const { fileURLToPath } = require('url')
 const path = require('path')
 const tracker = require('../services/tracker')
 const store = require('../services/store')
-const { getWebviewPreloadPath } = require('../ipc/api')
+const { getWebviewPreloadPath, waitForPendingSyncPush } = require('../ipc/api')
 const { wireSessionDownloads } = require('../ipc/downloads')
 
 // Normalizes a preload value (file:// URL or plain path, as seen in either
@@ -141,6 +141,53 @@ function registerAppEvents({
             }
             return { action: 'deny' }
         })
+
+        // BUGFIX ("при скачивании открывает окно пустое белое" — live-
+        // reproduced for a MAX file attachment: the popup opened by
+        // webview-tabs-bind.js's 'new-window' handler → open-popup-window
+        // already has its own hide()+close-on-done fix in
+        // main/ipc/window.js, but that only covers popups THIS app
+        // deliberately creates. When a <webview> guest calls
+        // window.open()/target=_blank for what turns out to be a direct
+        // file-download link and nothing intercepts it first (the guest's
+        // own webContents has no setWindowOpenHandler — only top-level
+        // BrowserWindows get one, right above), Electron falls back to
+        // silently auto-creating a brand new, completely blank
+        // BrowserWindow and navigating it straight to the download URL.
+        // That window has nothing to render (the response is a file, not
+        // HTML) and nothing else in the app ever closes it, so it's left
+        // sitting there indefinitely — stuck behind the native Save-As
+        // dialog Electron shows whenever no save path was set. This
+        // listener is a safety net that catches EVERY new BrowserWindow
+        // in the app, whichever path created it, and applies the exact
+        // same hide()-now/close()-on-'done' pattern already proven for the
+        // explicit open-popup-window flow: hide() is synchronous and wins
+        // the race against the native dialog (Windows won't let a window
+        // close while it still owns an open modal); close() only runs
+        // once the download item's 'done' event fires, well after any
+        // save dialog has resolved. Scoped to downloadWebContents ===
+        // win.webContents so it can't react to unrelated downloads
+        // elsewhere in a shared persist:<messengerId> session, and the
+        // listener is removed on 'closed' so it can't leak onto the
+        // session for the rest of the app's lifetime.
+        const onSessionDownload = (_event, item, downloadWebContents) => {
+            if (downloadWebContents !== win.webContents) return
+            if (!win.isDestroyed()) win.hide()
+            if (item) {
+                item.once('done', () => {
+                    if (!win.isDestroyed()) win.close()
+                })
+            } else if (!win.isDestroyed()) {
+                win.close()
+            }
+        }
+        try {
+            const winSession = win.webContents.session
+            winSession.on('will-download', onSessionDownload)
+            win.once('closed', () => {
+                try { winSession.removeListener('will-download', onSessionDownload) } catch {}
+            })
+        } catch {}
     })
 
     // SECURITY: validate every <webview> attachment before Electron creates the
@@ -183,6 +230,61 @@ function registerAppEvents({
                 unreadPollingStarted = true
                 startUnreadPolling(contents, getMainWindow)
             })
+
+            // BUGFIX ("ссылки открываются в новом окне Centrio, обычно
+            // открывались в браузере"): a <webview> guest's own webContents
+            // never got a setWindowOpenHandler — only top-level
+            // BrowserWindows do (see 'browser-window-created' above). The
+            // <webview> tag's DOM 'new-window' event (still wired in
+            // renderer/messengers.js and renderer/webview-tabs-bind.js for
+            // backwards compatibility) no longer fires on this Electron
+            // version — setWindowOpenHandler on the guest's own webContents
+            // is the only mechanism Chromium still calls. Without it, EVERY
+            // window.open()/target=_blank click from inside a messenger
+            // (a shared link, "open in new tab", etc.) fell through to
+            // Electron's default behavior: silently auto-creating a real,
+            // fully-rendering BrowserWindow right inside Centrio instead of
+            // handing off to the OS default browser like a normal desktop
+            // app.
+            //
+            // We can't just deny() outright here: some of these
+            // window.open() calls are actually file downloads in disguise
+            // (see the 'browser-window-created' BUGFIX above, live-
+            // reproduced for a MAX attachment) — denying would suppress the
+            // network request before it ever fires 'will-download', silently
+            // breaking those downloads. So: allow the window to be created
+            // (so a real download can still start and get picked up by the
+            // existing will-download safety net below), but hide it
+            // immediately and, unless it turns out to be a download, hand
+            // the URL to the OS default browser and close it as soon as it
+            // tries to actually navigate/render — mirroring the existing
+            // hide-now/close-later pattern already proven for downloads,
+            // just triggered by "this became a real page" instead of "this
+            // became a download".
+            contents.setWindowOpenHandler(() => ({ action: 'allow' }))
+
+            contents.on('did-create-window', (childWindow) => {
+                if (childWindow.isDestroyed()) return
+                childWindow.hide()
+
+                let isDownload = false
+                const childSession = childWindow.webContents.session
+                const onChildDownload = (_evt, _item, downloadWebContents) => {
+                    if (downloadWebContents === childWindow.webContents) isDownload = true
+                }
+                try { childSession.on('will-download', onChildDownload) } catch {}
+
+                childWindow.webContents.once('did-navigate', (_evt, navUrl) => {
+                    if (isDownload || childWindow.isDestroyed()) return
+                    if (!navUrl || navUrl === 'about:blank') return
+                    shell.openExternal(navUrl).catch(() => {})
+                    childWindow.close()
+                })
+
+                childWindow.once('closed', () => {
+                    try { childSession.removeListener('will-download', onChildDownload) } catch {}
+                })
+            })
         }
 
         contents.on('will-attach-webview', (event, webPreferences, params) => {
@@ -213,7 +315,28 @@ function registerAppEvents({
                 webPreferences.nodeIntegration = false
                 webPreferences.nodeIntegrationInSubFrames = false
                 webPreferences.contextIsolation = true
-                webPreferences.preload = expectedPreload
+
+                // BUGFIX (root cause of "webview-preload.js never runs in guest
+                // pages" — previously mis-diagnosed as an Electron 39 platform
+                // limitation, see the dom-ready/executeJavaScript workaround
+                // above): webPreferences.preload is a *native* Electron option
+                // consumed by web_contents_preferences.cc, which requires a
+                // plain absolute filesystem path and rejects anything that
+                // fails base::FilePath::IsAbsolute() — a file:// URL string does
+                // NOT qualify. Assigning the file:// URL here silently failed
+                // preload injection while logging "preload script must have
+                // absolute path" once per messenger webview at startup (matches
+                // main.log exactly: 8 occurrences for 8 webviews). preloadOk
+                // above still passed because normalizePreloadPath() converts
+                // both sides back to a path before comparing, masking the
+                // mismatch. getWebviewPreloadPath() returns a file:// URL
+                // because that's the format the <webview preload="..."> HTML
+                // attribute expects (renderer/messengers.js,
+                // renderer/webview-tabs-bind.js) — but this native
+                // webPreferences assignment needs the raw filesystem path.
+                webPreferences.preload = expectedPreload.startsWith('file://')
+                    ? fileURLToPath(expectedPreload)
+                    : expectedPreload
             } catch (err) {
                 log.error('[security] will-attach-webview validation error, denying attach:', err.message)
                 event.preventDefault()
@@ -238,11 +361,26 @@ function registerAppEvents({
         // connection (dead network, VPN torn down mid-quit) meant `before-quit`
         // could hang forever and the app would never actually exit. Race it
         // against a hard deadline so quitting is never blocked on the network.
+        //
+        // BUGFIX ("сайдбар не сохраняется" / "возвращает старый сайдбар"):
+        // also wait for any in-flight cloud sync push (renderer's
+        // cloudSyncPush() in sidebar-dnd-bind.js / split.js is fire-and-forget
+        // on the renderer side). Without this, a reorder or preset save
+        // immediately followed by closing the window (closeBehavior:"quit")
+        // could get its push killed mid-request — local disk already has the
+        // correct order, but the stale cloud copy survives and overwrites it
+        // right back on the next launch's cloudSyncPull(). See
+        // main/ipc/api.js waitForPendingSyncPush() for the other half.
         const FLUSH_DEADLINE_MS = 4000
         const deadline = new Promise((resolve) => setTimeout(resolve, FLUSH_DEADLINE_MS))
 
-        Promise.race([tracker.flush().catch(() => {}), deadline])
-            .finally(() => app.quit())
+        Promise.race([
+            Promise.all([
+                tracker.flush().catch(() => {}),
+                waitForPendingSyncPush().catch(() => {})
+            ]),
+            deadline
+        ]).finally(() => app.quit())
     })
 
     app.on('will-quit', () => { unregisterShortcuts() })

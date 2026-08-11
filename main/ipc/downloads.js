@@ -83,6 +83,30 @@ function wireSessionDownloads(ses, getMainWindow) {
     })
 }
 
+// Small extension→MIME lookup for the drag-into-messenger feature below —
+// only needs to be "good enough" for the guest page's File constructor
+// (browsers don't strictly require an accurate MIME type for drop handling),
+// not an exhaustive registry.
+const MIME_BY_EXT = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+    webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp',
+    pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv',
+    json: 'application/json', zip: 'application/zip', rar: 'application/vnd.rar',
+    '7z': 'application/x-7z-compressed', doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
+    mp4: 'video/mp4', mov: 'video/quicktime', avi: 'video/x-msvideo', webm: 'video/webm'
+}
+
+function mimeTypeFor(nameOrPath) {
+    const ext = String(nameOrPath || '').split('.').pop().toLowerCase()
+    return MIME_BY_EXT[ext] || 'application/octet-stream'
+}
+
 function safeOn(channel, listener) {
     ipcMain.removeAllListeners(channel)
     ipcMain.on(channel, listener)
@@ -142,6 +166,64 @@ function registerDownloadsIpc({ getMainWindow }) {
         }
         const err = await shell.openPath(record.savePath)
         return err ? { success: false, error: err } : { success: true }
+    })
+
+    // FEATURE ("перетаскивание из менеджера загрузок сразу в мессенджер"):
+    // renderer has no fs access (sandboxed), so the drag-and-drop gesture in
+    // renderer/downloads-bind.js reads the file's raw bytes through here and
+    // forwards them to the target <webview> via webview.send(), which then
+    // reconstructs a File/DataTransfer inside the guest page and dispatches
+    // synthetic drop events (see webview-preload.js). Only ever reads a path
+    // we ourselves recorded for a *completed* download — never an arbitrary
+    // renderer-supplied path — and caps size to avoid loading huge files
+    // (e.g. multi-GB archives) fully into memory over a single IPC round-trip.
+    const MAX_DRAG_FILE_BYTES = 100 * 1024 * 1024 // 100MB
+    safeHandle('downloads:read-file-bytes', async (_event, id) => {
+        const record = downloadsHistory.find(d => d.id === id)
+        if (!record?.savePath || !fs.existsSync(record.savePath)) {
+            return { success: false, error: 'File not found' }
+        }
+        if (record.state !== 'completed') {
+            return { success: false, error: 'Download not completed' }
+        }
+
+        try {
+            const stat = fs.statSync(record.savePath)
+            if (!stat.isFile()) {
+                return { success: false, error: 'Not a file' }
+            }
+            if (stat.size > MAX_DRAG_FILE_BYTES) {
+                return { success: false, error: 'File too large' }
+            }
+
+            // Явно приводим Buffer к Uint8Array перед возвратом — Buffer технически
+            // наследуется от Uint8Array, но чтобы избежать любой неоднозначности
+            // сериализации через structured-clone границу IPC (main → renderer →
+            // webview.send() → guest), отдаём чистый Uint8Array.
+            const data = new Uint8Array(fs.readFileSync(record.savePath))
+            return {
+                success: true,
+                data,
+                filename: record.filename || path.basename(record.savePath),
+                mimeType: mimeTypeFor(record.filename || record.savePath)
+            }
+        } catch (err) {
+            return { success: false, error: String(err && err.message || err) }
+        }
+    })
+
+    // TEMP DIAGNOSTIC (drag-and-drop-into-messenger investigation): both the
+    // guest-side dispatch (webview-preload.js) and the host-side drag gesture
+    // (renderer/downloads-bind.js) already console.warn on failure, but
+    // getting DevTools reliably attached to a specific <webview>'s guest page
+    // during live testing has been unreliable. Mirror every breadcrumb to a
+    // plain file instead so it can be read directly after a test run. Remove
+    // once the root cause is confirmed and fixed.
+    safeOn('centrio-debug-log', (_event, tag, msg) => {
+        try {
+            const line = `[${new Date().toISOString()}] [${tag}] ${msg}\n`
+            fs.appendFileSync(path.join(app.getPath('userData'), 'drop-debug.log'), line)
+        } catch {}
     })
 
     safeOn('downloads:remove', (_event, id) => {

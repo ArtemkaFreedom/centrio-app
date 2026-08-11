@@ -164,17 +164,27 @@ function bindDownloadsUi({
             }, { once: true })
         })
 
-        // Перетаскивание файла из этой панели прямо в мессенджер — убрано в
-        // v1.9.5. Пробовали дважды (startDrag() из main-процесса, затем
-        // 'DownloadURL' в dataTransfer): первое документированно не работает
-        // для intra-app-дропа на Windows (Electron issue #7118), второе
-        // либо не долетает до <webview> вовсе, либо (для картинок между
-        // мессенджерами) триггерит фолбэк открытия нового окна — тоже
-        // известная проблема самого Electron с drop-событиями внутри
-        // <webview>. «Открыть файл» / «Показать в папке» остаются рабочим
-        // способом добраться до файла.
+        // Перетаскивание файла из этой панели прямо в мессенджер. Раньше
+        // (v1.9.5) было убрано после двух провалившихся попыток: startDrag()
+        // из main-процесса документированно не работает для intra-app-дропа
+        // на Windows (Electron issue #7118), а 'DownloadURL' в dataTransfer
+        // либо не долетал до <webview> вовсе, либо триггерил фолбэк открытия
+        // нового окна (см. комментарий в webview-preload.js). Третий подход
+        // (см. startDownloadDrag ниже) вообще не использует настоящую
+        // OS-drag-сессию — курсор-ghost + геометрия для определения целевого
+        // <webview>, синтетический drop строится ВНУТРИ гостевой страницы.
+        // Обычный клик (без сдвига мыши) по-прежнему открывает файл.
         list.querySelectorAll('.downloads-item').forEach(el => {
+            let suppressClick = false
+
+            el.addEventListener('mousedown', (e) => {
+                const d = downloads.find(x => x.id === el.dataset.id)
+                if (!d || d.state !== 'completed' || e.button !== 0) return
+                startDownloadDrag(e, d, () => { suppressClick = true })
+            })
+
             el.addEventListener('click', () => {
+                if (suppressClick) { suppressClick = false; return }
                 const d = downloads.find(x => x.id === el.dataset.id)
                 if (d && d.state === 'completed') invokeIpc('downloads:open-file', d.id)
             })
@@ -184,6 +194,185 @@ function bindDownloadsUi({
                 showDownloadContextMenu(e, el.dataset.id)
             })
         })
+    }
+
+    // ── Drag-and-drop файла из панели прямо в мессенджер ────────────────────────
+    const DRAG_START_THRESHOLD_PX = 6
+    let dragCtx = null // { ghostEl, targetWv }
+
+    // TEMP DIAGNOSTIC — see matching dlog() in webview-preload.js. Remove once
+    // the drag-and-drop root cause is confirmed and fixed.
+    function dlog(msg) {
+        try { ipcRenderer.send('centrio-debug-log', 'host', msg) } catch {}
+    }
+
+    function setWebviewsPointerEvents(enabled) {
+        // <webview> — отдельный слой композитора со своим процессом; пока
+        // курсор над ним, host-документ вообще не получает mousemove (это же
+        // причина, по которой renderer/split.js делает то же самое при
+        // ресайзе разделителя сплита). Без этого geometry-based определение
+        // целевой вкладки не сработало бы, пока курсор реально над webview.
+        document.querySelectorAll('webview').forEach(wv => {
+            wv.style.pointerEvents = enabled ? '' : 'none'
+        })
+    }
+
+    function findWebviewAtPoint(x, y) {
+        const webviews = document.querySelectorAll('webview')
+        for (const wv of webviews) {
+            const rect = wv.getBoundingClientRect()
+            if (rect.width === 0 || rect.height === 0) continue // скрыт (display:none)
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                return wv
+            }
+        }
+        return null
+    }
+
+    function clearDragTargetHighlight() {
+        document.querySelectorAll('webview.downloads-drag-target')
+            .forEach(wv => wv.classList.remove('downloads-drag-target'))
+    }
+
+    function createGhost(filename) {
+        const el = document.createElement('div')
+        el.className = 'downloads-drag-ghost'
+        el.textContent = filename
+        document.body.appendChild(el)
+        return el
+    }
+
+    // Пока реальная мышь движется над каким-то webview во время перетаскивания
+    // из панели загрузок, шлём туда лёгкие hover-события (без байтов файла —
+    // как настоящий браузерный dragover) так часто, как реально движется
+    // курсор, но не чаще этого порога — иначе на быстрых mousemove улетит
+    // сотня IPC-сообщений в секунду без всякой пользы.
+    const HOVER_THROTTLE_MS = 40
+
+    function beginDrag(record) {
+        dlog(`beginDrag: filename=${record.filename}, webviewCount=${document.querySelectorAll('webview').length}`)
+        setWebviewsPointerEvents(false)
+        dragCtx = { ghostEl: createGhost(record.filename), targetWv: null, record, lastHoverSentAt: 0 }
+    }
+
+    function sendLeave(wv) {
+        if (!wv) return
+        try { wv.send('centrio-drag-leave') } catch (err) {
+            dlog('sendLeave: webview.send() threw: ' + (err && err.message))
+        }
+    }
+
+    function updateDrag(x, y) {
+        if (!dragCtx) return
+        dragCtx.ghostEl.style.left = `${x}px`
+        dragCtx.ghostEl.style.top = `${y}px`
+
+        const wv = findWebviewAtPoint(x, y)
+        if (wv !== dragCtx.targetWv) {
+            clearDragTargetHighlight()
+            // BUGFIX ("файлы перетаскиваются, но мессенджер не показывает
+            // область куда вставляешь — как это показывается из проводника"):
+            // previously the guest's own drop-zone overlay only ever existed
+            // for the ~250ms of the artificial post-drop event burst, since
+            // it had no idea a drag was happening until the file had already
+            // been dropped. Telling the target webview as soon as the real
+            // cursor enters it (and again on every throttled move below) lets
+            // the guest page mount/keep its native-looking drop overlay open
+            // for the whole real hover duration, same as dragging in from
+            // Windows Explorer. Leaving a target (moving to another webview,
+            // or off all of them) tells the old one to tear its overlay down
+            // cleanly instead of leaving it stuck open.
+            if (dragCtx.targetWv) sendLeave(dragCtx.targetWv)
+            if (wv) wv.classList.add('downloads-drag-target')
+            dragCtx.targetWv = wv
+            dragCtx.lastHoverSentAt = 0
+            dlog(`updateDrag: target changed at (${x},${y}) -> ${wv ? (wv.id || wv.getAttribute('src')) : 'none'}`)
+        }
+        dragCtx.ghostEl.classList.toggle('drag-invalid', !wv)
+
+        if (wv) {
+            const now = performance.now()
+            if (now - dragCtx.lastHoverSentAt >= HOVER_THROTTLE_MS) {
+                dragCtx.lastHoverSentAt = now
+                const rect = wv.getBoundingClientRect()
+                try {
+                    wv.send('centrio-drag-hover', {
+                        filename: dragCtx.record.filename,
+                        mimeType: dragCtx.record.mimeType,
+                        x: Math.round(x - rect.left),
+                        y: Math.round(y - rect.top)
+                    })
+                } catch (err) {
+                    dlog('updateDrag: webview.send(centrio-drag-hover) threw: ' + (err && err.message))
+                }
+            }
+        }
+    }
+
+    async function finishDrag(x, y, record) {
+        const targetWv = dragCtx?.targetWv
+        dlog(`finishDrag: at (${x},${y}), targetWv=${targetWv ? (targetWv.id || targetWv.getAttribute('src')) : 'NONE'}`)
+        dragCtx?.ghostEl?.remove()
+        clearDragTargetHighlight()
+        setWebviewsPointerEvents(true)
+        dragCtx = null
+
+        if (!targetWv) { dlog('finishDrag: ABORT no targetWv'); return }
+        const rect = targetWv.getBoundingClientRect()
+
+        const result = await invokeIpc('downloads:read-file-bytes', record.id).catch((err) => {
+            console.warn('[downloads-drag] read-file-bytes failed:', err)
+            dlog('finishDrag: read-file-bytes threw: ' + (err && err.message))
+            return null
+        })
+        if (!result?.success || !result.data) {
+            console.warn('[downloads-drag] no usable file data, aborting drop:', result?.error)
+            dlog('finishDrag: ABORT no usable data: ' + (result && result.error))
+            return
+        }
+        dlog(`finishDrag: read-file-bytes OK, dataLen=${result.data.length}, filename=${result.filename}, sending to webview.send()`)
+
+        try {
+            targetWv.send('centrio-drop-file', {
+                data: result.data,
+                filename: result.filename,
+                mimeType: result.mimeType,
+                x: Math.round(x - rect.left),
+                y: Math.round(y - rect.top)
+            })
+            dlog('finishDrag: webview.send() completed without throwing')
+        } catch (err) {
+            console.warn('[downloads-drag] webview.send(centrio-drop-file) failed:', err)
+            dlog('finishDrag: webview.send() THREW: ' + (err && err.message))
+        }
+    }
+
+    function startDownloadDrag(downEvent, record, onDragArmed) {
+        const startX = downEvent.clientX
+        const startY = downEvent.clientY
+        let armed = false
+
+        function onMove(moveEv) {
+            if (!armed) {
+                const dx = moveEv.clientX - startX
+                const dy = moveEv.clientY - startY
+                if (Math.hypot(dx, dy) < DRAG_START_THRESHOLD_PX) return
+                armed = true
+                onDragArmed()
+                beginDrag(record)
+            }
+            updateDrag(moveEv.clientX, moveEv.clientY)
+        }
+
+        function onUp(upEv) {
+            document.removeEventListener('mousemove', onMove)
+            document.removeEventListener('mouseup', onUp)
+            if (armed) finishDrag(upEv.clientX, upEv.clientY, record)
+            else dlog(`onUp: never armed (threshold not reached) at (${upEv.clientX},${upEv.clientY})`)
+        }
+
+        document.addEventListener('mousemove', onMove)
+        document.addEventListener('mouseup', onUp)
     }
 
     // ── Контекстное меню ───────────────────────────────────────────────────────

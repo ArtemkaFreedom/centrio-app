@@ -63,6 +63,25 @@ function getWebviewPreloadPath() {
     return pathToFileURL(found).toString()
 }
 
+// BUGFIX ("сайдбар не сохраняется" / "возвращает старый сайдбар" after a
+// full quit): renderer's cloudSyncPush() (see renderer/sidebar-dnd-bind.js,
+// renderer/split.js) is fire-and-forget — it kicks off this IPC call but
+// nothing on the renderer side waits for it. With closeBehavior:"quit", the
+// window's 'close' handler lets Electron proceed straight into 'before-quit'.
+// Before this fix, before-quit only awaited tracker.flush() — an in-flight
+// api-sync-push HTTP request could get killed mid-flight when the process
+// exits. The local store.set() already wrote the correct order to disk
+// synchronously, but the STALE cloud copy survives; the very next launch's
+// cloudSyncPull() (renderer.js loadData()) then overwrites local with that
+// stale cloud data, which looks exactly like "reverted to the old sidebar".
+// Track the in-flight push promise here so before-quit (registerAppEvents.js)
+// can await it before actually exiting.
+let pendingSyncPush = null
+
+function waitForPendingSyncPush() {
+    return pendingSyncPush || Promise.resolve()
+}
+
 function registerApiIpc() {
     ipcMain.handle('get-webview-preload-path', () => {
         return getWebviewPreloadPath()
@@ -85,7 +104,7 @@ function registerApiIpc() {
     })
 
     ipcMain.handle('api-sync-push', async (event, token, arg1, arg2, arg3) => {
-        return wrapApi(() => {
+        const pushPromise = wrapApi(() => {
             if (
                 arg1 &&
                 typeof arg1 === 'object' &&
@@ -97,6 +116,12 @@ function registerApiIpc() {
 
             return api.syncPush(token, arg1 || [], arg2 || [], arg3 || {})
         })
+
+        // See waitForPendingSyncPush() BUGFIX comment above.
+        pendingSyncPush = pushPromise
+        const result = await pushPromise
+        if (pendingSyncPush === pushPromise) pendingSyncPush = null
+        return result
     })
 
     ipcMain.handle('api-sync-pull', async (event, token) => {
@@ -175,3 +200,8 @@ module.exports = registerApiIpc
 // (see that file for why this matters) without duplicating the candidate-path
 // resolution logic here.
 module.exports.getWebviewPreloadPath = getWebviewPreloadPath
+// Exported so main/bootstrap/registerAppEvents.js's before-quit handler can
+// await any in-flight cloud sync push (sidebar reorder / split presets)
+// before the process actually exits — see waitForPendingSyncPush() BUGFIX
+// comment above.
+module.exports.waitForPendingSyncPush = waitForPendingSyncPush

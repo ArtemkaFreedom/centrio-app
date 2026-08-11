@@ -1,4 +1,89 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Inter самоxостится локально (assets/fonts/inter/) — раньше грузился через
+ * @import с fonts.googleapis.com, из-за чего первый экран (в том числе экран
+ * блокировки, который рисуется до готовности остального UI) на секунду-две
+ * рендерился системным шрифтом без интернета/при медленной сети, что и
+ * выглядело как "не тот шрифт / кривые иконки" (клавиши PIN-пада центрируются
+ * под конкретные метрики глифов Inter). */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-latin-300-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-cyrillic-300-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-latin-400-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-cyrillic-400-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-latin-500-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-cyrillic-500-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-latin-600-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-cyrillic-600-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-latin-700-normal.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('assets/fonts/inter/inter-cyrillic-700-normal.woff2') format('woff2');
+    unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
 
 /*
  * ╔══════════════════════════════════════════════════════════════════╗
@@ -630,7 +715,23 @@ body.platform-darwin .titlebar-left  { padding-left: 78px; } /* отступ п�
     width: 24px;
     height: 1px;
     background: var(--border);
-    margin: 6px 0;
+    /* BUGFIX ("мессенджеры должны начинаться сразу после плюсика"): 6px
+       margin top+bottom plus the messenger-list's own 4px top padding
+       stacked into an 18px gap below the add button — visibly larger than
+       the ~2-4px rhythm used everywhere else in this sidebar. Tightened so
+       the divider still reads as a group separator without pushing the
+       first messenger icon noticeably away from the "+" button.
+       BUGFIX ("раздели посередине"): flexbox doesn't collapse margins, so
+       every box's margin/padding in this column stacks additively. With
+       symmetric 3px/3px divider margins the gap above the divider (add-btn's
+       1px bottom margin + divider's 3px top margin = 4px) didn't match the
+       gap below it (divider's 3px bottom margin + messenger-list's 2px top
+       padding + the first .messenger-item's 1px top margin = 6px) — the
+       divider visibly sat closer to the "+" button than to the first icon.
+       Reduced bottom margin to 1px so both sides land on the same 4px total,
+       putting the divider exactly halfway between the "+" button and the
+       first messenger icon. */
+    margin: 3px 0 1px;
     flex-shrink: 0;
     opacity: 0.6;
 }
@@ -655,7 +756,10 @@ body.platform-darwin .titlebar-left  { padding-left: 78px; } /* отступ п�
     overflow-y: auto;
     scrollbar-width: none;
     flex: 1;
-    padding: 4px 0;
+    /* See BUGFIX comment on .activity-divider above — top padding trimmed
+       so the first messenger icon sits close under the divider instead of
+       adding its own extra gap on top of the divider's margin. */
+    padding: 2px 0 4px;
     gap: 2px;
 }
 
@@ -1505,7 +1609,14 @@ webview.active { display: flex; }
 /* ===== SPLIT MODE ===== */
 
 /* Container must be relative so absolute children are positioned inside it */
-#contentArea { position: relative; }
+#contentArea {
+    position: relative;
+    /* Smoothly reflows split panes out of the way while the layout-picker
+       popup is open — see showLayoutPicker()/hideLayoutPicker() in
+       renderer/split.js, which set/clear padding-left inline to match the
+       popup's actual rendered width. */
+    transition: padding-left 0.18s ease;
+}
 
 /* ── FIX: tabs-content must not eat pointer events in split mode ── */
 /* The container div spans full width; without this it blocks the picker */
@@ -1601,6 +1712,16 @@ webview.active { display: flex; }
 /* Скрываем handle когда открыты настройки или любой модал */
 body.settings-open .split-handle { display: none !important; }
 body:has(.modal.show) .split-handle { display: none !important; }
+
+/* Границы сетки-раскладок 2top1bottom/1top2bottom (см. split.js
+   _positionGridHandles) — тот же внешний вид/поведение, что и .split-handle
+   выше, только с другим курсором под свою ось перетаскивания. Позиция
+   (top/left/width/height) полностью считается и проставляется инлайн из
+   JS — здесь только курсор и вид индикатора-палочки через общий класс
+   .split-handle. */
+.split-handle-row { cursor: row-resize; }
+.split-handle-row::after { width: 32px; height: 2px; }
+.split-handle-side { cursor: col-resize; }
 
 /* ── Right-pane messenger picker ────────────────────────────────── */
 /* position:fixed + z-index are set by JS (appended to document.body) */
@@ -1900,6 +2021,40 @@ body:has(.modal.show) .split-handle { display: none !important; }
     color: var(--danger);
 }
 
+.split-preset-row-rename {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 4px;
+    opacity: 0.6;
+}
+
+.split-preset-row-rename:hover {
+    opacity: 1;
+    color: var(--accent);
+}
+
+.split-preset-row.renaming {
+    cursor: default;
+}
+
+.split-preset-rename-input {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-active);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 12.5px;
+    color: var(--text-primary);
+    font-family: inherit;
+    outline: none;
+}
+
 .split-save-preset-btn {
     width: 100%;
     background: none;
@@ -2129,7 +2284,9 @@ body:has(.modal.show) .split-handle { display: none !important; }
     width: 22px;
     height: 1px;
     background: rgba(255,255,255,0.07);
-    margin: 8px auto;
+    /* Same tightening as the base .activity-divider rule — see BUGFIX
+       comment there. */
+    margin: 3px auto;
     opacity: 1;
     border-radius: 1px;
 }
@@ -3854,126 +4011,6 @@ body:has(.modal.show) .split-handle { display: none !important; }
     opacity: 0.7;
 }
 
-/* ===== ЭКРАН БЛОКИРОВКИ ===== */
-.lock-screen {
-    position: fixed;
-    transition: opacity 220ms ease;
-    inset: 0;
-    background: var(--bg-primary);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    -webkit-app-region: drag;
-}
-
-[data-theme="glass"] .lock-screen {
-    background: var(--bg-primary);
-    backdrop-filter: blur(40px);
-    -webkit-backdrop-filter: blur(40px);
-}
-
-[data-theme="glass"] .lock-screen::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-        radial-gradient(ellipse at 30% 40%, rgba(99,102,241,0.12) 0%, transparent 60%),
-        radial-gradient(ellipse at 70% 70%, rgba(167,139,250,0.08) 0%, transparent 50%);
-    pointer-events: none;
-}
-
-.lock-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-    width: 300px;
-    -webkit-app-region: no-drag;
-    animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.lock-icon {
-    font-size: 52px;
-    margin-bottom: 4px;
-    filter: drop-shadow(0 0 20px var(--accent-glow));
-    animation: pulse-glow 3s ease infinite;
-}
-
-.lock-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--text-bright);
-    margin: 0;
-    letter-spacing: -0.4px;
-}
-
-.lock-sub {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin: 0;
-    text-align: center;
-    line-height: 1.5;
-}
-
-.lock-input {
-    width: 100%;
-    padding: 12px 16px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    color: var(--text-primary);
-    font-size: 16px;
-    outline: none;
-    text-align: center;
-    letter-spacing: 4px;
-    box-sizing: border-box;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    font-family: inherit;
-}
-
-.lock-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim), var(--shadow-glow);
-}
-
-.lock-input.error {
-    border-color: var(--danger);
-    box-shadow: 0 0 0 3px var(--danger-dim);
-    animation: shake 0.4s ease;
-}
-
-.lock-btn {
-    width: 100%;
-    padding: 12px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    font-family: inherit;
-    box-shadow: 0 4px 20px var(--accent-glow);
-}
-
-.lock-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 32px var(--accent-glow);
-}
-
-.lock-btn:active {
-    transform: translateY(0);
-}
-
-.lock-error {
-    font-size: 12px;
-    color: var(--danger);
-    margin: 0;
-    animation: fadeIn 0.2s ease;
-}
-
 /* ===== ПОЛЯ ПАРОЛЯ В НАСТРОЙКАХ ===== */
 .settings-row-col {
     display: flex;
@@ -5457,6 +5494,25 @@ body:has(.modal.show) .split-handle { display: none !important; }
     justify-content: center;
     background: var(--bg-primary);
     overflow: hidden;
+    /* Окно безрамочное — без этого весь экран блокировки (включая пустое
+       место вокруг .lock-box) был бы недоступен для перетаскивания окна. */
+    -webkit-app-region: drag;
+}
+
+[data-theme="glass"] .lock-screen {
+    background: var(--bg-primary);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+}
+
+[data-theme="glass"] .lock-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at 30% 40%, rgba(99,102,241,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 70%, rgba(167,139,250,0.08) 0%, transparent 50%);
+    pointer-events: none;
 }
 
 /* Медленный дрейфующий градиент вместо статичного пятна — фон "живой", но
@@ -5498,6 +5554,7 @@ body:has(.modal.show) .split-handle { display: none !important; }
                 0 0 0 1px var(--border);
     min-width: 380px;
     animation: lockAppear 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    -webkit-app-region: no-drag;
 }
 
 @keyframes lockAppear {
@@ -10124,6 +10181,41 @@ body.startup-locked #lockScreen {
     align-items: center;
     justify-content: center;
     color: var(--text-secondary);
+}
+
+/* Перетаскивание файла из панели загрузок прямо в мессенджер (см.
+   renderer/downloads-bind.js). Не нативный HTML5-drag (см. комментарий там
+   про предыдущие два провалившихся подхода) — курсор-ghost, следующий за
+   мышью, плюс подсветка целевого <webview> при наведении. */
+.downloads-drag-ghost {
+    position: fixed;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: var(--bg-elevated, #2a2a2a);
+    border: 1px solid var(--accent);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    color: var(--text-primary, #fff);
+    font-size: 12px;
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    opacity: 0.95;
+}
+
+.downloads-drag-ghost.drag-invalid {
+    border-color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+webview.downloads-drag-target {
+    box-shadow: inset 0 0 0 3px var(--accent), 0 0 16px var(--accent-glow);
 }
 
 /* ── Версия в статусбаре ────────────────────────────────────────── */

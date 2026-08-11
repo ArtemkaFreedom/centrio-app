@@ -68,7 +68,7 @@ const validInvokeChannels = new Set([
     // main/ipc/downloads.js
     'choose-download-dir', 'dialog:selectDirectory', 'get-save-image-path',
     'copy-image-to-clipboard', 'copy-text-to-clipboard',
-    'downloads:get-history', 'downloads:open-file',
+    'downloads:get-history', 'downloads:open-file', 'downloads:read-file-bytes',
     // main/ipc/updater.js
     'install-update', 'check-for-updates', 'app:checkForUpdates',
     // main/ipc/settingsPortability.js

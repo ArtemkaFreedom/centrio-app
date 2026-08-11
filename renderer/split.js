@@ -66,7 +66,22 @@ function computeRowLayout (layout, rowPct, sidePct) {
     return null
 }
 
-function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) {
+function createSplitApi ({
+    state,
+    tabsContent,
+    contentArea,
+    store,
+    switchTab,
+    // BUGFIX ("пресеты в сплитах не сохраняются" — persistence-across-restart
+    // half of it): same cloud-overwrite mechanism as sidebarOrder — see
+    // renderer/sidebar-dnd-bind.js. saveCurrentAsPreset()/deletePreset() only
+    // wrote the local store; loadData()'s cloudSyncPull() unconditionally
+    // restores splitPresets from the cloud's stale copy on every startup, so
+    // any local preset add/delete not also pushed to the cloud got reverted
+    // on the next launch. Optional so this file still works without cloud.
+    cloudSyncPush,
+    isCloudLoggedIn
+}) {
     const splitHandle     = document.getElementById('splitHandle')
     const splitPicker     = document.getElementById('splitPicker')
     const splitPickerList = document.getElementById('splitPickerList')
@@ -125,6 +140,24 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         splitHandle.style.display  = 'none'
     }
 
+    // BUGFIX ("окна не изменяют размер" при перетаскивании границы в
+    // раскладках 2top1bottom/1top2bottom): getGridLayout() (см. выше) уже
+    // умел считать динамические прямоугольники из state.gridRowPct/
+    // gridSidePct, но ничего никогда не двигало эти значения — не было ни
+    // DOM-узлов для горизонтальной/вертикальной границы, ни обработчиков
+    // drag. '3col'/'2x2' остаются статичными (getGridLayout возвращает
+    // GRID_LAYOUTS для них), поэтому эти два хендла показываются только для
+    // раскладок 2top1bottom/1top2bottom — см. _positionGridHandles().
+    ;[gridRowHandle, gridSideHandle].forEach(el => {
+        if (!el) return
+        if (el.parentElement !== document.body) document.body.appendChild(el)
+        el.style.position = 'fixed'
+        el.style.zIndex   = '99998'
+        el.style.display  = 'none'
+    })
+    if (gridRowHandle)  gridRowHandle.classList.add('split-handle', 'split-handle-row')
+    if (gridSideHandle) gridSideHandle.classList.add('split-handle', 'split-handle-side')
+
     if (splitPicker && splitPicker.parentElement !== document.body) {
         document.body.appendChild(splitPicker)
     }
@@ -134,12 +167,35 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         splitPicker.style.display  = 'none'
     }
 
-    ;[splitLayoutPicker, splitZones, splitZonePicker].forEach(el => {
+    ;[splitZones, splitZonePicker].forEach(el => {
         if (!el) return
         if (el.parentElement !== document.body) document.body.appendChild(el)
         el.style.position = 'fixed'
         el.style.zIndex   = '99999'
     })
+
+    // BUGFIX ("выйти из сплита нельзя, если в зоне не выбран мессенджер"):
+    // splitLayoutPicker (раскладки + кнопка "Выключить сплит-режим",
+    // splitExitBtn) used to share the same z-index (99999) as splitPicker/
+    // splitZones/splitZonePicker. With equal z-index, later siblings in
+    // document.body win ties — and splitZones (holding the real, clickable
+    // — pointer-events:auto — ".split-zone-placeholder" "Выбрать
+    // мессенджер" tiles for every unassigned grid zone, see
+    // renderGridZones()) was appended AFTER splitLayoutPicker. showLayoutPicker()
+    // opens flush against the left edge of #contentArea (anchored at
+    // splitBtn's own rect, in the icon rail) — exactly where the leftmost
+    // grid zone(s) render. Whenever that zone had no messenger assigned yet,
+    // its full-rect placeholder sat, stacking-wise, on top of the layout
+    // picker and silently ate every click meant for it, including
+    // splitExitBtn — split mode became impossible to leave. Give
+    // splitLayoutPicker a strictly higher z-index than every other
+    // split-related overlay so the one popup that can always exit split
+    // mode is never occluded by an empty zone's picker prompt.
+    if (splitLayoutPicker) {
+        if (splitLayoutPicker.parentElement !== document.body) document.body.appendChild(splitLayoutPicker)
+        splitLayoutPicker.style.position = 'fixed'
+        splitLayoutPicker.style.zIndex   = '100000'
+    }
 
     // BUGFIX ("фиолетовая рамка вылезает поверх настроек" / "разделители
     // вылезли на экран блокировки"), take 2: instead of permanently
@@ -150,7 +206,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     // #lockScreen (plain style.display toggle, see renderer/lock.js) —
     // watching both class AND style attributes, not just class, is what
     // actually catches the lock screen case.
-    const _splitFixedEls = [splitHandle, splitPicker, splitLayoutPicker, splitZones, splitZonePicker].filter(Boolean)
+    const _splitFixedEls = [splitHandle, gridRowHandle, gridSideHandle, splitPicker, splitLayoutPicker, splitZones, splitZonePicker].filter(Boolean)
     const _splitFixedPrevDisplay = new Map()
     function _isOverlayOpen () {
         if (document.querySelector('.modal.show')) return true
@@ -219,6 +275,58 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         splitPicker.style.bottom = 'auto'
     }
 
+    // Только 2top1bottom/1top2bottom двигаются — 3col/2x2 остаются
+    // статичными (getGridLayout возвращает GRID_LAYOUTS для них), поэтому
+    // оба хендла прячутся вне этих двух раскладок.
+    function _isRowGridLayout (layout) {
+        return layout === '2top1bottom' || layout === '1top2bottom'
+    }
+
+    function _positionGridHandles () {
+        if (!gridRowHandle && !gridSideHandle) return
+        if (!state.splitMode || !_isRowGridLayout(state.splitLayout)) {
+            if (gridRowHandle)  gridRowHandle.style.display  = 'none'
+            if (gridSideHandle) gridSideHandle.style.display = 'none'
+            return
+        }
+
+        const rect    = contentArea.getBoundingClientRect()
+        const rowPct  = state.gridRowPct  || 50
+        const sidePct = state.gridSidePct || 50
+        // '2top1bottom': rowPct = высота верхнего ряда (граница-строка ниже
+        // него). '1top2bottom': rowPct = высота НИЖНЕГО ряда (та же
+        // конвенция, что и в computeRowLayout выше) — граница-строка стоит
+        // на (100 - rowPct)% от верха.
+        const dividerY   = state.splitLayout === '2top1bottom' ? rowPct : (100 - rowPct)
+        const splitRowTop    = state.splitLayout === '2top1bottom' ? 0 : (100 - rowPct)
+        const splitRowHeight = rowPct
+
+        if (gridRowHandle) {
+            gridRowHandle.style.display = 'block'
+            gridRowHandle.style.left    = rect.left + 'px'
+            gridRowHandle.style.top     = (rect.top + rect.height * (dividerY / 100) - 3) + 'px'
+            gridRowHandle.style.width   = rect.width + 'px'
+            gridRowHandle.style.height  = '6px'
+            gridRowHandle.style.right   = 'auto'
+            gridRowHandle.style.bottom  = 'auto'
+        }
+        if (gridSideHandle) {
+            gridSideHandle.style.display = 'block'
+            gridSideHandle.style.left    = (rect.left + rect.width * (sidePct / 100) - 3) + 'px'
+            gridSideHandle.style.top     = (rect.top + rect.height * (splitRowTop / 100)) + 'px'
+            gridSideHandle.style.width   = '6px'
+            gridSideHandle.style.height  = (rect.height * (splitRowHeight / 100)) + 'px'
+            gridSideHandle.style.right   = 'auto'
+            gridSideHandle.style.bottom  = 'auto'
+        }
+    }
+
+    function _reapplyGridLayout () {
+        state.splitZoneIds.forEach((id, i) => { if (id) _applyGridZoneWebview(i, id) })
+        renderGridZones()
+        _positionGridHandles()
+    }
+
     window.addEventListener('resize', () => {
         if (!state.splitMode) return
         if (state.splitLayout === '2col') {
@@ -226,6 +334,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
             if (splitPicker?.style.display !== 'none') _positionPicker()
         } else {
             renderGridZones()
+            _positionGridHandles()
         }
     })
 
@@ -250,7 +359,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     }
 
     function _applyGridZoneWebview (zoneIndex, messengerId) {
-        const zones = GRID_LAYOUTS[state.splitLayout]
+        const zones = getGridLayout(state.splitLayout)
         const rect  = zones && zones[zoneIndex]
         const wv    = messengerId ? document.getElementById(`webview-${messengerId}`) : null
         if (!rect || !wv) return
@@ -275,7 +384,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     function renderGridZones () {
         if (!splitZones) return
         splitZones.innerHTML = ''
-        const zones = GRID_LAYOUTS[state.splitLayout]
+        const zones = getGridLayout(state.splitLayout)
         if (!zones) return
 
         zones.forEach((rect, i) => {
@@ -389,7 +498,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
             splitZonePickerList.appendChild(item)
         })
 
-        const zones = GRID_LAYOUTS[state.splitLayout]
+        const zones = getGridLayout(state.splitLayout)
         const px = zones ? _zoneRectToPx(zones[zoneIndex]) : null
         splitZonePicker.style.display = 'block'
         if (px) {
@@ -446,6 +555,23 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
             if (top < 10) top = 10
             if (top + pRect.height > window.innerHeight - 10) top = window.innerHeight - pRect.height - 10
             splitLayoutPicker.style.top = `${Math.max(10, top)}px`
+
+            // BUGFIX ("всё равно перекрывает окно сплита"): a fixed-position
+            // popup anchored next to splitBtn (bottom of the icon rail) has no
+            // way to avoid covering chat content underneath — the rail sits
+            // flush against contentArea, so any reasonably sized popup opening
+            // there necessarily overlaps the leftmost pane's message list.
+            // Instead of overlaying on top, push the actual split content out
+            // of the way: pad #contentArea on the left by the picker's own
+            // width, so its percentage-based webview layout (inset:0 / 100%
+            // width, see .tabs-content / webview rules in styles.css) reflows
+            // into the narrower remaining space and the picker renders in the
+            // freed gap instead of on top of anything. Reverted in
+            // hideLayoutPicker() below, which is also the single handler for
+            // 'close-all-popups' so every dismissal path restores full width.
+            if (contentArea) {
+                contentArea.style.paddingLeft = `${pRect.width + 20}px`
+            }
         })
 
         document.dispatchEvent(new CustomEvent('popup-opened'))
@@ -453,6 +579,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
 
     function hideLayoutPicker () {
         if (splitLayoutPicker) splitLayoutPicker.style.display = 'none'
+        if (contentArea) contentArea.style.paddingLeft = ''
     }
 
     document.addEventListener('close-all-popups', hideLayoutPicker)
@@ -483,8 +610,8 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     // matching the "left pane mirrors activeTabId" convention used
     // everywhere else in this file.
     function enterGridSplitMode (layout, presetZoneIds) {
-        const zones = GRID_LAYOUTS[layout]
-        if (!zones) return false
+        const zones = GRID_LAYOUTS[layout] // validity check only — uses the static table
+        if (!zones) return false           // on purpose, layout names never vary by pct
         if (state.activeMessengers.length < 2) {
             if (splitBtn) {
                 const orig = splitBtn.title
@@ -518,6 +645,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
 
         state.splitZoneIds.forEach((id, i) => { if (id) _applyGridZoneWebview(i, id) })
         renderGridZones()
+        _positionGridHandles()
         _persistGridSplit()
         return true
     }
@@ -645,6 +773,10 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
 
         if (splitHandle) splitHandle.style.display = 'block'
         applyLeft(state.splitLeftPct || 50)
+        // Скрываем хендлы сетки-раскладок — актуально при переключении сюда
+        // из 2top1bottom/1top2bottom через switchSplitLayout без полного
+        // выхода из сплита (exitSplitMode тут не вызывается).
+        _positionGridHandles()
 
         splitBtn?.classList.add('split-active')
 
@@ -706,6 +838,8 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         splitBtn?.classList.remove('split-active')
 
         if (splitHandle) splitHandle.style.display = 'none'
+        if (gridRowHandle)  gridRowHandle.style.display  = 'none'
+        if (gridSideHandle) gridSideHandle.style.display = 'none'
         hideLayoutPicker()
 
         // Сбрасываем сохранённое состояние
@@ -762,6 +896,7 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         })
         console.log('[CENTRIO-DEBUG] saveCurrentAsPreset writing', presets.length, 'presets')
         store?.set?.('splitPresets', presets)
+        _pushSplitPresetsToCloud()
         renderPresetsList()
         return true
     }
@@ -769,7 +904,29 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
     function deletePreset (id) {
         const presets = getPresets().filter(p => p.id !== id)
         store?.set?.('splitPresets', presets)
+        _pushSplitPresetsToCloud()
         renderPresetsList()
+    }
+
+    // Переименовать существующий пресет — тот же паттерн персистентности,
+    // что и deletePreset (store.set + push в облако + перерисовка списка).
+    function renamePreset (id, newName) {
+        const trimmed = String(newName || '').trim()
+        if (!trimmed) return false
+        const presets = getPresets()
+        const preset = presets.find(p => p.id === id)
+        if (!preset) return false
+        preset.name = trimmed
+        store?.set?.('splitPresets', presets)
+        _pushSplitPresetsToCloud()
+        renderPresetsList()
+        return true
+    }
+
+    function _pushSplitPresetsToCloud () {
+        if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn() && typeof cloudSyncPush === 'function') {
+            cloudSyncPush()
+        }
     }
 
     // Применяет пресет одним кликом: переключается на его основной таб
@@ -784,11 +941,73 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         if (existingIds.length < 2) return false
 
         const primaryId = existingIds[0]
+
+        // BUGFIX ("пресет не восстанавливается при нажатии"): the presets
+        // panel is normally opened WHILE already inside a split layout —
+        // that's the whole point of switching presets. The global switchTab()
+        // in renderer.js special-cases state.splitMode to route clicks into
+        // whichever pane/zone currently has focus (splitApi.switchSplitTab /
+        // switchGridZone) instead of ever touching state.activeTabId. So
+        // calling switchTab(primaryId) here while still in split mode silently
+        // assigned the preset's primary messenger to the focused SECONDARY
+        // pane/zone (or did nothing if it was already assigned elsewhere) —
+        // state.activeTabId never changed, and enterSplitMode/
+        // enterGridSplitMode below then read the wrong (old) primary from it.
+        // Clean up the current layout's DOM first, then temporarily drop
+        // splitMode so switchTab falls through to its normal "make this the
+        // active tab" path, exactly like it would outside of a split.
+        if (state.splitMode) _cleanupCurrentLayoutDom()
+
+        // BUGFIX ("всё равно перекрывает окно сплита" — overlap still
+        // happens even after the switchTab() ordering fix for bug #6): that
+        // fix relies on onPrimaryChanged() running BEFORE the webview gets
+        // its 'active' class inside switchTab(). But onPrimaryChanged() bails
+        // out immediately with `if (!state.splitMode) return` — and right
+        // below, splitMode is deliberately forced to false for the
+        // switchTab(primaryId) call (see comment above), specifically so
+        // switchTab() takes its normal non-split branch. That means
+        // onPrimaryChanged() is a complete no-op here, and switchTab() shows
+        // the primary webview at the *default* full-size CSS (100%/100%,
+        // inset:0) — exactly the wrong-size-first-paint bug #6 was fixed for,
+        // just reached through a different door. enterSplitMode()/
+        // enterGridSplitMode() below do reapply the *correct* target rect a
+        // moment later, but by then the webview's compositor layer has
+        // already latched onto the wrong (full-size) geometry from its first
+        // paint, same quirk documented in switchTab()'s BUGFIX comment.
+        // Fix: pre-apply the preset's target rect for the primary webview
+        // directly, BEFORE switchTab() can ever show it — so there is no
+        // wrong size to ever get latched in. enterSplitMode()/
+        // enterGridSplitMode() then just reapply the same numbers (no-op).
+        const primaryWvEl = document.getElementById(`webview-${primaryId}`)
+        if (primaryWvEl) {
+            if (preset.layout === '2col') {
+                const pct = state.splitLeftPct || 50
+                primaryWvEl.style.left   = '0'
+                primaryWvEl.style.right  = `calc(100% - ${pct}%)`
+                primaryWvEl.style.width  = 'auto'
+                primaryWvEl.style.top    = ''
+                primaryWvEl.style.height = ''
+                primaryWvEl.style.bottom = ''
+            } else {
+                const zones = getGridLayout(preset.layout)
+                const rect  = zones && zones[0]
+                if (rect) {
+                    primaryWvEl.style.left   = rect.left + '%'
+                    primaryWvEl.style.top    = rect.top + '%'
+                    primaryWvEl.style.width  = rect.width + '%'
+                    primaryWvEl.style.height = rect.height + '%'
+                    primaryWvEl.style.right  = 'auto'
+                    primaryWvEl.style.bottom = 'auto'
+                }
+            }
+        }
+
+        const wasSplitMode = state.splitMode
+        state.splitMode = false
         if (primaryId !== state.activeTabId && typeof switchTab === 'function') {
             switchTab(primaryId)
         }
-
-        if (state.splitMode) _cleanupCurrentLayoutDom()
+        state.splitMode = wasSplitMode
 
         if (preset.layout === '2col') {
             return enterSplitMode(existingIds[1])
@@ -807,6 +1026,11 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         listEl.innerHTML = presets.map(p => `
             <div class="split-preset-row" data-id="${p.id}" title="Применить пресет «${p.name.replace(/"/g, '&quot;')}»">
                 <span class="split-preset-row-name">${p.name.replace(/</g, '&lt;')}</span>
+                <button type="button" class="split-preset-row-rename" data-rename-id="${p.id}" title="Переименовать пресет">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                    </svg>
+                </button>
                 <button type="button" class="split-preset-row-delete" data-delete-id="${p.id}" title="Удалить пресет">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -818,6 +1042,8 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         listEl.querySelectorAll('.split-preset-row').forEach(row => {
             row.addEventListener('click', (e) => {
                 if (e.target.closest('.split-preset-row-delete')) return
+                if (e.target.closest('.split-preset-row-rename')) return
+                if (row.classList.contains('renaming')) return
                 hideLayoutPicker()
                 applyPreset(row.dataset.id)
             })
@@ -826,6 +1052,50 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
             btn.addEventListener('click', (e) => {
                 e.stopPropagation()
                 deletePreset(btn.dataset.deleteId)
+            })
+        })
+        // BUGFIX ("нет возможности переименовать пресет"): window.prompt()
+        // is already confirmed dead in this frameless window (see the save-
+        // preset comment above) — reuse the same inline-input convention
+        // instead of a native dialog.
+        listEl.querySelectorAll('.split-preset-row-rename').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation()
+                const row = btn.closest('.split-preset-row')
+                const nameEl = row?.querySelector('.split-preset-row-name')
+                if (!row || !nameEl || row.classList.contains('renaming')) return
+
+                const id = row.dataset.id
+                const currentName = nameEl.textContent
+                row.classList.add('renaming')
+
+                const input = document.createElement('input')
+                input.type = 'text'
+                input.className = 'split-preset-rename-input'
+                input.value = currentName
+                nameEl.replaceWith(input)
+                input.focus()
+                input.select()
+
+                let settled = false
+                const commit = () => {
+                    if (settled) return
+                    settled = true
+                    const ok = renamePreset(id, input.value)
+                    if (!ok) renderPresetsList() // revert to original name on empty input
+                }
+                const cancel = () => {
+                    if (settled) return
+                    settled = true
+                    renderPresetsList()
+                }
+
+                input.addEventListener('click', (ev) => ev.stopPropagation())
+                input.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') { ev.preventDefault(); commit() }
+                    else if (ev.key === 'Escape') { ev.preventDefault(); cancel() }
+                })
+                input.addEventListener('blur', commit)
             })
         })
     }
@@ -1018,16 +1288,94 @@ function createSplitApi ({ state, tabsContent, contentArea, store, switchTab }) 
         store?.set?.('splitLeftPctPref', state.splitLeftPct || 50)
     })
 
+    // ── Grid drag resize (2top1bottom / 1top2bottom row+side dividers) ─────────
+    // Same drag/pointer-events pattern as splitHandle above, applied to the
+    // two dynamic dividers wired up in _positionGridHandles().
+
+    let _gridRowDragging  = false
+    let _gridSideDragging = false
+
+    gridRowHandle?.addEventListener('mousedown', e => {
+        _gridRowDragging = true
+        gridRowHandle.classList.add('dragging')
+        document.body.style.cursor     = 'row-resize'
+        document.body.style.userSelect = 'none'
+        _disableWebviewPointerEvents()
+        e.preventDefault()
+        e.stopPropagation()
+    })
+
+    gridSideHandle?.addEventListener('mousedown', e => {
+        _gridSideDragging = true
+        gridSideHandle.classList.add('dragging')
+        document.body.style.cursor     = 'col-resize'
+        document.body.style.userSelect = 'none'
+        _disableWebviewPointerEvents()
+        e.preventDefault()
+        e.stopPropagation()
+    })
+
+    document.addEventListener('mousemove', e => {
+        if (_gridRowDragging) {
+            const rect = contentArea.getBoundingClientRect()
+            let dividerPct = ((e.clientY - rect.top) / rect.height) * 100
+            dividerPct = Math.max(15, Math.min(85, dividerPct))
+            // См. _positionGridHandles(): для '1top2bottom' rowPct хранит
+            // высоту НИЖНЕГО ряда, поэтому конвертируем позицию границы
+            // обратно в rowPct по той же (обратной) формуле.
+            state.gridRowPct = state.splitLayout === '2top1bottom' ? dividerPct : (100 - dividerPct)
+            _reapplyGridLayout()
+        }
+        if (_gridSideDragging) {
+            const rect = contentArea.getBoundingClientRect()
+            let pct = ((e.clientX - rect.left) / rect.width) * 100
+            pct = Math.max(15, Math.min(85, pct))
+            state.gridSidePct = pct
+            _reapplyGridLayout()
+        }
+    })
+
+    document.addEventListener('mouseup', () => {
+        if (_gridRowDragging) {
+            _gridRowDragging = false
+            gridRowHandle?.classList.remove('dragging')
+            document.body.style.cursor     = ''
+            document.body.style.userSelect = ''
+            _restoreWebviewPointerEvents()
+            store?.set?.('gridRowPctPref', state.gridRowPct || 50)
+        }
+        if (_gridSideDragging) {
+            _gridSideDragging = false
+            gridSideHandle?.classList.remove('dragging')
+            document.body.style.cursor     = ''
+            document.body.style.userSelect = ''
+            _restoreWebviewPointerEvents()
+            store?.set?.('gridSidePctPref', state.gridSidePct || 50)
+        }
+    })
+
     // ── Button wiring ─────────────────────────────────────────────────────────
 
-    // Раньше клик по кнопке сплита, пока сплит уже активен, сразу его
-    // выключал — единственным способом сменить раскладку (например, с
-    // тройной на двойную) было сначала полностью выйти, а потом заходить
-    // заново и пересобирать всё вручную. Теперь клик всегда открывает
-    // список раскладок/пресетов (showLayoutPicker подсвечивает текущую и
-    // показывает кнопку "Выключить сплит-режим" — см. splitExitBtn ниже),
-    // а полный выход — отдельное явное действие.
-    splitBtn?.addEventListener('click', () => showLayoutPicker())
+    // BUGFIX ("второе нажатие на сплит — закрытие окна, как везде"): clarified
+    // by the user — "окно" here means the layout-picker POPUP, not split mode
+    // itself. Earlier attempt wired a second click to exitSplitMode(), which
+    // was wrong (accidentally exits split mode instead of just dismissing the
+    // picker) and has been reverted. Correct behavior, matching every other
+    // toggle-style button in this app (downloadsBtn, notif bell, etc.): a
+    // click toggles the picker popup itself — open it if hidden, close it if
+    // already shown — regardless of whether split mode is currently active.
+    // This also naturally keeps in-place layout reconfiguration working
+    // (clicking splitBtn while split mode is on reopens the picker with the
+    // current layout highlighted, same as before), so no separate
+    // right-click affordance is needed.
+    splitBtn?.addEventListener('click', () => {
+        const isOpen = splitLayoutPicker && splitLayoutPicker.style.display !== 'none'
+        if (isOpen) {
+            hideLayoutPicker()
+        } else {
+            showLayoutPicker()
+        }
+    })
 
     splitCloseBtn?.addEventListener('click', () => exitSplitMode())
     splitExitBtn?.addEventListener('click', () => { hideLayoutPicker(); exitSplitMode() })

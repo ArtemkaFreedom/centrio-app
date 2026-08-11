@@ -110,7 +110,21 @@ const ALLOWED_STORE_ROOTS = new Set([
     'menuCollapsed', 'messengers', 'mutedMessengers', 'globalMuteAll',
     'globalProxy', 'sidebarOrder', 'vpnAppModes', 'vpnActiveLink',
     'vpnSubUrl', 'vpnSubLinks', 'tabZoomLevel', 'appZoomLevel', 'folders',
-    'dividers', 'lockOnStartup', 'pinEnabled', 'pinHash', 'split'
+    'dividers', 'lockOnStartup', 'pinEnabled', 'pinHash', 'split',
+    // BUGFIX ("пресеты в сплитах не сохраняются"): these keys were added to
+    // split.js/renderer.js well after this allowlist was written for the
+    // store:get/set/delete IPC gate. store:set silently returned
+    // { success: false } for any key not in this set (see isValidStoreKey
+    // below), and the renderer's store.set() shim never inspects that
+    // return value — so every splitPresets/pref write was dropped on the
+    // floor with zero error surfaced anywhere, no matter how many times the
+    // save button was clicked or how the renderer-side save flow was fixed.
+    'splitPresets', 'splitLeftPctPref', 'gridRowPctPref', 'gridSidePctPref',
+    // BUGFIX ("выбранный мессенджер не сохраняется между перезапусками"):
+    // switchTab() in renderer.js needs to persist the active tab id so it can
+    // be restored on next launch — same disease as the splitPresets bug above
+    // (store:set silently rejected for any key missing from this allowlist).
+    'activeTabId'
 ])
 
 const DANGEROUS_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype'])

@@ -2,7 +2,17 @@ function createSidebarDndApi({
     state,
     store,
     messengerList,
-    moveMessengerToFolder
+    moveMessengerToFolder,
+    // BUGFIX ("сайдбар не сохраняется" / порядок откатывается после
+    // перезапуска): saveOrder() used to only write the local store. On every
+    // startup where the user is logged into cloud sync, loadData()'s
+    // cloudSyncPull() unconditionally overwrites local sidebarOrder with the
+    // server's (stale) copy — see renderer.js loadData(). Since nothing here
+    // ever pushed a fresh reorder back up, the very next restart always
+    // reverted to whatever order was last in the cloud. Optional so this file
+    // still works (cloud sync just skipped) if the caller doesn't wire it in.
+    cloudSyncPush,
+    isCloudLoggedIn
 }) {
     // ── Идентификаторы DOM-элементов по типу сущности ──────────────────────
     function elIdFor(type, id) {
@@ -23,7 +33,15 @@ function createSidebarDndApi({
                 order.push({ type: 'divider', id: el.id.replace('divider-', '') })
             }
         })
+        console.log('[CENTRIO-DEBUG] saveOrder writing', order.length, 'entries:', JSON.stringify(order))
         store.set('sidebarOrder', order)
+
+        // Push immediately so the cloud copy never stays stale — otherwise
+        // the next app start's cloudSyncPull() overwrites this change right
+        // back to whatever order was last synced (see BUGFIX comment above).
+        if (typeof isCloudLoggedIn === 'function' && isCloudLoggedIn() && typeof cloudSyncPush === 'function') {
+            cloudSyncPush()
+        }
     }
 
     function loadOrder() {

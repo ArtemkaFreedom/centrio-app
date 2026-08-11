@@ -226,10 +226,35 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
             // listener on close, each popup would leak one more 'will-download'
             // listener onto that shared session for the rest of the app's
             // lifetime.
+            let hasStartedDownload = false
             const popupSession = popup.webContents.session
-            const onSessionDownload = (_e, _item, downloadWebContents) => {
-                if (downloadWebContents === popup.webContents && !popup.isDestroyed()) {
-                    popup.close()
+            const onSessionDownload = (_e, item, downloadWebContents) => {
+                if (downloadWebContents === popup.webContents) {
+                    hasStartedDownload = true
+                    // BUGFIX ("при скачивании открывает окно пустое белое" —
+                    // live-reproduced by the user, not fixed by the plain
+                    // popup.close() this used to do): when no save path has
+                    // been set by the time this handler returns (true
+                    // whenever "спрашивать куда сохранять" is on), Electron
+                    // auto-shows a native OS "Save As" dialog owned by
+                    // *this* popup window. That dialog is a modal attached
+                    // to the popup — Windows refuses to actually close an
+                    // owner window while it still owns an open native
+                    // dialog, so the popup.close() call below silently lost
+                    // that race and the blank popup stayed on screen behind
+                    // the save dialog indefinitely. Hiding is synchronous
+                    // and wins the race every time (no window to attach the
+                    // dialog to visibly), and we only destroy the popup once
+                    // the download is actually done (saved/cancelled/failed),
+                    // well after any save dialog has resolved.
+                    if (!popup.isDestroyed()) popup.hide()
+                    if (item) {
+                        item.once('done', () => {
+                            if (!popup.isDestroyed()) popup.close()
+                        })
+                    } else if (!popup.isDestroyed()) {
+                        popup.close()
+                    }
                 }
             }
             popupSession.on('will-download', onSessionDownload)
@@ -314,9 +339,60 @@ function registerWindowIpc({ getMainWindow, isQuittingRef }) {
                 popup.webContents.on('did-navigate-in-page', (_event, navUrl) => maybeFinishOAuth(navUrl))
             }
 
+            // BUGFIX ("при скачивании в MAX открывает окно пустое белое"):
+            // the will-download close-on-download handler above only fires
+            // once Chromium's download machinery actually kicks in. Some
+            // messengers' "download" links resolve through an intermediate
+            // page first (token exchange, auth redirect, a page that itself
+            // triggers the real download via script) rather than a direct
+            // Content-Disposition response — and when that intermediate step
+            // fails to run correctly outside the original page's context
+            // (missing referrer, SPA state the popup never got, ...), the
+            // popup just sits there rendering an empty body forever. Showing
+            // it the instant Chromium has *anything* to paint ('ready-to-show'
+            // fires even for a blank body) is what turned that failure mode
+            // into a visible stuck white window.
+            // isOAuthBroker popups are exempt: their legitimate multi-step
+            // flow (consent screens, 2FA, ...) can render genuinely blank
+            // transitional frames between navigations, and that path has
+            // already been separately tuned (item #6) — showing immediately
+            // there is the existing, correct behavior.
+            const POPUP_SHOW_GRACE_MS = 900
             popup.once('ready-to-show', () => {
-                popup.show()
-                popup.focus()
+                if (isOAuthBroker) {
+                    popup.show()
+                    popup.focus()
+                    return
+                }
+
+                setTimeout(async () => {
+                    if (hasStartedDownload || popup.isDestroyed()) return
+
+                    let hasVisibleContent = true
+                    try {
+                        const textLength = await popup.webContents.executeJavaScript(
+                            'document.body ? document.body.innerText.trim().length : 0'
+                        )
+                        hasVisibleContent = textLength > 0
+                    } catch {
+                        // If we can't inspect the page, err on the side of
+                        // showing it rather than silently swallowing a
+                        // legitimate popup (share dialog, meeting window, ...).
+                    }
+
+                    if (popup.isDestroyed()) return
+
+                    if (!hasVisibleContent && !hasStartedDownload) {
+                        // Nothing rendered and no download started — almost
+                        // certainly the failed-intermediate-page case above,
+                        // not a real page the user needs to see.
+                        popup.close()
+                        return
+                    }
+
+                    popup.show()
+                    popup.focus()
+                }, POPUP_SHOW_GRACE_MS)
             })
 
             popup.loadURL(url)

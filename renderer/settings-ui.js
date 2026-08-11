@@ -351,8 +351,15 @@ function createSettingsUiApi({
         const autoLaunchWarning = document.getElementById('settingAutoLaunchWarning')
         if (autoLaunchCheckbox) {
             try {
-                const result = await invokeIpc('get-auto-launch')
-                const data = result?.success ? result.data : null
+                // BUGFIX ("галочка 'запускать с системой' не сохраняет статус
+                // Включено"): main/ipc/autoLaunch.js's get-auto-launch handler
+                // returns a flat { openAtLogin, disabledByOS } object — it was
+                // never wrapped in { success, data }. This code expected that
+                // wrapper, so result.success was always undefined, data was
+                // always null, and the checkbox showed unchecked on every
+                // settings reopen no matter what the real (correctly-set) OS
+                // autostart state was.
+                const data = await invokeIpc('get-auto-launch')
                 autoLaunchCheckbox.checked = !!data?.openAtLogin
                 if (autoLaunchWarning) autoLaunchWarning.style.display = data?.disabledByOS ? '' : 'none'
             } catch {
