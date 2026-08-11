@@ -1,7 +1,7 @@
 {
 	"name": "messengerapp",
 	"productName": "Centrio",
-	"version": "1.9.8",
+	"version": "1.9.9",
 	"description": "All messengers in one app",
 	"author": {
 		"name": "Centrio",
@@ -50,7 +50,7 @@
 	"build": {
 		"appId": "me.centrio.app",
 		"productName": "Centrio",
-		"copyright": "Copyright В© 2026 Centrio",
+		"copyright": "Copyright Р’В© 2026 Centrio",
 		"directories": {
 			"output": "dist"
 		},

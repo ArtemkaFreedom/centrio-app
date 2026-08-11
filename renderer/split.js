@@ -643,6 +643,24 @@ function createSplitApi ({
         splitBtn?.classList.add('split-active')
         if (splitZones) splitZones.style.display = 'block'
 
+        // BUGFIX ("разделитель криво двигается при 4 мессенджерах / 2x2"):
+        // enterSplitMode() (2col) explicitly shows splitHandle AND hides the
+        // grid row/side handles via _positionGridHandles() — symmetric
+        // cleanup. This function only ever hid/positioned the GRID handles;
+        // it never hid splitHandle itself. So switching from 2col into a
+        // grid layout (e.g. picking "2x2" while a 2-way split was active —
+        // the normal flow via the layout picker) left the 2col drag bar
+        // sitting at its last position (display:block from enterSplitMode)
+        // ON TOP of the new grid. It's still fully interactive (its own
+        // mousedown handler further below is untouched), so dragging it
+        // called applyLeft()/_applyWebviewInlineStyles() — logic for
+        // resizing a 2-pane split — against a 4-tile 2x2 grid that has no
+        // concept of a single left/right pct split, producing exactly the
+        // "не тащится / криво двигается" symptom. '3col'/'2x2' have no
+        // movable divider at all (see _isRowGridLayout), so the fix is
+        // simply to always hide splitHandle when entering ANY grid layout.
+        if (splitHandle) splitHandle.style.display = 'none'
+
         state.splitZoneIds.forEach((id, i) => { if (id) _applyGridZoneWebview(i, id) })
         renderGridZones()
         _positionGridHandles()
@@ -877,10 +895,18 @@ function createSplitApi ({
         const trimmed = String(name || '').trim()
         if (!trimmed) return false
 
+        // BUGFIX ("сохранить одно окно в качестве пресета не получается"):
+        // this used to hard-require >= 2 members, so a single active tab
+        // (the normal, non-split case — memberIds is always exactly
+        // [state.activeTabId] then) could never be saved as a preset, even
+        // though applyPreset()/renderPresetsList() have no actual dependency
+        // on split mode being involved. A 1-member preset is just "switch to
+        // this tab" — see the matching single-member branch in applyPreset()
+        // below. Only genuinely empty (no active tab at all) is rejected now.
         const memberIds = state.splitMode
             ? _currentAssignedIds()
             : (state.activeTabId ? [state.activeTabId] : [])
-        if (memberIds.length < 2) {
+        if (memberIds.length < 1) {
             return false
         }
 
@@ -934,9 +960,24 @@ function createSplitApi ({
         if (!preset) return false
 
         const existingIds = preset.memberIds.filter(mid => state.activeMessengers.some(m => m.id === mid))
-        if (existingIds.length < 2) return false
+        if (existingIds.length === 0) return false
 
         const primaryId = existingIds[0]
+
+        // BUGFIX ("сохранить одно окно в качестве пресета не получается"):
+        // single-member preset — e.g. saved while not in split mode, or a
+        // split preset whose other messenger(s) got removed since. There's
+        // no second pane/zone to fill, so just leave split mode (if active)
+        // and switch straight to this one tab — the whole point of the
+        // "один клик в почту и обратно" request. Falls through to the
+        // >=2-member split-layout logic below otherwise, unchanged.
+        if (existingIds.length === 1) {
+            if (state.splitMode) exitSplitMode()
+            if (primaryId !== state.activeTabId && typeof switchTab === 'function') {
+                switchTab(primaryId)
+            }
+            return true
+        }
 
         // BUGFIX ("пресет не восстанавливается при нажатии"): the presets
         // panel is normally opened WHILE already inside a split layout —

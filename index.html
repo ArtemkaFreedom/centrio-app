@@ -436,7 +436,7 @@
             </div>
             <div class="split-layout-picker-title split-presets-title" style="display:none">Пресеты</div>
             <div class="split-presets-list"></div>
-            <button type="button" class="split-save-preset-btn">+ Сохранить текущую раскладку как пресет</button>
+            <button type="button" class="split-save-preset-btn">+ Сохранить как пресет</button>
             <!-- Инлайн-форма ввода имени пресета — вместо нативного window.prompt(),
                  который в этом приложении (кастомный frameless-титлбар) не
                  отображается надёжно; весь остальной UI использует свои модалки. -->
@@ -664,6 +664,14 @@
         <button class="changelog-popup-close" id="changelogPopupClose">✕</button>
     </div>
     <div class="changelog-popup-body">
+        <div class="changelog-entry">
+            <div class="changelog-version">v1.9.9</div>
+            <ul class="changelog-list">
+                <li>Исправлен баг: состояние VPN для отдельного мессенджера (вкл/выкл) не сохранялось после полного выхода и повторного входа в приложение — облачная синхронизация отправляла устаревший снимок настроек сразу после переключения</li>
+                <li>Исправлена возможность сохранить как пресет одно (не разделённое) окно — теперь по клику можно мгновенно переключаться между ним и остальными вкладками</li>
+                <li>Исправлен баг: в сплит-раскладке 2×2 (4 мессенджера) разделитель двигался криво или не реагировал на перетаскивание — оставался «призрачный» разделитель от предыдущего 2-панельного режима</li>
+            </ul>
+        </div>
         <div class="changelog-entry">
             <div class="changelog-version">v1.9.8</div>
             <ul class="changelog-list">

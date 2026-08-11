@@ -2118,15 +2118,23 @@ function applyTabZoom(level) {
         const newEnabled = !current
         await invokeIpc('vpn-set-app-vpn', messengerId, newEnabled).catch(() => null)
         updateVpnBadge(messengerId, newEnabled)
-        // BUGFIX ("статус VPN сбрасывался после выхода/входа"): vpn-set-app-vpn
-        // (main/ipc/vpn.js) only ever wrote vpnAppModes to the LOCAL store —
-        // nothing here pushed the change to the cloud. Meanwhile loadData()
-        // unconditionally runs cloudSyncPull() on every startup when logged
-        // in and overwrites local vpnAppModes with extra.vpnAppModes from
-        // the (now stale) cloud copy — silently reverting any per-app VPN
-        // toggle the user made since the last push. Same disease as the
-        // sidebarOrder bug: a local-only write later clobbered by a stale
-        // pull. Push immediately so the cloud copy never falls behind.
+        // BUGFIX ("статус VPN сбрасывался после выхода/входа", round 2): the
+        // previous fix here pushed to the cloud right after the toggle, but
+        // getSyncPayload() reads vpnAppModes via the renderer's store SHIM
+        // (store.get → in-memory storeCache, populated once by hydrate() at
+        // startup) — not from disk. vpn-set-app-vpn above writes straight to
+        // the MAIN-process store on its own dedicated IPC channel and never
+        // touches storeCache, so the push below was still reading the STALE
+        // pre-toggle snapshot and re-uploading it to the cloud, unchanged.
+        // The very next launch's cloudSyncPull() then pulled that stale
+        // (un-toggled) copy back down and overwrote the correct on-disk
+        // value — exactly the "выключил ВПН, перезашёл — снова включён"
+        // report. Re-fetch the authoritative modes map from main and mirror
+        // it into the shim's cache before pushing, so the cloud copy (and
+        // the local disk write store.set() also performs) actually reflect
+        // this toggle.
+        const freshModes = await invokeIpc('vpn-get-app-modes').catch(() => null)
+        if (freshModes?.modes) store.set('vpnAppModes', freshModes.modes)
         if (cloudStore.isLoggedIn()) cloudSyncPush()
     }
 
@@ -2242,12 +2250,19 @@ function applyTabZoom(level) {
         tGet,
         applyI18n,
         getActiveMessengers: () => state.activeMessengers,
-        onAppVpnModeChange: (messengerId, enabled) => {
+        onAppVpnModeChange: async (messengerId, enabled) => {
             updateVpnBadge(messengerId, enabled)
             // Тот же паттерн, что и toggleMessengerVpn() выше — переключатель
-            // VPN из Настроек → Сеть писал только в локальный store, и
-            // следующий cloudSyncPull() при старте тихо откатывал его обратно.
-            // Пушим сразу, чтобы облачная копия не отставала от локальной.
+            // VPN из Настроек → Сеть писал только в локальный (main-process)
+            // store через отдельный IPC-канал vpn-set-app-vpn, никогда не
+            // затрагивая рендерер-кэш store-шима (storeCache), из которого
+            // getSyncPayload() читает vpnAppModes для облачного пуша. Пуш
+            // ниже раньше молча отправлял в облако устаревший снимок без
+            // этого переключения — следующий cloudSyncPull() при старте тихо
+            // откатывал корректное локальное значение обратно. Подтягиваем
+            // актуальную карту из main и зеркалим её в кэш шима перед пушем.
+            const freshModes = await invokeIpc('vpn-get-app-modes').catch(() => null)
+            if (freshModes?.modes) store.set('vpnAppModes', freshModes.modes)
             if (cloudStore.isLoggedIn()) cloudSyncPush()
         }
     })
