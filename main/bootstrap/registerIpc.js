@@ -2,6 +2,8 @@ const registerWindowIpc = require('../ipc/window')
 const registerBadgeIpc = require('../ipc/badge')
 const registerNotificationsIpc = require('../ipc/notifications')
 const { registerDownloadsIpc } = require('../ipc/downloads')
+const { registerAppNotificationsIpc } = require('../ipc/appNotifications')
+const { registerWeatherIpc } = require('../ipc/weather')
 const registerAutoLaunchIpc = require('../ipc/autoLaunch')
 const registerApiIpc = require('../ipc/api')
 const { registerOAuthIpc } = require('../ipc/oauth')
@@ -12,12 +14,15 @@ const registerVpnIpc = require('../ipc/vpn')
 const registerScreenshotIpc = require('../ipc/screenshot')
 const { registerSettingsPortabilityIpc } = require('../ipc/settingsPortability')
 const registerExtensionsIpc = require('../ipc/extensions')
+const { registerLockBackgroundIpc } = require('../ipc/lockBackground')
 
 function registerIpc({ getMainWindow, showMainWindow, updateTrayMenu, isQuittingRef }) {
     registerWindowIpc({ getMainWindow, isQuittingRef })
     registerBadgeIpc({ getMainWindow, updateTrayMenu })
     registerNotificationsIpc({ getMainWindow, showMainWindow })
     registerDownloadsIpc({ getMainWindow })
+    registerAppNotificationsIpc({ getMainWindow })
+    registerWeatherIpc()
     registerAutoLaunchIpc()
     registerApiIpc()
     registerOAuthIpc({ getMainWindow })
@@ -28,6 +33,7 @@ function registerIpc({ getMainWindow, showMainWindow, updateTrayMenu, isQuitting
     registerScreenshotIpc({ getMainWindow })
     registerSettingsPortabilityIpc({ getMainWindow })
     registerExtensionsIpc()
+    registerLockBackgroundIpc({ getMainWindow })
 }
 
 module.exports = registerIpc

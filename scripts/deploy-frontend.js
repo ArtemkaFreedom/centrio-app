@@ -76,6 +76,13 @@ const UPLOADS = [
     { local: path.join(__dirname, '..', 'landing', 'dashboard-server.tsx'), remote: `${REMOTE_BASE}/src/app/dashboard/page.tsx` },
     // Confirmed live via `test -f` before adding, same as the entries above.
     { local: path.join(__dirname, '..', 'landing', 'admin-server.tsx'),     remote: `${REMOTE_BASE}/src/app/admin/page.tsx` },
+    // Added for the v2.0.0 changelog widget — pricing.tsx was previously only
+    // covered by scripts/upload-and-deploy.js, not this script. changelog-data.ts
+    // is uploaded twice (colocated) because Next.js relative imports (`./changelog-data`)
+    // resolve per-directory on the server; both pricing/page.tsx and download/page.tsx import it.
+    { local: path.join(__dirname, '..', 'landing', 'pricing.tsx'),          remote: `${REMOTE_BASE}/src/app/pricing/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'changelog-data.ts'),    remote: `${REMOTE_BASE}/src/app/pricing/changelog-data.ts` },
+    { local: path.join(__dirname, '..', 'landing', 'changelog-data.ts'),    remote: `${REMOTE_BASE}/src/app/download/changelog-data.ts` },
 ]
 
 function exec(conn, cmd) {

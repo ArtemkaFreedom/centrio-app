@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
+import { CHANGELOG } from './changelog-data'
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(true)
@@ -57,6 +58,13 @@ export default function PricingPage() {
         .faq-item { border-bottom:1px solid rgba(255,255,255,0.07); padding:20px 0; }
         .faq-q { font-size:16px; font-weight:600; color:#fff; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:12px; }
         .faq-a { font-size:14px; color:rgba(255,255,255,0.5); line-height:1.75; margin-top:12px; }
+
+        .changelog-wrap { max-height:520px; overflow-y:auto; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(255,255,255,0.02); padding:8px 24px; }
+        .changelog-entry { padding:18px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+        .changelog-entry:last-child { border-bottom:none; }
+        .changelog-version { font-size:14px; font-weight:700; color:#a855f7; margin-bottom:8px; }
+        .changelog-note { font-size:13.5px; color:rgba(255,255,255,0.55); line-height:1.65; margin:6px 0 0; padding-left:16px; position:relative; }
+        .changelog-note::before { content:'—'; position:absolute; left:0; color:rgba(255,255,255,0.25); }
 
         .compare-row { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0; border-bottom:1px solid rgba(255,255,255,0.06); }
         .compare-cell { padding:14px 16px; font-size:14px; }
@@ -220,6 +228,28 @@ export default function PricingPage() {
                 <div className="compare-cell" style={{color:'rgba(255,255,255,0.6)'}}>{feature}</div>
                 <div className="compare-cell" style={{textAlign:'center',color:free === '—' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)'}}>{free}</div>
                 <div className="compare-cell" style={{textAlign:'center',color:pro === '✓' ? '#4ade80' : '#c084fc',fontWeight:600}}>{pro}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Changelog */}
+      <section style={{padding:'0 0 96px'}}>
+        <div className="container" style={{maxWidth:720}}>
+          <h2 style={{fontSize:'clamp(26px,3vw,38px)',fontWeight:800,color:'#fff',textAlign:'center',marginBottom:16,letterSpacing:'-.02em'}}>
+            История изменений
+          </h2>
+          <p style={{fontSize:14,color:'rgba(255,255,255,0.4)',textAlign:'center',marginBottom:32}}>
+            Полный список изменений по версиям — то же самое, что видно в приложении
+          </p>
+          <div className="changelog-wrap">
+            {CHANGELOG.map((entry) => (
+              <div className="changelog-entry" key={entry.version}>
+                <div className="changelog-version">v{entry.version}</div>
+                {entry.notes.map((note, i) => (
+                  <p className="changelog-note" key={i}>{note}</p>
+                ))}
               </div>
             ))}
           </div>

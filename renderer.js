@@ -62,6 +62,36 @@ const { bindVpnUi, bindVpnSettings } = require('./renderer/vpn-bind')
 // ==============================
 const storeCache = new Map()
 
+// ==============================
+// АВТО-СИНХРОНИЗАЦИЯ С ОБЛАКОМ
+// BUGFIX (класс бага "настройки не сохраняются"): раньше каждый вызывающий
+// код должен был САМ не забыть дёрнуть cloudSyncPush() после store.set —
+// про это забывали регулярно (VPN, порядок сайдбара, окно настроек...).
+// Централизуем: любая запись в один из этих ключей (это ровно то, что
+// getSyncPayload() ниже реально отправляет в облако) сама планирует пуш.
+// Дебаунс — чтобы пачка записей подряд (например при applySettings)
+// не улетала в сеть отдельным запросом на каждую.
+// ==============================
+const SYNCED_STORE_KEYS = new Set([
+    'messengers', 'folders', 'settings', 'security', 'lockOnStartup',
+    'globalProxy', 'sidebarOrder', 'menuCollapsed', 'appZoomLevel',
+    'vpnAppModes', 'extensionsState', 'splitLeftPctPref', 'splitPresets',
+    'mutedMessengers'
+])
+
+let suppressAutoCloudSync = false
+let scheduleAutoCloudSync = null // назначается ниже, после создания cloudApi
+let autoCloudSyncTimer = null
+
+function notifySyncedStoreWrite(key) {
+    if (!SYNCED_STORE_KEYS.has(key)) return
+    if (suppressAutoCloudSync) return
+    if (typeof scheduleAutoCloudSync !== 'function') return
+
+    clearTimeout(autoCloudSyncTimer)
+    autoCloudSyncTimer = setTimeout(scheduleAutoCloudSync, 1500)
+}
+
 const store = {
     async hydrate(keysWithDefaults = []) {
         for (const [key, def] of keysWithDefaults) {
@@ -103,6 +133,7 @@ const store = {
 
     set(key, value) {
         storeCache.set(key, value)
+        notifySyncedStoreWrite(key)
 
         if (window.electronAPI?.storeSet) {
             const result = window.electronAPI.storeSet(key, value)
@@ -123,6 +154,7 @@ const store = {
 
     async setAsync(key, value) {
         storeCache.set(key, value)
+        notifySyncedStoreWrite(key)
 
         if (window.electronAPI?.storeSet) {
             const res = await window.electronAPI.storeSet(key, value)
@@ -611,7 +643,7 @@ async function bootstrap() {
                     theme: settings.theme || 'dark',
                     accentColor: settings.accentColor || '#7b68ee',
                     density: settings.density || 'comfortable',
-                    language: settings.language || 'en',
+                    language: settings.language || 'ru',
                     sidebarPosition: settings.sidebarPosition || 'left',
                     showTabs: settings.showTabs !== false,
                     notifications: settings.notifications !== false,
@@ -652,6 +684,41 @@ async function bootstrap() {
 
     const { cloudSyncPush, cloudSyncPull, authorizedInvoke } = cloudApi
 
+    // Подключаем отложенный автопуш (см. notifySyncedStoreWrite выше) —
+    // до этой точки cloudSyncPush ещё не существовал.
+    scheduleAutoCloudSync = () => {
+        if (!cloudStore.isLoggedIn()) return
+        cloudSyncPush().catch(err => console.error('[store] auto cloudSyncPush failed:', err))
+    }
+
+    // BUGFIX ("выключаю звук уведомлений — включается обратно после
+    // перезапуска"): notifySyncedStoreWrite() debounce'ит автопуш на 1500мс,
+    // чтобы не слать запрос на каждую отдельную запись. Если пользователь
+    // меняет настройку и закрывает приложение до истечения этих 1500мс,
+    // scheduleAutoCloudSync() ни разу не вызывается — pendingSyncPush в
+    // main-процессе (main/ipc/api.js) остаётся пустым, и уже существующий
+    // before-quit waitForPendingSyncPush() ждать нечего. Локальный диск
+    // получает верное значение, но облако — нет, и следующий cloudSyncPull()
+    // при старте тихо перезаписывает локальное значение старым облачным —
+    // это применимо к ЛЮБОЙ настройке из SYNCED_STORE_KEYS, не только к звуку.
+    // main шлёт 'app-quitting' перед quit; сбрасываем таймер и пушим сразу,
+    // не дожидаясь дебаунса.
+    ipcRenderer.on('app-quitting', () => {
+        clearTimeout(autoCloudSyncTimer)
+        autoCloudSyncTimer = null
+
+        const ack = () => ipcRenderer.send('app-quitting-flushed')
+
+        if (!cloudStore.isLoggedIn() || suppressAutoCloudSync) {
+            ack()
+            return
+        }
+
+        cloudSyncPush()
+            .catch(err => console.error('[store] quit-time cloudSyncPush failed:', err))
+            .finally(ack)
+    })
+
     // После входа на новом устройстве: тянем облако → применяем → перезагружаем
     // Если облако пустое — пушим локальные данные
     async function cloudSyncAfterLogin() {
@@ -663,6 +730,9 @@ async function bootstrap() {
             const cloudData = await cloudSyncPull()
             const hasData = (cloudData?.messengers?.length > 0) || (cloudData?.folders?.length > 0)
             if (hasData) {
+                // Пишем данные, только что стянутые ИЗ облака — не планировать
+                // автопуш этих же данных обратно (страница всё равно перезагрузится).
+                suppressAutoCloudSync = true
                 // Используем setAsync чтобы гарантировать запись в store до перезагрузки
                 await store.setAsync('messengers', cloudData.messengers.map(m => ({
                     id: m.id,
@@ -810,9 +880,9 @@ async function bootstrap() {
         playNotifSound,
         isMessengerMuted,
         updateUnreadCount,
-        addMessengerNotification: (title, body, name) => {
+        addMessengerNotification: (title, body, name, messengerId, actionUrl) => {
             if (typeof addMessengerNotifRef === 'function') {
-                addMessengerNotifRef(title, body, name)
+                addMessengerNotifRef(title, body, name, messengerId, actionUrl)
             }
         }
     })
@@ -1018,7 +1088,11 @@ async function bootstrap() {
             messengers: state.activeMessengers.length,
             folders:    state.folders.length,
             lastSyncAt: cloudStore.getLastSyncAt()
-        })
+        }),
+        getCloudStats: async () => {
+            const result = await authorizedInvoke('api-get-stats')
+            return result?.success ? result.data : null
+        }
     })
 
     const {
@@ -1753,14 +1827,38 @@ function applyTabZoom(level) {
     // ==============================
     // ЗАГРУЗКА ДАННЫХ
     // ==============================
+
+    // BUGFIX ("на 91% долго стоит, как будто зависла"): cloudSyncPull() ниже
+    // может ждать до 30с (15с таймаут запроса + 1 ретрай в api.js) на плохой
+    // сети, и до этого момента loadData() ничего не рендерит — прогресс-бар
+    // застревает на fake-creep потолке 91%. Стартовый пул не обязан ждать
+    // полный сетевой таймаут: если он не успел за BOOT_CLOUD_PULL_TIMEOUT_MS,
+    // грузимся с локальными данными (они и так самые свежие, что видело это
+    // устройство) — сам запрос не отменяется и тихо доедает в фоне, но его
+    // результат для загрузки уже не нужен.
+    const BOOT_CLOUD_PULL_TIMEOUT_MS = 6000
+
+    function raceWithTimeout(promise, ms, fallback) {
+        return new Promise((resolve) => {
+            const timer = setTimeout(() => resolve(fallback), ms)
+            promise.then(
+                (value) => { clearTimeout(timer); resolve(value) },
+                () => { clearTimeout(timer); resolve(fallback) }
+            )
+        })
+    }
+
     async function loadData() {
         const postLoginReload = sessionStorage.getItem('_centrio_post_login_reload')
         if (postLoginReload) {
             sessionStorage.removeItem('_centrio_post_login_reload')
             // Данные уже записаны в store до перезагрузки — пропускаем cloud pull
         } else if (cloudStore.isLoggedIn()) {
+            // Пишем данные, только что стянутые ИЗ облака — не планировать
+            // автопуш этих же данных обратно (см. notifySyncedStoreWrite).
+            suppressAutoCloudSync = true
             try {
-                const cloudData = await cloudSyncPull()
+                const cloudData = await raceWithTimeout(cloudSyncPull(), BOOT_CLOUD_PULL_TIMEOUT_MS, null)
 
                 if (cloudData?.messengers?.length > 0) {
                     store.set('messengers', cloudData.messengers.map(m => ({
@@ -1827,6 +1925,8 @@ function applyTabZoom(level) {
                 }
             } catch (error) {
                 console.error('Cloud load error:', error)
+            } finally {
+                suppressAutoCloudSync = false
             }
         }
 
@@ -1844,7 +1944,6 @@ function applyTabZoom(level) {
             welcomeScreen.style.display = 'flex'
             tabsContent.style.pointerEvents = 'none'
             updateStatusBar()
-            setTimeout(() => onboardingTourApi.start(), 600)
             return
         }
 
@@ -2229,10 +2328,12 @@ function applyTabZoom(level) {
     const appNotifApi = bindAppNotifUi({
         cloudStore,
         invokeIpc,
+        ipcRenderer,
         authorizedInvoke,
         tGet,
         state,
-        toggleMuteAll
+        toggleMuteAll,
+        switchTab
     })
     if (appNotifApi?.addMessengerNotification) {
         addMessengerNotifRef = appNotifApi.addMessengerNotification

@@ -227,6 +227,10 @@ function bindCloudUi({
         _doOpenUrl(DASHBOARD_URL)
     })
 
+    document.getElementById('cloudSupportBtn')?.addEventListener('click', () => {
+        _doOpenUrl(`${DASHBOARD_URL}?tab=support`)
+    })
+
     document.getElementById('planBuyProYearBtn')?.addEventListener('click', () => {
         _doOpenUrl(DASHBOARD_URL)
     })

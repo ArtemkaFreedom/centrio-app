@@ -20,7 +20,10 @@ const validReceiveChannels = new Set([
     'oauth-popup-done',
     'downloads:item-update',
     'auto-launch-result',
-    'messenger-unread-count'
+    'messenger-unread-count',
+    'messenger-site-notification',
+    'app-notifs:item-update',
+    'app-quitting'
 ])
 
 const invokeChannelMap = {
@@ -69,12 +72,18 @@ const validInvokeChannels = new Set([
     'choose-download-dir', 'dialog:selectDirectory', 'get-save-image-path',
     'copy-image-to-clipboard', 'copy-text-to-clipboard',
     'downloads:get-history', 'downloads:open-file', 'downloads:read-file-bytes',
+    // main/ipc/appNotifications.js
+    'app-notifs:get-history',
+    // main/ipc/weather.js
+    'weather:get',
     // main/ipc/updater.js
     'install-update', 'check-for-updates', 'app:checkForUpdates',
     // main/ipc/settingsPortability.js
     'settings:export', 'settings:import',
     // main/ipc/extensions.js
-    'ext:list', 'ext:install', 'ext:uninstall', 'ext:toggle', 'ext:apply-to-session'
+    'ext:list', 'ext:install', 'ext:uninstall', 'ext:toggle', 'ext:apply-to-session',
+    // main/ipc/lockBackground.js
+    'lock-bg:get', 'lock-bg:set-preset', 'lock-bg:clear', 'lock-bg:choose-custom'
 ])
 
 const validSendChannels = new Set([
@@ -95,7 +104,15 @@ const validSendChannels = new Set([
     'toggle-fullscreen', 'set-app-zoom', 'open-url', 'open-translate-window',
     // main/ipc/downloads.js
     'set-download-dir', 'set-ask-download', 'save-page', 'save-image-data',
-    'downloads:show-in-folder', 'downloads:remove', 'downloads:clear'
+    'downloads:show-in-folder', 'downloads:remove', 'downloads:clear',
+    // main/ipc/appNotifications.js
+    'app-notifs:add', 'app-notifs:mark-all-read', 'app-notifs:remove', 'app-notifs:clear',
+    // main/ipc/notifications.js — сигнал "экран блокировки активен/неактивен",
+    // чтобы main-процесс подавлял OS-уведомления, пока лок-скрин на экране
+    'lock:set-state',
+    // main/bootstrap/registerAppEvents.js — ack that lets before-quit stop
+    // waiting on the renderer's quit-time cloud sync flush (see app-quitting)
+    'app-quitting-flushed'
 ])
 
 function mapInvokeChannel(channel) {

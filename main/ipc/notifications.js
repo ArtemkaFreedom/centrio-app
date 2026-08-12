@@ -3,12 +3,28 @@ const { PATHS, APP_NAME, IPC_CHANNELS } = require('../config/constants')
 const { safeSendToWindow } = require('../utils/window')
 const { t } = require('../services/i18n')
 const tracker = require('../services/tracker')
+const lockState = require('../services/lockState')
 
 const lastNotifTime = {}
 
 function registerNotificationsIpc({ getMainWindow, showMainWindow }) {
+    // Сигнал от renderer/lock.js (showLockScreen()/hideLockScreen()) о текущем
+    // состоянии экрана блокировки — единственный потребитель этого канала,
+    // поэтому регистрируем слушатель прямо здесь, а не отдельным модулем.
+    // Локальная история уведомлений (main/ipc/appNotifications.js,
+    // app-notifs:add) — независимый канал, этим флагом НЕ гасится: виджет
+    // "Недавняя активность" на самом лок-скрине должен продолжать пополняться.
+    ipcMain.removeAllListeners('lock:set-state')
+    ipcMain.on('lock:set-state', (_event, locked) => lockState.setLocked(locked))
+
     ipcMain.on('show-notification', async (event, { title, body, icon, messengerId }) => {
         try {
+            // Главное требование пользователя: пока экран заблокирован, нативный
+            // OS-тост поверх лок-скрина всплывать не должен — это противоречит
+            // смыслу блокировки. Выходим до скачивания иконки и до создания
+            // Notification, чтобы не тратить сеть/время впустую.
+            if (lockState.isLocked()) return
+
             const now = Date.now()
             if (lastNotifTime[messengerId] && now - lastNotifTime[messengerId] < 1000) return
             lastNotifTime[messengerId] = now

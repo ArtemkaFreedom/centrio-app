@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
 import { useLang } from '@/lib/i18n'
+import { CHANGELOG } from './changelog-data'
 
-const VERSION = '1.9.6'
+const VERSION = '2.0.0'
 
 const URLS = {
   win:       `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`,
@@ -673,6 +674,30 @@ export default function DownloadPage() {
                 ))}
               </div>
             </motion.div>
+          </div>
+        </section>
+
+        {/* ── CHANGELOG ────────────────────────────────────────────────────── */}
+        <section style={{ padding: '0 0 100px' }}>
+          <div className="wrap" style={{ maxWidth: 720 }}>
+            <h2 style={{ fontSize: 'clamp(26px,3vw,38px)', fontWeight: 800, color: '#f0f0ff', textAlign: 'center', marginBottom: 16, letterSpacing: '-.02em' }}>
+              История изменений
+            </h2>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: 32 }}>
+              Полный список изменений по версиям — то же самое, что видно в приложении
+            </p>
+            <div style={{ maxHeight: 520, overflowY: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 16, background: 'rgba(255,255,255,0.02)', padding: '8px 24px' }}>
+              {CHANGELOG.map((entry) => (
+                <div key={entry.version} style={{ padding: '18px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#a855f7', marginBottom: 8 }}>v{entry.version}</div>
+                  {entry.notes.map((note, i) => (
+                    <p key={i} style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.65, margin: '6px 0 0', paddingLeft: 16, position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, color: 'rgba(255,255,255,0.25)' }}>—</span>{note}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

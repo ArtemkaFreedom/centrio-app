@@ -5490,13 +5490,25 @@ body:has(.modal.show) .split-handle { display: none !important; }
     inset: 0;
     z-index: 9999;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 26px;
     background: var(--bg-primary);
-    overflow: hidden;
+    overflow-y: auto;
+    padding: 32px 24px;
     /* Окно безрамочное — без этого весь экран блокировки (включая пустое
        место вокруг .lock-box) был бы недоступен для перетаскивания окна. */
     -webkit-app-region: drag;
+}
+
+/* Скроллбар остаётся функциональным (на случай тесного окна контент не
+   обрежется, можно прокрутить колёсиком), но визуально скрыт — на экране
+   блокировки тонкая полоса скролла у края выглядит как лишний "мусор" рядом
+   с виджетами/PIN-клавиатурой. Тот же приём уже используется для
+   .messenger-list/.settings-sidebar и т.д. — см. поиск по ::-webkit-scrollbar. */
+.lock-screen::-webkit-scrollbar {
+    display: none;
 }
 
 [data-theme="glass"] .lock-screen {
@@ -5540,6 +5552,355 @@ body:has(.modal.show) .split-handle { display: none !important; }
     .lock-bg-blur { animation: none; }
 }
 
+/* ── Фон экрана блокировки (пресет/своя картинка) ──────────────────────
+   См. main/ipc/lockBackground.js + renderer/lock.js applyLockBackground().
+   .lock-bg-image лежит под .lock-bg-blur/.lock-box, но над .lock-screen
+   фоном темы — когда фона нет (type:'none'), слой прозрачен и обычный
+   градиент .lock-bg-blur остаётся единственным фоном, как раньше. */
+.lock-bg-image {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+.lock-bg-image.is-active {
+    opacity: 1;
+}
+
+/* Затемняющая подложка поверх пользовательской картинки — не даёт тексту/
+   PIN-клавиатуре теряться на светлых или пёстрых изображениях. Активна
+   только когда есть реальный фон (см. .is-active в renderer/lock.js). */
+.lock-bg-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+        rgba(0,0,0,0.35) 0%,
+        rgba(0,0,0,0.15) 35%,
+        rgba(0,0,0,0.25) 70%,
+        rgba(0,0,0,0.5) 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+.lock-bg-scrim.is-active {
+    opacity: 1;
+}
+
+/* Кнопка "выбрать фон" — правый нижний угол, малозаметная до наведения. */
+.lock-bg-picker-btn {
+    position: absolute;
+    right: 22px;
+    bottom: 22px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    color: var(--text-secondary);
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    z-index: 2;
+    transition: color 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.lock-bg-picker-btn:hover {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    transform: scale(1.06);
+}
+
+.lock-bg-picker-btn.is-active {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Попап с пресетами — тот же стеклянный паттерн, что и .lock-box. */
+.lock-bg-picker-panel {
+    position: absolute;
+    right: 22px;
+    bottom: 68px;
+    width: 260px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    border-radius: 18px;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5),
+                0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent);
+    -webkit-app-region: no-drag;
+    z-index: 2;
+    animation: lockAppear 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.lock-bg-picker-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.2px;
+}
+
+.lock-bg-picker-presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.lock-bg-preset-item {
+    position: relative;
+    height: 56px;
+    padding: 0;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+.lock-bg-preset-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.lock-bg-preset-item:hover {
+    transform: scale(1.04);
+}
+
+.lock-bg-preset-item.is-selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--accent-glow);
+}
+
+.lock-bg-picker-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.lock-bg-picker-action-btn {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.lock-bg-picker-action-btn:hover {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.lock-bg-picker-action-btn.lock-bg-picker-reset:hover {
+    background: rgba(239,68,68,0.1);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* ── Часы (macOS/iOS-style, крупные и лёгкие) ──────────────────────────── */
+.lock-clock-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    -webkit-app-region: no-drag;
+    animation: lockAppear 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.lock-clock-time {
+    font-size: clamp(56px, 9vw, 96px);
+    /* Самый лёгкий начертанный вес в @font-face (styles.css:1-90) — 300;
+       раньше здесь стояло 200, что молча резолвилось в тот же файл 300 —
+       указываем реальный вес явно и усиливаем контраст трекингом. */
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -2px;
+    color: var(--text-primary);
+    text-shadow: 0 0 40px var(--accent-glow);
+    font-variant-numeric: tabular-nums;
+}
+
+.lock-clock-date {
+    font-size: 15px;
+    /* Контраст с ультралёгкими часами — берём более тяжёлый вес, а не
+       увеличиваем размер, чтобы сохранить визуальную иерархию времени. */
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+    letter-spacing: 0.4px;
+}
+
+/* ── Виджеты (bento-карточки, только сводки — без содержимого сообщений) ──
+   Уменьшено по фидбеку пользователя ("слишком много места занимает" рядом
+   с PIN-картой) — компактнее padding/шрифты/иконки, но структура и данные
+   не менялись. */
+.lock-widgets {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    max-width: 460px;
+    width: 100%;
+    -webkit-app-region: no-drag;
+}
+
+.lock-widget {
+    flex: 1 1 200px;
+    max-width: 230px;
+    background: color-mix(in srgb, var(--bg-secondary) 46%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    border-radius: 14px;
+    padding: 10px 14px;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.25),
+                inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
+    animation: lockAppear 0.45s cubic-bezier(0.34,1.56,0.64,1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lock-widget:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.32),
+                inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent);
+}
+
+.lock-widget-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+/* ── Виджет "Погода" ────────────────────────────────────────────────────
+   Данные приходят из main/ipc/weather.js через IPC 'weather:get' (см.
+   renderer/lock.js renderWeatherWidget) — сеть дёргается не отсюда. */
+.lock-widget-weather {
+    flex: 0 1 150px;
+    max-width: 160px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lock-weather-icon {
+    font-size: 26px;
+    line-height: 1;
+    flex: 0 0 auto;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.25));
+}
+
+.lock-weather-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.lock-weather-temp {
+    font-size: 19px;
+    font-weight: 300;
+    line-height: 1.1;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.lock-weather-city {
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Список последних событий (виджет "Недавняя активность") — только
+   мессенджер + счётчик + время, никогда текст сообщения/заголовок. */
+.lock-widget-activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.lock-activity-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    margin: 0 -6px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+
+.lock-activity-item:hover {
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.lock-activity-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    object-fit: cover;
+    background: var(--bg-tertiary);
+    flex: 0 0 auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.lock-activity-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lock-activity-count {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border-radius: 999px;
+    padding: 1px 6px;
+    flex: 0 0 auto;
+}
+
+.lock-activity-time {
+    font-size: 10px;
+    color: var(--text-secondary);
+    flex: 0 0 auto;
+    min-width: 40px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
 .lock-box {
     position: relative;
     display: flex;
@@ -5547,11 +5908,17 @@ body:has(.modal.show) .split-handle { display: none !important; }
     align-items: center;
     gap: 18px;
     padding: 48px 56px 42px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
+    /* Стекло: полупрозрачная подложка + сильный blur вместо сплошной заливки.
+       color-mix — тот же паттерн, что и [data-theme="dock"] .activity-bar,
+       работает поверх переменных темы, а не хардкодит rgba(). */
+    background: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
     border-radius: 24px;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
     box-shadow: 0 32px 100px rgba(0,0,0,0.55),
-                0 0 0 1px var(--border);
+                0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent),
+                inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
     min-width: 380px;
     animation: lockAppear 0.35s cubic-bezier(0.34,1.56,0.64,1);
     -webkit-app-region: no-drag;
@@ -5594,17 +5961,20 @@ body:has(.modal.show) .split-handle { display: none !important; }
 
 .lock-title {
     font-size: 25px;
-    font-weight: 800;
+    /* Максимальный доступный вес в @font-face — 700 (раньше стояло 800,
+       что молча резолвилось в тот же файл) — указываем явно. */
+    font-weight: 700;
     color: var(--text-primary);
     margin: 0;
-    letter-spacing: -0.4px;
+    letter-spacing: -0.6px;
 }
 
 .lock-sub {
     font-size: 13.5px;
+    font-weight: 400;
     color: var(--text-secondary);
     margin: 0;
-    letter-spacing: 0.1px;
+    letter-spacing: 0.3px;
 }
 
 /* PIN точки */
@@ -6770,8 +7140,9 @@ button:active {
 }
 
 .cloud-modal-content.profile-open {
-    width: min(760px, 92vw) !important;
-    max-width: min(760px, 92vw) !important;
+    width: min(920px, 94vw) !important;
+    max-width: min(920px, 94vw) !important;
+    max-height: 94vh;
 }
 
 /* Профиль — скроллится внутри, футер всегда виден */
@@ -6782,10 +7153,16 @@ button:active {
     min-height: 0;
 }
 
-.cp-plans-section {
+/* Единая прокручиваемая область: статистика / подписка / тарифы —
+   раньше скроллился только .cp-plans-section, из-за чего PRO-контент
+   (у которого .cp-plans-section скрыт) мог обрезаться родительским
+   overflow:hidden при добавлении графика/разбивки по сервисам. */
+.cp-scroll-area {
     flex: 1 !important;
     overflow-y: auto !important;
     min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
 }
 
 .cp-footer {
@@ -6988,27 +7365,202 @@ button:active {
     margin: 0 4px;
 }
 
+/* ── PRO: активность (время в приложении / сообщения / streak) ── */
+.cp-usage-stats {
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+}
+.cp-usage-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+.cp-usage-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 4px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: border-color 0.15s, transform 0.15s;
+}
+.cp-usage-item:hover {
+    border-color: var(--border-hover, var(--border));
+    transform: translateY(-1px);
+}
+.cp-usage-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2px;
+    flex-shrink: 0;
+}
+.cp-usage-icon--time {
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+}
+.cp-usage-icon--streak {
+    background: rgba(245,158,11,0.15);
+    color: #f59e0b;
+}
+.cp-usage-icon--msg {
+    background: rgba(16,185,129,0.15);
+    color: #10b981;
+}
+.cp-usage-val {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: -0.3px;
+    line-height: 1;
+}
+.cp-usage-lbl {
+    font-size: 9px;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* ── PRO: график активности за 7 дней ── */
+.cp-week-chart {
+    margin-top: 14px;
+}
+.cp-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 88px;
+    margin-top: 10px;
+    padding: 0 2px;
+}
+.cp-chart-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    justify-content: flex-end;
+}
+.cp-chart-track {
+    width: 100%;
+    max-width: 26px;
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.cp-chart-fill {
+    width: 100%;
+    min-height: 3px;
+    border-radius: 5px 5px 0 0;
+    background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
+    transition: height 0.3s ease;
+}
+.cp-chart-col.is-today .cp-chart-fill {
+    background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
+}
+.cp-chart-day {
+    font-size: 9px;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+.cp-chart-col.is-today .cp-chart-day {
+    color: var(--text-bright);
+    font-weight: 700;
+}
+.cp-chart-minutes {
+    font-size: 9px;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+/* ── PRO: разбивка активности по мессенджерам ── */
+.cp-services-breakdown {
+    margin-top: 14px;
+}
+.cp-services-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+.cp-service-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.cp-service-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    width: 96px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cp-service-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+}
+.cp-service-bar-fill {
+    height: 100%;
+    min-width: 3px;
+    border-radius: 5px;
+    background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
+    transition: width 0.3s ease;
+}
+.cp-service-time {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    width: 44px;
+    flex-shrink: 0;
+    text-align: right;
+}
+.cp-services-empty {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+}
+
 /* ── PRO-блок активной подписки ── */
 .cp-pro-section {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.08) 100%);
-    border-bottom: 1px solid rgba(99,102,241,0.2);
-    border-top: 1px solid rgba(99,102,241,0.15);
+    gap: 10px;
+    padding: 9px 12px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.14) 0%, rgba(139,92,246,0.09) 100%);
+    border: 1px solid rgba(99,102,241,0.25);
+    border-radius: 14px;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 .cp-pro-info {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
 }
 .cp-pro-icon {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
     background: rgba(99,102,241,0.18);
     border: 1px solid rgba(99,102,241,0.3);
     display: flex;
@@ -7302,6 +7854,29 @@ button:active {
     background: rgba(239,68,68,0.12);
     border-color: rgb(239,68,68);
     color: rgb(239,68,68);
+}
+
+.cp-support-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.18s;
+    white-space: nowrap;
+}
+.cp-support-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 /* ── PRO Upgrade Modal ── */
@@ -8733,6 +9308,17 @@ body.startup-locked #lockScreen {
     display: flex !important;
 }
 
+/* Защита от протекания контента гостевых <webview> сквозь оверлей блокировки.
+   <webview> в Electron композитится отдельным GPU-слоем (GuestView) и в ряде
+   версий/сценариев resize может на кадр-другой не подчиняться z-index обычных
+   DOM-элементов — на практике это проявляется тонкой полосой чужого контента
+   по краю окна поверх .lock-screen. z-index тут недостаточно как единственная
+   защита: явно скрываем сам контейнер вебвью (visibility, а не display, чтобы
+   не провоцировать релэйаут/перезагрузку вебвью на каждый lock/unlock). */
+body.startup-locked #contentArea {
+    visibility: hidden !important;
+}
+
 @keyframes startupPulse {
     0%, 100% {
         transform: scale(0.97);
@@ -10038,20 +10624,74 @@ body.startup-locked #lockScreen {
 }
 
 .app-notif-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     margin-bottom: 6px;
     position: relative;
     cursor: default;
-    transition: background 0.12s;
+    transition: background 0.12s, transform 0.12s;
+}
+
+.app-notif-item.clickable {
+    cursor: pointer;
 }
 
 .app-notif-item:hover {
     background: var(--bg-active);
 }
 
+.app-notif-item.clickable:hover {
+    transform: translateX(1px);
+}
+
 .app-notif-item.unread {
     background: rgba(var(--accent-rgb, 123,104,238), 0.08);
+}
+
+.app-notif-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+}
+
+.app-notif-avatar-wrap {
+    position: relative;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+}
+
+.app-notif-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: var(--bg-active);
+    display: block;
+}
+
+.app-notif-unread-dot {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg-secondary, var(--bg-primary));
+}
+
+.app-notif-item-content {
+    flex: 1;
+    min-width: 0;
 }
 
 .app-notif-item-title {

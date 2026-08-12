@@ -44,12 +44,24 @@ const uploads = [
         remote: '/var/www/centrio-web/src/app/download/page.tsx'
     },
     {
+        // Colocated import for download.tsx's `./changelog-data` — same
+        // local file uploaded to both this path and the pricing/ one below,
+        // since Next.js relative imports resolve per-directory on the server.
+        local: path.join(__dirname, '../landing/changelog-data.ts'),
+        remote: '/var/www/centrio-web/src/app/download/changelog-data.ts'
+    },
+    {
         local: path.join(__dirname, '../landing/faq.tsx'),
         remote: '/var/www/centrio-web/src/app/faq/page.tsx'
     },
     {
         local: path.join(__dirname, '../landing/pricing.tsx'),
         remote: '/var/www/centrio-web/src/app/pricing/page.tsx'
+    },
+    {
+        // Colocated import for pricing.tsx's `./changelog-data` — see note above.
+        local: path.join(__dirname, '../landing/changelog-data.ts'),
+        remote: '/var/www/centrio-web/src/app/pricing/changelog-data.ts'
     },
     {
         local: path.join(__dirname, '../landing/privacy.tsx'),

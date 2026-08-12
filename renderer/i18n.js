@@ -11,7 +11,7 @@ const DICTIONARIES = {
     zh: require('../locales/zh.js'),
 }
 
-let currentLanguage = 'en'
+let currentLanguage = 'ru'
 let cachedDictionary = null
 let cachedLanguage   = null
 

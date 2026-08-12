@@ -50,9 +50,20 @@ function createWebviewNotifyApi({
         // different messengers) ──
         invokeIpc('tracker:msg-received', 1).catch(() => {})
 
+        // ── Кандидат-ссылка на конкретный чат/сообщение (см. payload.url —
+        // извлекается из options.data патч-скриптами в registerAppEvents.js
+        // и swNotifPatcher.js) — используется при клике по записи в центре
+        // уведомлений вместо простого переключения на вкладку мессенджера.
+        // Резолвим относительно messenger.url на случай относительного пути
+        // ("/chat/123"); если формат невалиден — просто не даём actionUrl.
+        let actionUrl = null
+        if (payload.url) {
+            try { actionUrl = new URL(payload.url, messenger.url).href } catch {}
+        }
+
         // ── Добавляем в панель уведомлений как уведомление от мессенджера ──
         if (typeof addMessengerNotification === 'function') {
-            addMessengerNotification(title, body, messenger.name)
+            addMessengerNotification(title, body, messenger.name, messenger.id, actionUrl)
         }
 
         if (shouldPlaySound) playNotifSound(messenger.id)
@@ -104,6 +115,18 @@ function createWebviewNotifyApi({
         if (!messengerId) return
         const n = Number.isFinite(count) && count >= 0 ? count : 0
         updateUnreadCount(messengerId, n)
+    })
+
+    // ── Site-уведомления (Notification/SW showNotification), пойманные
+    // main-процессом через executeJavaScript на dom-ready (см.
+    // main/bootstrap/registerAppEvents.js, startNotifPolling) — в обход
+    // preload, который на текущей версии Electron не исполняется для
+    // <webview> вообще (та же причина, что и у 'messenger-unread-count' выше).
+    ipcRenderer?.on?.('messenger-site-notification', (messengerId, payload) => {
+        if (!messengerId) return
+        const messenger = (state.activeMessengers || []).find(m => m.id === messengerId)
+        if (!messenger) return
+        sendPushNotificationFromSite(messenger, payload || {})
     })
 
     return {

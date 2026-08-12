@@ -665,6 +665,20 @@
     </div>
     <div class="changelog-popup-body">
         <div class="changelog-entry">
+            <div class="changelog-version">v2.0.0</div>
+            <ul class="changelog-list">
+                <li>Большое обновление: язык приложения по умолчанию — русский (раньше новые установки могли открываться на английском)</li>
+                <li>Убран первый запуск с обучающим туром — он был кривым и запутывал больше, чем помогал; нормальная версия появится позже</li>
+                <li>Исправлен баг: приложение могло зависать на загрузке на 91% и не запускаться</li>
+                <li>Исправлен баг: часть настроек (в т.ч. звук уведомлений) не сохранялась при полном закрытии приложения — облачная синхронизация не успевала отправить последнее состояние перед выходом</li>
+                <li>Окно аккаунта переработано: стало шире и выше, единая прокрутка вместо разрозненных блоков</li>
+                <li>Новое: в окне аккаунта появилась Pro-статистика — график активности за 7 дней и разбивка по мессенджерам</li>
+                <li>Новое: кнопка обращения в поддержку прямо из окна аккаунта</li>
+                <li>Блок активной Pro-подписки перенесён рядом с аватаркой и именем — раньше был отдельной строкой ниже</li>
+                <li>Экран блокировки: два из трёх фоновых изображений заменены на новые фотографии, третий (фирменный) остался и стал фоном по умолчанию</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
             <div class="changelog-version">v1.9.9</div>
             <ul class="changelog-list">
                 <li>Исправлен баг: состояние VPN для отдельного мессенджера (вкл/выкл) не сохранялось после полного выхода и повторного входа в приложение — облачная синхронизация отправляла устаревший снимок настроек сразу после переключения</li>
@@ -1872,6 +1886,81 @@
             </label>
         </div>
     </div>
+    <div class="settings-group">
+        <div class="settings-group-title" data-i18n="settings.notifSoundChoose"></div>
+        <div class="sound-list" id="notifSoundList">
+            <div class="sound-item" data-sound="single">
+                <div class="sound-item-left">
+                    <div class="sound-icon">🔔</div>
+                    <span>Single</span>
+                </div>
+                <button class="sound-preview-btn" data-sound="single">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sound-item" data-sound="answer">
+                <div class="sound-item-left">
+                    <div class="sound-icon">💬</div>
+                    <span>Answer</span>
+                </div>
+                <button class="sound-preview-btn" data-sound="answer">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sound-item" data-sound="mystery">
+                <div class="sound-item-left">
+                    <div class="sound-icon">🎵</div>
+                    <span>Mystery</span>
+                </div>
+                <button class="sound-preview-btn" data-sound="mystery">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sound-item" data-sound="interface">
+                <div class="sound-item-left">
+                    <div class="sound-icon">✨</div>
+                    <span>Interface</span>
+                </div>
+                <button class="sound-preview-btn" data-sound="interface">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sound-item" data-sound="notification">
+                <div class="sound-item-left">
+                    <div class="sound-icon">🔕</div>
+                    <span>Notification</span>
+                </div>
+                <button class="sound-preview-btn" data-sound="notification">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="sound-item" id="soundItemCustom" data-sound="custom" style="display:none;">
+                <div class="sound-item-left">
+                    <div class="sound-icon">📁</div>
+                    <span id="customSoundName"></span>
+                </div>
+                <button class="sound-preview-btn" data-sound="custom">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="sound-upload-row">
+            <button id="uploadSoundBtn" class="vsc-btn-secondary" type="button" data-i18n="settings.notifSoundUpload"></button>
+            <input type="file" id="soundFileInput" accept="audio/*" style="display:none;">
+        </div>
+    </div>
 </div>
 
                 <!-- Горячие клавиши -->
@@ -2246,17 +2335,6 @@
                     </div>
 
                     <div class="settings-group">
-                        <div class="settings-group-title" data-i18n="onboarding.settingsTitle"></div>
-                        <div class="settings-row">
-                            <div class="settings-label">
-                                <span data-i18n="onboarding.replayLabel"></span>
-                                <span class="settings-hint" data-i18n="onboarding.replayHint"></span>
-                            </div>
-                            <button class="about-check-btn" id="replayOnboardingBtn" data-i18n="onboarding.replayBtn"></button>
-                        </div>
-                    </div>
-
-                    <div class="settings-group">
                         <div class="settings-group-title" data-i18n="settings.resetLabel"></div>
                         <div class="settings-row">
                             <div class="settings-label">
@@ -2280,7 +2358,18 @@
 
 <!-- ЭКРАН БЛОКИРОВКИ -->
 <div id="lockScreen" class="lock-screen" style="display:none;">
+    <!-- Фон экрана блокировки (пресет/своя картинка) — см. renderer/lock.js
+         applyLockBackground() и main/ipc/lockBackground.js. Пустой div, пока
+         ничего не выбрано (fallback — обычный градиентный .lock-bg-blur ниже). -->
+    <div class="lock-bg-image" id="lockBgImage"></div>
+    <div class="lock-bg-scrim" id="lockBgScrim"></div>
     <div class="lock-bg-blur"></div>
+
+    <div class="lock-clock-wrap">
+        <div class="lock-clock-time" id="lockClockTime">--:--</div>
+        <div class="lock-clock-date" id="lockClockDate"></div>
+    </div>
+
     <div class="lock-box">
         <div class="lock-logo-wrap">
             <div class="lock-logo-circle">
@@ -2325,6 +2414,53 @@
         </div>
         <p id="lockError" class="lock-error" style="display:none;" data-i18n="lock.error"></p>
         <button id="forgotPinBtn" class="forgot-pin-btn" data-i18n="lock.forgot"></button>
+    </div>
+
+    <!-- Виджеты экрана блокировки (см. renderer/lock.js renderWeatherWidget/
+         renderActivityWidget) — только сводки (счётчики/иконки/время), НИКОГДА
+         текст сообщений или тему письма: пользователь ещё не аутентифицирован.
+         По фидбеку пользователя размещены под окном ввода PIN, а не сбоку. -->
+    <div class="lock-widgets" id="lockWidgets">
+        <div class="lock-widget lock-widget-weather" id="lockWidgetWeather" style="display:none;">
+            <div class="lock-weather-icon" id="lockWeatherIcon"></div>
+            <div class="lock-weather-info">
+                <div class="lock-weather-temp" id="lockWeatherTemp"></div>
+                <div class="lock-weather-city" id="lockWeatherCity"></div>
+            </div>
+        </div>
+        <div class="lock-widget lock-widget-activity" id="lockWidgetActivity" style="display:none;">
+            <div class="lock-widget-title" data-i18n="lock.widgetActivity"></div>
+            <div class="lock-widget-activity-list" id="lockActivityList"></div>
+        </div>
+    </div>
+
+    <!-- Кнопка выбора фона экрана блокировки — по фидбеку пользователя,
+         правый нижний угол. См. renderer/lock.js bindLockBgPicker(). -->
+    <button id="lockBgPickerBtn" class="lock-bg-picker-btn" type="button" data-i18n-title="lock.bgPickerBtnTitle">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/>
+            <circle cx="8.5" cy="8.5" r="1.6" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M21 15l-5.5-5.5a2 2 0 0 0-2.8 0L3 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </button>
+
+    <div id="lockBgPickerPanel" class="lock-bg-picker-panel" style="display:none;">
+        <div class="lock-bg-picker-title" data-i18n="lock.bgPickerTitle"></div>
+        <div class="lock-bg-picker-presets">
+            <button class="lock-bg-preset-item" data-preset="aurora" title="Aurora">
+                <img src="assets/lock-backgrounds/aurora.svg" alt="">
+            </button>
+            <button class="lock-bg-preset-item" data-preset="beach" title="Pfeiffer Beach">
+                <img src="assets/lock-backgrounds/beach.jpg" alt="">
+            </button>
+            <button class="lock-bg-preset-item" data-preset="lake" title="Mountain Lake">
+                <img src="assets/lock-backgrounds/lake.jpg" alt="">
+            </button>
+        </div>
+        <div class="lock-bg-picker-actions">
+            <button id="lockBgUploadBtn" class="lock-bg-picker-action-btn" type="button" data-i18n="lock.bgPickerUpload"></button>
+            <button id="lockBgResetBtn" class="lock-bg-picker-action-btn lock-bg-picker-reset" type="button" data-i18n="lock.bgPickerReset"></button>
+        </div>
     </div>
 </div>
 
@@ -2572,7 +2708,29 @@
                     <div id="cloudUserEmail" class="cp-email"></div>
                     <span id="cloudUserPlan" class="cp-plan-badge"></span>
                 </div>
+
+                <!-- PRO: блок активной подписки (скрыт для FREE), справа от аватарки/имени -->
+                <div id="proSubSection" class="cp-pro-section" style="display:none;">
+                    <div class="cp-pro-info">
+                        <div class="cp-pro-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="cp-pro-details">
+                            <div class="cp-pro-plan-name" id="proSubPlanName">Pro</div>
+                            <div class="cp-pro-expiry">
+                                <span data-i18n="cloud.subActiveUntil"></span>
+                                <span id="proSubExpiry">—</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="cp-extend-btn" id="proExtendBtn" data-i18n="cloud.extend"></button>
+                </div>
             </div>
+
+            <!-- Прокручиваемая область: статистика / подписка / тарифы -->
+            <div class="cp-scroll-area" id="cpScrollArea">
 
             <!-- Инфо-строки (мессенджеры / папки / последняя синхронизация) — только для PRO -->
             <div class="cp-stats-row" id="cpStatsRow">
@@ -2592,23 +2750,51 @@
                 </div>
             </div>
 
-            <!-- PRO: блок активной подписки (скрыт для FREE) -->
-            <div id="proSubSection" class="cp-pro-section" style="display:none;">
-                <div class="cp-pro-info">
-                    <div class="cp-pro-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
-                    <div class="cp-pro-details">
-                        <div class="cp-pro-plan-name" id="proSubPlanName">Pro</div>
-                        <div class="cp-pro-expiry">
-                            <span data-i18n="cloud.subActiveUntil"></span>
-                            <span id="proSubExpiry">—</span>
+            <!-- PRO: активность (время в приложении, сообщения, streak) -->
+            <div id="cpUsageStats" class="cp-usage-stats" style="display:none;">
+                <div class="cp-section-label" data-i18n="cloud.usageSection"></div>
+                <div class="cp-usage-grid">
+                    <div class="cp-usage-item">
+                        <div class="cp-usage-icon cp-usage-icon--time">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
+                        <span class="cp-usage-val" id="usageTodayTime">—</span>
+                        <span class="cp-usage-lbl" data-i18n="cloud.usageToday"></span>
+                    </div>
+                    <div class="cp-usage-item">
+                        <div class="cp-usage-icon cp-usage-icon--time">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 2v4M16 2v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        </div>
+                        <span class="cp-usage-val" id="usageWeekTime">—</span>
+                        <span class="cp-usage-lbl" data-i18n="cloud.usageWeek"></span>
+                    </div>
+                    <div class="cp-usage-item">
+                        <div class="cp-usage-icon cp-usage-icon--streak">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2c1 4-4 5-4 9a4 4 0 0 0 8 0c0-1.5-1-2.5-1-2.5s2 1 2 4.5a6 6 0 0 1-12 0C5 8 12 6 12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                        </div>
+                        <span class="cp-usage-val" id="usageStreak">—</span>
+                        <span class="cp-usage-lbl" data-i18n="cloud.usageStreak"></span>
+                    </div>
+                    <div class="cp-usage-item">
+                        <div class="cp-usage-icon cp-usage-icon--msg">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.5 8.5 0 0 1-11.2 8.05L4 21l1.45-5.8A8.5 8.5 0 1 1 21 11.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                        </div>
+                        <span class="cp-usage-val" id="usageMsgTotal">—</span>
+                        <span class="cp-usage-lbl" data-i18n="cloud.usageMessages"></span>
                     </div>
                 </div>
-                <button class="cp-extend-btn" id="proExtendBtn" data-i18n="cloud.extend"></button>
+
+                <!-- PRO: график активности за 7 дней -->
+                <div class="cp-week-chart" id="cpWeekChart" style="display:none;">
+                    <div class="cp-section-label" data-i18n="cloud.chartSection"></div>
+                    <div class="cp-chart-bars" id="cpChartBars"></div>
+                </div>
+
+                <!-- PRO: разбивка по мессенджерам -->
+                <div class="cp-services-breakdown" id="cpServicesBreakdown" style="display:none;">
+                    <div class="cp-section-label" data-i18n="cloud.servicesSection"></div>
+                    <div class="cp-services-list" id="cpServicesList"></div>
+                </div>
             </div>
 
             <!-- Тарифы (скрыты если PRO активен) -->
@@ -2689,8 +2875,18 @@
                 </div><!-- /cp-plans-grid -->
             </div>
 
+            </div><!-- /cp-scroll-area -->
+
             <!-- Действия -->
             <div class="cp-footer">
+                <button id="cloudSupportBtn" class="cp-support-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.82.487 3.53 1.338 5L2 22l5-1.338A9.955 9.955 0 0 0 12 22z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2-2.4 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="17" r="0.9" fill="currentColor"/>
+                    </svg>
+                    <span data-i18n="cloud.support"></span>
+                </button>
                 <button id="cloudSyncNowBtn" class="cp-sync-btn">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
                         <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>

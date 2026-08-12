@@ -16,7 +16,7 @@ const popularMessengers = [
     { name: 'Microsoft Teams',  url: 'https://teams.microsoft.com',         icon: 'assets/logomessenger/teams.png',         color: '#6264A7' },
     { name: 'WeChat',           url: 'https://wx.qq.com',                   icon: 'assets/logomessenger/wechat.png',        color: '#07C160' },
     { name: 'Zoom',             url: 'https://zoom.us/wc',                  icon: 'assets/logomessenger/zoom.png',          color: '#2D8CFF' },
-    { name: 'BiP',              url: 'https://bip.com',                     icon: 'assets/logomessenger/bip.png',           color: '#00BDF2' },
+    { name: 'Яндекс Чат',       url: 'https://yandex.ru/chat#/',            icon: 'assets/logomessenger/yandexchat.svg',    color: '#12B5A8' },
     { name: 'Signal',           url: 'https://signal.me',                   icon: 'assets/logomessenger/signal.png',        color: '#3A76F0' },
     { name: 'LINE',             url: 'https://web.line.me',                 icon: 'assets/logomessenger/line.png',          color: '#00B900' },
     { name: 'Messenger',        url: 'https://messenger.com',               icon: 'assets/logomessenger/messenger.png',     color: '#0099FF' },
@@ -51,7 +51,7 @@ const popularMessengers = [
     { name: 'Perplexity',       url: 'https://www.perplexity.ai',           icon: 'assets/logomessenger/perplexity.png',    color: '#20808D' },
     { name: 'Mistral',          url: 'https://chat.mistral.ai',             icon: 'assets/logomessenger/mistral.png',       color: '#FF7000' },
     { name: 'DeepSeek',         url: 'https://chat.deepseek.com',           icon: 'assets/logomessenger/deepseek.png',      color: '#4D6BFE' },
-    { name: 'Copilot',          url: 'https://copilot.microsoft.com',       icon: 'assets/logomessenger/copilot.png',       color: '#0078D4' },
+    { name: 'Алиса',            url: 'https://alice.yandex.ru/',            icon: 'assets/logomessenger/alice.png',         color: '#8C1EFF' },
 ]
 
 const folderIcons = {

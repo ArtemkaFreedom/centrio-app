@@ -41,6 +41,8 @@ const icons = [
     { file: 'vk.png',          url: 'https://www.google.com/s2/favicons?domain=vk.com&sz=128' },
     { file: 'mailru.png',      url: 'https://www.google.com/s2/favicons?domain=mail.ru&sz=128' },
     { file: 'discord.png',     url: 'https://www.google.com/s2/favicons?domain=discord.com&sz=128' },
+    { file: 'yandexchat.png',  url: 'https://www.google.com/s2/favicons?domain=yandex.ru&sz=128' },
+    { file: 'alice.png',       url: 'https://www.google.com/s2/favicons?domain=alice.yandex.ru&sz=128' },
 ];
 
 function download(url, dest) {

@@ -30,11 +30,22 @@ function createSoundsApi({ store, ipcRenderer, getActiveMessengers }) {
         ipcRenderer.send('play-sound', soundPath)
     }
 
+    // ── Скоуп на #notifSoundList ── BUGFIX: класс `.sound-item`/`.sound-preview-btn`
+    // переиспользуется и в модалке персонального звука мессенджера
+    // (#messengerSoundList, см. messenger-sound-ui.js/messenger-sound-bind.js,
+    // там свои data-msound/data-msound-preview атрибуты). Без скоупинга здесь
+    // document.querySelectorAll('.sound-item') матчил ОБА списка сразу — клик
+    // по звуку в модалке конкретного мессенджера дополнительно триггерил этот
+    // глобальный обработчик, который писал `undefined` (dataset.sound там не
+    // задан) в settings.notifSoundName, тихо ломая глобальный звук по умолчанию.
     function initSoundPicker() {
+        const container = document.getElementById('notifSoundList')
+        if (!container) return
+
         const settings = store.get('settings', {})
         const current = settings.notifSoundName || 'single'
 
-        document.querySelectorAll('.sound-item').forEach(item => {
+        container.querySelectorAll('.sound-item').forEach(item => {
             item.classList.toggle('active', item.dataset.sound === current)
         })
 
@@ -51,12 +62,13 @@ function createSoundsApi({ store, ipcRenderer, getActiveMessengers }) {
         if (soundPickerInited) return
         soundPickerInited = true
 
-        document.querySelectorAll('.sound-item').forEach(item => {
+        container.querySelectorAll('.sound-item').forEach(item => {
             item.addEventListener('click', (e) => {
                 if (e.target.closest('.sound-preview-btn')) return
                 const soundName = item.dataset.sound
+                if (!soundName) return
 
-                document.querySelectorAll('.sound-item').forEach(i => i.classList.remove('active'))
+                container.querySelectorAll('.sound-item').forEach(i => i.classList.remove('active'))
                 item.classList.add('active')
 
                 const s = store.get('settings', {})
@@ -65,7 +77,7 @@ function createSoundsApi({ store, ipcRenderer, getActiveMessengers }) {
             })
         })
 
-        document.querySelectorAll('.sound-preview-btn').forEach(btn => {
+        container.querySelectorAll('.sound-preview-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation()
                 const soundName = btn.dataset.sound

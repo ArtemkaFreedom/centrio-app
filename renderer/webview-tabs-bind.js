@@ -53,38 +53,79 @@ function translateDeepLinkUrl(special) {
     return null
 }
 
-// Отдельно от translateDeepLinkUrl(), т.к. нужен голый username и для
-// t.me-фолбэка, и для same-origin hash-навигации внутри уже открытой вкладки.
-function extractTelegramUsername(href) {
-    if (typeof href !== 'string') return null
-    const match = href.match(/[?&]domain=([^&]+)/i)
-    if (!match) return null
+// Первый сегмент пути https://t.me/<...> (или www.t.me) — голый, без decode-
+// валидации, её делают вызывающие extractTelegramUsername/Invite ниже.
+// null, если href вообще не t.me-ссылка.
+function _tMePathSegment(href) {
     try {
-        const domain = decodeURIComponent(match[1])
-        // Только username-подобные значения — не даём decodeURIComponent
-        // результату протащить что-то похожее на путь/query в итоговый URL.
-        return /^[a-zA-Z0-9_]{1,64}$/.test(domain) ? domain : null
+        const u = new URL(href)
+        if (!/(^|\.)t\.me$/i.test(u.hostname)) return null
+        return u.pathname.replace(/^\/+/, '').split('/')[0] || null
     } catch {
         return null
     }
 }
 
-// Голый инвайт-хэш из tg://join?invite=<hash> (или ...?invite=X&... — порядок
-// query-параметров у tg:// не гарантирован). Нужен и для t.me/+<hash>-фолбэка
-// в translateDeepLinkUrl(), и для same-origin навигации в navigateTelegramWebview().
+// Отдельно от translateDeepLinkUrl(), т.к. нужен голый username и для
+// t.me-фолбэка, и для same-origin hash-навигации внутри уже открытой вкладки.
+// Источники: tg://resolve?domain=X (query) и https://t.me/<username> (путь)
+// — на практике инвайты почти всегда пересылают именно как t.me-ссылку
+// (её строит сам Telegram при "поделиться"), а не как tg://resolve, поэтому
+// без поддержки пути фича не срабатывала на самый частый реальный случай.
+function extractTelegramUsername(href) {
+    if (typeof href !== 'string') return null
+
+    const queryMatch = href.match(/[?&]domain=([^&]+)/i)
+    if (queryMatch) {
+        try {
+            const domain = decodeURIComponent(queryMatch[1])
+            // Только username-подобные значения — не даём decodeURIComponent
+            // результату протащить что-то похожее на путь/query в итоговый URL.
+            return /^[a-zA-Z0-9_]{1,64}$/.test(domain) ? domain : null
+        } catch {
+            return null
+        }
+    }
+
+    const segment = _tMePathSegment(href)
+    if (!segment || segment.startsWith('+') || segment === 'joinchat') return null
+    return /^[a-zA-Z0-9_]{1,64}$/.test(segment) ? segment : null
+}
+
+// Голый инвайт-хэш из tg://join?invite=<hash> (query), https://t.me/+<hash>
+// (актуальный формат) или https://t.me/joinchat/<hash> (легаси-формат) —
+// нужен и для t.me/+<hash>-фолбэка в translateDeepLinkUrl(), и для
+// same-origin навигации в navigateTelegramWebview().
 function extractTelegramInvite(href) {
     if (typeof href !== 'string') return null
-    const match = href.match(/[?&]invite=([^&]+)/i)
-    if (!match) return null
-    try {
-        const hash = decodeURIComponent(match[1])
-        // Telegram выдаёт инвайт-хэши как URL-safe токены — та же защита от
-        // протаскивания постороннего пути/query через decodeURIComponent,
-        // что и у extractTelegramUsername/extractMaxJoinToken выше.
-        return /^[A-Za-z0-9_-]{1,64}$/.test(hash) ? hash : null
-    } catch {
-        return null
+
+    const queryMatch = href.match(/[?&]invite=([^&]+)/i)
+    if (queryMatch) {
+        try {
+            const hash = decodeURIComponent(queryMatch[1])
+            // Telegram выдаёт инвайт-хэши как URL-safe токены — та же защита от
+            // протаскивания постороннего пути/query через decodeURIComponent,
+            // что и у extractTelegramUsername/extractMaxJoinToken выше.
+            return /^[A-Za-z0-9_-]{1,64}$/.test(hash) ? hash : null
+        } catch {
+            return null
+        }
     }
+
+    const segment = _tMePathSegment(href)
+    if (segment && segment.startsWith('+')) {
+        const hash = segment.slice(1)
+        return /^[A-Za-z0-9_-]{1,64}$/.test(hash) ? hash : null
+    }
+    if (segment === 'joinchat') {
+        try {
+            const secondSegment = new URL(href).pathname.replace(/^\/+/, '').split('/')[1] || ''
+            return /^[A-Za-z0-9_-]{1,64}$/.test(secondSegment) ? secondSegment : null
+        } catch {
+            return null
+        }
+    }
+    return null
 }
 
 // BUGFIX ("клик по tg://resolve — переключает на вкладку ТГ, но там вместо

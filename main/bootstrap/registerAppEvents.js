@@ -1,10 +1,11 @@
-const { shell, session } = require('electron')
+const { shell, session, ipcMain } = require('electron')
 const { fileURLToPath } = require('url')
 const path = require('path')
 const tracker = require('../services/tracker')
 const store = require('../services/store')
 const { getWebviewPreloadPath, waitForPendingSyncPush } = require('../ipc/api')
 const { wireSessionDownloads } = require('../ipc/downloads')
+const { attachServiceWorkerNotifBridge } = require('../services/swNotifPatcher')
 
 // Normalizes a preload value (file:// URL or plain path, as seen in either
 // webPreferences.preload or our own getWebviewPreloadPath() output) down to a
@@ -93,6 +94,113 @@ const UNREAD_DETECT_SCRIPT = `(function() {
 
 const UNREAD_POLL_MS = 5000
 
+// ── Детект site-уведомлений (Notification / SW showNotification) ───────────
+// Тот же баг, что и с непрочитанными выше: изначально перехват
+// window.Notification / ServiceWorkerRegistration.showNotification жил в
+// webview-preload.js (patchNotification()), но preload-атрибут <webview>
+// подтверждённо не исполняется на этой версии Electron ни для одного
+// мессенджера (см. диагностику в комментарии над UNREAD_DETECT_SCRIPT) — это
+// был полностью мёртвый код, ни разу не сработавший, отсюда и баг "уведомления
+// не появляются в центре уведомлений" даже для настоящих входящих сообщений.
+// Чиним тем же рабочим каналом: executeJavaScript на dom-ready. Патчить нужно
+// на КАЖДЫЙ dom-ready (не один раз за весь contents), потому что навигация
+// внутри <webview> — это новый document/window, и патч (как и window.Notification)
+// сбрасывается вместе с ним; сам патч идемпотентен внутри одной страницы через
+// флаг window.__centrioNotifPatched. Реального ipcRenderer в этом мире нет
+// (contextIsolation), поэтому перехваченные вызовы складываются в очередь
+// window.__centrioPendingNotifs и забираются pull-опросом — тем же паттерном,
+// что и счётчик непрочитанных.
+const NOTIF_PATCH_SCRIPT = `(function() {
+    if (window.__centrioNotifPatched) return 'already-patched'
+    window.__centrioNotifPatched = true
+    window.__centrioPendingNotifs = window.__centrioPendingNotifs || []
+
+    function queue(title, options) {
+        try {
+            // options.data — многие PWA кладут туда путь/ссылку на конкретный
+            // диалог/сообщение (используется в их же 'notificationclick'). Если
+            // формат узнаваемый — тащим дальше как кандидат в actionUrl, чтобы
+            // клик по записи в центре уведомлений мог открыть именно этот чат,
+            // а не просто вкладку мессенджера.
+            var rawData = options && options.data
+            var url = null
+            if (typeof rawData === 'string') url = rawData
+            else if (rawData && typeof rawData === 'object') {
+                url = rawData.url || rawData.link || rawData.deepLink || rawData.href || null
+            }
+
+            window.__centrioPendingNotifs.push({
+                title: String(title || ''),
+                body: String((options && options.body) || ''),
+                tag: String((options && options.tag) || ''),
+                icon: (options && options.icon) || '',
+                url: url ? String(url) : ''
+            })
+        } catch (e) {}
+    }
+
+    try {
+        var OriginalNotification = window.Notification
+        if (OriginalNotification) {
+            var PatchedNotification = function (title, options) {
+                queue(title, options)
+                return new OriginalNotification(title, options)
+            }
+            PatchedNotification.prototype = OriginalNotification.prototype
+            try {
+                Object.defineProperty(PatchedNotification, 'permission', {
+                    get: function () { return OriginalNotification.permission }
+                })
+            } catch (e) {
+                PatchedNotification.permission = OriginalNotification.permission
+            }
+            PatchedNotification.requestPermission = OriginalNotification.requestPermission
+                ? OriginalNotification.requestPermission.bind(OriginalNotification)
+                : function () { return Promise.resolve('granted') }
+            window.Notification = PatchedNotification
+        }
+    } catch (e) {}
+
+    try {
+        if (window.ServiceWorkerRegistration && ServiceWorkerRegistration.prototype.showNotification) {
+            var origShow = ServiceWorkerRegistration.prototype.showNotification
+            ServiceWorkerRegistration.prototype.showNotification = function (title, options) {
+                queue(title, options)
+                return origShow.call(this, title, options)
+            }
+        }
+    } catch (e) {}
+
+    return 'patched'
+})()`
+
+const NOTIF_DRAIN_SCRIPT = `(function() {
+    if (!window.__centrioPendingNotifs || !window.__centrioPendingNotifs.length) return []
+    return window.__centrioPendingNotifs.splice(0, window.__centrioPendingNotifs.length)
+})()`
+
+const NOTIF_POLL_MS = 2000
+
+function startNotifPolling(contents, getMainWindow) {
+    const messengerId = findMessengerIdForSession(contents.session)
+    if (!messengerId) return
+
+    const poll = () => {
+        if (contents.isDestroyed()) return
+        contents.executeJavaScript(NOTIF_DRAIN_SCRIPT).then((items) => {
+            if (!Array.isArray(items) || !items.length) return
+            const win = getMainWindow()
+            if (!win || win.isDestroyed()) return
+            items.forEach((payload) => {
+                win.webContents.send('messenger-site-notification', messengerId, payload)
+            })
+        }).catch(() => {})
+    }
+
+    const timer = setInterval(poll, NOTIF_POLL_MS)
+    contents.once('destroyed', () => clearInterval(timer))
+}
+
 function findMessengerIdForSession(targetSession) {
     try {
         const messengers = store.get('messengers', []) || []
@@ -123,6 +231,46 @@ function startUnreadPolling(contents, getMainWindow) {
     poll()
     const timer = setInterval(poll, UNREAD_POLL_MS)
     contents.once('destroyed', () => clearInterval(timer))
+}
+
+// BUGFIX ("настройка звука уведомлений (и в целом любая настройка) не
+// сохраняется — откатывается после перезапуска"): renderer's auto-cloud-sync
+// (notifySyncedStoreWrite() in renderer.js) debounces the push by 1500ms so a
+// burst of writes doesn't spam the network. If the app quits inside that
+// window, scheduleAutoCloudSync() never even fires — main's pendingSyncPush
+// (see waitForPendingSyncPush() below) stays empty, so before-quit has
+// nothing to wait for. Local disk is correct, the cloud copy is stale, and
+// the very next launch's cloudSyncPull() silently overwrites local with that
+// stale value. Ask the renderer to flush its debounced push immediately and
+// wait for its ack (bounded) before proceeding — this closes the race at the
+// source instead of only covering pushes that already started.
+function flushRendererCloudSync(getMainWindow) {
+    return new Promise((resolve) => {
+        const win = getMainWindow?.()
+        if (!win || win.isDestroyed()) {
+            resolve()
+            return
+        }
+
+        const ACK_TIMEOUT_MS = 5000
+        let settled = false
+
+        const finish = () => {
+            if (settled) return
+            settled = true
+            ipcMain.removeListener('app-quitting-flushed', finish)
+            resolve()
+        }
+
+        ipcMain.once('app-quitting-flushed', finish)
+        setTimeout(finish, ACK_TIMEOUT_MS)
+
+        try {
+            win.webContents.send('app-quitting')
+        } catch {
+            finish()
+        }
+    })
 }
 
 function registerAppEvents({
@@ -215,6 +363,19 @@ function registerAppEvents({
                 log.error('[downloads] failed to wire webview session:', err.message)
             }
 
+            // CDP-мост для Service Worker realm (см. main/services/swNotifPatcher.js)
+            // — покрывает push-уведомления, которые мессенджер показывает изнутри
+            // своего SW (self.registration.showNotification), а не со страницы.
+            // Прикрепляем один раз на весь contents (не на dom-ready): CDP-таргет
+            // webview переживает внутренние навигации, Target.setAutoAttach сам
+            // подхватывает новые service_worker-таргеты по мере их появления.
+            try {
+                const messengerId = findMessengerIdForSession(contents.session)
+                attachServiceWorkerNotifBridge(contents, messengerId, getMainWindow)
+            } catch (err) {
+                log.error('[sw-notif] failed to attach bridge:', err.message)
+            }
+
             // Непрочитанные сообщения — детект через executeJavaScript on
             // dom-ready (см. startUnreadPolling выше), не через preload:
             // preload-атрибут <webview> подтверждённо не исполняется на этой
@@ -225,10 +386,24 @@ function registerAppEvents({
             // может сработать повторно при перезагрузке страницы — не
             // запускаем второй параллельный интервал поверх уже идущего.
             let unreadPollingStarted = false
+            let notifPollingStarted = false
             contents.on('dom-ready', () => {
-                if (unreadPollingStarted) return
-                unreadPollingStarted = true
-                startUnreadPolling(contents, getMainWindow)
+                if (!unreadPollingStarted) {
+                    unreadPollingStarted = true
+                    startUnreadPolling(contents, getMainWindow)
+                }
+
+                // Патч window.Notification/SW showNotification нужно ставить
+                // заново на КАЖДЫЙ dom-ready (не один раз за весь contents) —
+                // навигация внутри <webview> создаёт новый document/window, и
+                // прошлый патч исчезает вместе с ним. Сам скрипт идемпотентен
+                // внутри одной страницы (флаг window.__centrioNotifPatched).
+                contents.executeJavaScript(NOTIF_PATCH_SCRIPT).catch(() => {})
+
+                if (!notifPollingStarted) {
+                    notifPollingStarted = true
+                    startNotifPolling(contents, getMainWindow)
+                }
             })
 
             // BUGFIX ("ссылки открываются в новом окне Centrio, обычно
@@ -370,14 +545,21 @@ function registerAppEvents({
         // could get its push killed mid-request — local disk already has the
         // correct order, but the stale cloud copy survives and overwrites it
         // right back on the next launch's cloudSyncPull(). See
-        // main/ipc/api.js waitForPendingSyncPush() for the other half.
-        const FLUSH_DEADLINE_MS = 4000
+        // main/ipc/api.js waitForPendingSyncPush() for the other half, and
+        // flushRendererCloudSync() above for the debounce-window race it
+        // still didn't cover (e.g. notification sound toggle reverting).
+        // Deadline bumped from 4000 to 6000ms to give the renderer-flush
+        // round trip (send 'app-quitting' → renderer pushes → ack) room to
+        // land before we give up and quit anyway.
+        const FLUSH_DEADLINE_MS = 6000
         const deadline = new Promise((resolve) => setTimeout(resolve, FLUSH_DEADLINE_MS))
 
         Promise.race([
             Promise.all([
                 tracker.flush().catch(() => {}),
-                waitForPendingSyncPush().catch(() => {})
+                flushRendererCloudSync(getMainWindow)
+                    .then(() => waitForPendingSyncPush())
+                    .catch(() => {})
             ]),
             deadline
         ]).finally(() => app.quit())
