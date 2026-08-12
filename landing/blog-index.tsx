@@ -29,6 +29,10 @@ const POSTS = [
   { slug: 'vs-franz', tag: 'Сравнение', color: '#a5b4fc', title: 'Centrio vs Franz: что лучше в 2026 году', desc: 'Сравниваем Centrio с одним из первых агрегаторов мессенджеров — Franz.' },
   { slug: 'vs-wavebox', tag: 'Сравнение', color: '#a5b4fc', title: 'Centrio vs Wavebox: сравнение для команд и бизнеса', desc: 'Wavebox против Centrio — что выбрать для рабочих и личных мессенджеров.' },
   { slug: 'top-apps', tag: 'Статистика', color: '#facc15', title: 'Топ-10 приложений в Centrio — апрель 2026', desc: 'Самые популярные мессенджеры и сервисы среди пользователей Centrio.' },
+  { slug: 'multiple-accounts', tag: 'Инструкция', color: '#4ade80', title: 'Несколько аккаунтов WhatsApp и Telegram на одном компьютере', desc: 'Как открыть 2, 3 и больше аккаунтов WhatsApp и Telegram одновременно — без телефона-эмулятора и сброса сессий.' },
+  { slug: 'telegram-vpn-block', tag: 'VPN', color: '#d8b4fe', title: 'Telegram не работает даже с VPN: почему и что реально помогает в 2026', desc: 'Почему обычный VPN не спасает от блокировок Telegram и какие протоколы реально работают.' },
+  { slug: 'best-messenger-aggregators', tag: 'Подборка', color: '#f472b6', title: 'Лучшие агрегаторы мессенджеров в 2026 году: топ-7', desc: 'Centrio, Rambox, Franz, Ferdium, Wavebox, Station, Shift — сравнение в одной таблице.' },
+  { slug: 'all-social-media-one-place', tag: 'Гид', color: '#7dd3fc', title: 'Как собрать ВКонтакте, Telegram, Instagram и другие соцсети в одном месте', desc: 'Рабочий способ для SMM-менеджеров и владельцев нескольких аккаунтов держать все соцсети в одном окне.' },
 ];
 
 export default function BlogIndexPage() {

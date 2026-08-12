@@ -83,6 +83,20 @@ const UPLOADS = [
     { local: path.join(__dirname, '..', 'landing', 'pricing.tsx'),          remote: `${REMOTE_BASE}/src/app/pricing/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'changelog-data.ts'),    remote: `${REMOTE_BASE}/src/app/pricing/changelog-data.ts` },
     { local: path.join(__dirname, '..', 'landing', 'changelog-data.ts'),    remote: `${REMOTE_BASE}/src/app/download/changelog-data.ts` },
+    // 2026-08-13 SEO batch: branded 404 (was previously untracked — the live
+    // site had no src/app/not-found.tsx at all, so unmatched URLs fell back
+    // to Next.js's default unbranded English 404) + 4 new blog articles +
+    // the blog index and sitemap files that list them. blog-index.tsx and
+    // sitemap.ts were confirmed live at these paths via `test -f` but were
+    // never covered by any deploy script before this — every prior edit to
+    // them must have been applied by hand over SSH.
+    { local: path.join(__dirname, '..', 'landing', 'not-found.tsx'),        remote: `${REMOTE_BASE}/src/app/not-found.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-index.tsx'),       remote: `${REMOTE_BASE}/src/app/blog/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'sitemap.ts'),           remote: `${REMOTE_BASE}/src/app/sitemap.ts` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-multiple-accounts.tsx'),       remote: `${REMOTE_BASE}/src/app/blog/multiple-accounts/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-telegram-vpn-block.tsx'),      remote: `${REMOTE_BASE}/src/app/blog/telegram-vpn-block/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-best-aggregators.tsx'),        remote: `${REMOTE_BASE}/src/app/blog/best-messenger-aggregators/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-social-media-one-place.tsx'),  remote: `${REMOTE_BASE}/src/app/blog/all-social-media-one-place/page.tsx` },
 ]
 
 function exec(conn, cmd) {
