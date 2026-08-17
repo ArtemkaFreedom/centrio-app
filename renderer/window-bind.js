@@ -4,7 +4,8 @@ function bindWindowUi({
     ipcRenderer,
     switchTab,
     showLockScreen,
-    openSettings
+    openSettings,
+    exitSplitMode
 }) {
     document.getElementById('minimizeBtn')?.addEventListener('click', () => {
         ipcRenderer.send('minimize-window')
@@ -62,8 +63,21 @@ function bindWindowUi({
     // preload's .on() wrapper passes the payload only, no event object, so
     // messengerId was always undefined and clicking a notification never
     // actually switched to that messenger's tab.
+    //
+    // BUGFIX ("уведомление ломает пресет"): switchTab() deliberately
+    // special-cases state.splitMode to route clicks into whichever
+    // pane/zone currently has FOCUS (see switchTab() in renderer.js) —
+    // that's correct for user-driven sidebar/tab clicks, but a notification
+    // click isn't the user picking a pane, it's the user saying "show me
+    // this message". Calling switchTab() as-is silently overwrote whatever
+    // messenger occupied the focused split pane with the notification's
+    // messenger, destroying the user's split arrangement. Exit split mode
+    // first so switchTab() falls through to its normal single-tab path —
+    // the clicked messenger is shown full-size and nothing else in the
+    // (now closed) split/preset gets reassigned or lost.
     ipcRenderer.on('notification-clicked-id', (messengerId) => {
         if (!messengerId) return
+        if (state.splitMode && typeof exitSplitMode === 'function') exitSplitMode()
         switchTab(messengerId)
     })
 }

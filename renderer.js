@@ -2135,7 +2135,8 @@ function applyTabZoom(level) {
         ipcRenderer,
         switchTab,
         showLockScreen,
-        openSettings
+        openSettings,
+        exitSplitMode: () => splitApi?.exitSplitMode?.()
     })
 
     bindAppEvents({

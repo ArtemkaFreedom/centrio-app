@@ -299,6 +299,12 @@ function createCloudApi({
         }
     }
 
+    async function redeemPromo(code) {
+        const result = await authorizedInvoke('api-redeem-promo', code)
+        if (result.success) await refreshUser()
+        return result
+    }
+
     async function logout() {
         try {
             if (cloudStore.getToken()) {
@@ -317,6 +323,7 @@ function createCloudApi({
         oauthGoogle,
         oauthYandex,
         updateProfile,
+        redeemPromo,
         logout,
         refreshUser,
         authorizedInvoke

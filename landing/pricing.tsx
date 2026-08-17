@@ -5,11 +5,21 @@ import Link from 'next/link'
 import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
 import { CHANGELOG } from './changelog-data'
 
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Тарифы', item: 'https://centrio.me/pricing' },
+  ],
+}
+
 export default function PricingPage() {
   const [annual, setAnnual] = useState(true)
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <style>{`
         :root { color-scheme: dark; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,6 +79,17 @@ export default function PricingPage() {
         .compare-row { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0; border-bottom:1px solid rgba(255,255,255,0.06); }
         .compare-cell { padding:14px 16px; font-size:14px; }
         .compare-row:nth-child(odd) .compare-cell { background:rgba(255,255,255,0.02); }
+
+        @media (max-width: 768px) {
+          .container { padding: 0 18px; }
+          .plan-card { padding: 28px 22px; }
+          .compare-cell { padding: 12px 8px; font-size: 12.5px; }
+          .changelog-wrap { padding: 8px 16px; max-height: 420px; }
+        }
+        @media (max-width: 480px) {
+          .compare-cell { padding: 10px 6px; font-size: 11.5px; }
+          .toggle-btn { padding: 8px 14px; font-size: 13px; }
+        }
       `}</style>
 
       <SiteNav active="/pricing" />

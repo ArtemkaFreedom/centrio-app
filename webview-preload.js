@@ -800,6 +800,11 @@ function classifyDeepLink(href) {
     if (/^tg:\/\//i.test(href)) return { service: 'telegram', href }
     // https://max.ru/join/<token> — инвайт-ссылки мессенджера MAX
     if (/^https:\/\/max\.ru\/join\//i.test(href)) return { service: 'max', href }
+    // https://t.me/<username> или https://t.me/+<hash> — это то, чем реально
+    // делятся приглашениями на практике (люди копируют t.me-ссылку, а не
+    // tg://resolve — та строится браузером/ОС из t.me, пользователь её не
+    // видит). Без этого паттерна фича не срабатывала на самый частый случай.
+    if (/^https:\/\/(www\.)?t\.me\//i.test(href)) return { service: 'telegram', href }
     return null
 }
 

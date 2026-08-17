@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   keywords: [
     'centrio faq', 'centrio вопросы', 'как установить centrio',
     'centrio поддержка', 'centrio помощь',
+    'как объединить мессенджеры вопросы', 'агрегатор мессенджеров faq',
+    'безопасно ли использовать агрегатор мессенджеров', 'мессенджер с vpn вопросы',
   ],
   alternates: { canonical: 'https://centrio.me/faq' },
   openGraph: {

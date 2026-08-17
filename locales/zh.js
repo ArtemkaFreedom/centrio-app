@@ -536,6 +536,11 @@ module.exports = {
         subActiveUntil:       '有效期至',
         extend:               '续费',
         subNoExpiry:          '永久',
+        promoSection:         '兑换码',
+        promoPh:              '输入兑换码',
+        promoApply:           '激活',
+        promoSuccess:         '兑换码已激活 — Pro 已解锁',
+        promoError:           '兑换码激活失败',
     },
 
     pro: {

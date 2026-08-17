@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   keywords: [
     'centrio цена', 'centrio pro', 'стоимость подписки',
     'мессенджер подписка', 'centrio бесплатно', 'centrio тарифы',
+    'агрегатор мессенджеров цена', 'сколько стоит программа для мессенджеров',
+    'программа для нескольких мессенджеров купить', 'подписка на мессенджер с vpn',
+    'аналог rambox цена', 'аналог franz цена',
   ],
   alternates: { canonical: 'https://centrio.me/pricing' },
   openGraph: {

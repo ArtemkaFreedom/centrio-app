@@ -148,6 +148,10 @@ function registerApiIpc() {
         return wrapApi(() => api.readAllNotifications(token))
     })
 
+    ipcMain.handle('api-redeem-promo', async (event, token, code) => {
+        return wrapApi(() => api.redeemPromo(token, code))
+    })
+
     ipcMain.handle('api-yandex-desktop', async (event, accessToken) => {
         return wrapApi(() => api.yandexDesktop(accessToken))
     })

@@ -4,7 +4,7 @@ import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
 import { DEFAULT_OG_IMAGE } from '@/lib/seo';
 
-const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.0.0.exe';
+const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.1.0.exe';
 
 export const metadata: Metadata = {
   title: 'Как объединить Telegram, WhatsApp и VK в одном приложении',
@@ -33,9 +33,38 @@ const TIPS = [
   { title: 'Сервис работает нестабильно', text: 'Если сервис (например, Discord) периодически отваливается из вашего региона, включите встроенный VPN в настройках Centrio — отдельно устанавливать ничего не нужно.' },
 ];
 
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Блог', item: 'https://centrio.me/blog' },
+    { '@type': 'ListItem', position: 3, name: 'Как объединить Telegram, WhatsApp и VK в одном приложении', item: 'https://centrio.me/blog/how-to-combine-messengers' },
+  ],
+};
+
+const BLOG_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: 'Как объединить Telegram, WhatsApp и VK в одном приложении',
+  description: 'Пошаговая инструкция: как собрать Telegram, WhatsApp, VK и другие мессенджеры в одном окне на Windows, macOS или Linux с помощью Centrio. Установка за 5 минут.',
+  image: 'https://centrio.me/api/og',
+  datePublished: '2026-08-01',
+  dateModified: '2026-08-01',
+  author: { '@type': 'Organization', name: 'Centrio' },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Centrio',
+    logo: { '@type': 'ImageObject', url: 'https://centrio.me/logo.png' },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://centrio.me/blog/how-to-combine-messengers' },
+};
+
 export default function HowToCombinePage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BLOG_JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <SiteHeader />
       <div style={{ minHeight: '100vh', background: '#080810', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
         <section style={{ maxWidth: 860, margin: '0 auto', padding: '60px 24px 48px', textAlign: 'center' }}>
@@ -96,7 +125,7 @@ export default function HowToCombinePage() {
               ⬇ Скачать Centrio для Windows
             </a>
             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>
-              Версия 2.0.0 · Бесплатно · <Link href="/download/macos" style={{ color: 'inherit' }}>macOS</Link> · <Link href="/download/linux" style={{ color: 'inherit' }}>Linux</Link>
+              Версия 2.1.0 · Бесплатно · <Link href="/download/macos" style={{ color: 'inherit' }}>macOS</Link> · <Link href="/download/linux" style={{ color: 'inherit' }}>Linux</Link>
             </p>
           </section>
         </div>

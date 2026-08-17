@@ -1,19 +1,20 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Geist, Bricolage_Grotesque } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin', 'cyrillic'] })
+const geist = Geist({ subsets: ['latin', 'cyrillic'], variable: '--font-geist' })
+const display = Bricolage_Grotesque({ subsets: ['latin', 'cyrillic'], variable: '--font-display' })
 
 const SITE_URL = 'https://centrio.me'
 // Fixed 2026-08-03: this used to point at /og-image.png, which does not
 // exist on the server (404) — every social share (Telegram/VK/WhatsApp/
 // Twitter link preview) rendered a broken-image icon instead of a card.
-// /logo.png is a real, working 176x176 fallback. It's square, not the
-// ideal 1200x630 landscape banner most platforms prefer, but a working
-// square image beats a 404. Recommend commissioning a proper 1200x630
-// OG banner as a follow-up design task.
-const OG_IMAGE = 'https://centrio.me/logo.png'
+// Fixed again 2026-08-13: was /logo.png (working, but a 176x176 square used
+// as a landscape banner). Now points at the dynamic 1200x630 banner from
+// og-image-route.tsx (deployed to /api/og) — same URL landing/seo.ts's
+// DEFAULT_OG_IMAGE now uses, so the root layout and every page stay in sync.
+const OG_IMAGE = 'https://centrio.me/api/og'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -57,7 +58,7 @@ export const metadata: Metadata = {
     title: 'Centrio — Все мессенджеры в одном окне',
     description:
       'Бесплатное приложение для Windows, macOS и Linux. Telegram, WhatsApp, Discord, VK и 100+ сервисов в одном окне.',
-    images: [{ url: OG_IMAGE, width: 176, height: 176, alt: 'Centrio' }],
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Centrio' }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -74,7 +75,12 @@ const JSONLD_ORG = {
   url: SITE_URL,
   logo: `${SITE_URL}/logo.png`,
   email: 'support@centrio.me',
-  sameAs: [],
+  // Was empty ([]) — added 2026-08-13. @centrioapp confirmed live via curl
+  // as the real public channel (bio: "Официальная поддержка Centrio...",
+  // matches lib/telegram-bot.js NEWS_CHAT_ID and the admin "news channel"
+  // tab) — NOT t.me/centrio_app, which the homepage footer social icon was
+  // wrongly linking to until the same commit fixed it in page.tsx.
+  sameAs: ['https://t.me/centrioapp'],
 }
 
 const JSONLD_APP = {
@@ -87,7 +93,7 @@ const JSONLD_APP = {
     'Centrio — десктопное приложение, объединяющее Telegram, WhatsApp, Discord, VK, Slack, Notion и 100+ сервисов в одном окне. Встроенный VPN, облачная синхронизация, папки.',
   url: SITE_URL,
   downloadUrl: `${SITE_URL}/download`,
-  softwareVersion: '2.0.0',
+  softwareVersion: '2.1.0',
   offers: [
     { '@type': 'Offer', price: '0', priceCurrency: 'RUB', name: 'Free' },
     { '@type': 'Offer', price: '199', priceCurrency: 'RUB', name: 'Pro (ежемесячно)' },
@@ -116,7 +122,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSONLD_APP) }}
         />
       </head>
-      <body className={inter.className} style={{ background: '#06060f', minHeight: '100vh' }}>
+      <body className={`${geist.className} ${geist.variable} ${display.variable}`} style={{ background: '#0b0a08', minHeight: '100vh' }}>
         {children}
 
         {/* Yandex.Metrika */}

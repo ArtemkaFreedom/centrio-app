@@ -10,6 +10,17 @@ app.set('trust proxy', 1)
 
 // Middleware
 app.use(helmet())
+
+// Reject oversized bodies on the Telegram webhook before the global 10mb
+// json parser (sized for upload-ish endpoints) buffers them — real Telegram
+// updates are a few KB. Runs pre-parse so it can't be bypassed by whatever
+// ends up handling the route.
+app.use('/api/telegram/webhook', (req, res, next) => {
+  const len = parseInt(req.headers['content-length'] || '0', 10)
+  if (len > 262144) return res.status(413).json({ error: 'Payload too large' })
+  next()
+})
+
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
@@ -44,6 +55,7 @@ app.use('/api/visitors', require('./routes/visitors'))
 app.use('/api/notifications', require('./routes/notifications'))
 app.use('/api/contact', require('./routes/contact'))
 app.use('/api/tickets', require('./routes/tickets'))
+app.use('/api/telegram', require('./routes/telegram-webhook'))
 app.use('/uploads', require('express').static('/var/www/centrio-api/uploads'))
 
 // Health check

@@ -536,6 +536,11 @@ module.exports = {
         subActiveUntil:       'Aktiv bis',
         extend:               'Verlängern',
         subNoExpiry:          'Unbegrenzt',
+        promoSection:         'Aktionscode',
+        promoPh:              'Aktionscode eingeben',
+        promoApply:           'Aktivieren',
+        promoSuccess:         'Aktionscode aktiviert — Pro freigeschaltet',
+        promoError:           'Aktionscode konnte nicht aktiviert werden',
     },
 
     pro: {

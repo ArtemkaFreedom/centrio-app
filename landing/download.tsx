@@ -8,7 +8,7 @@ import { SiteNav, SiteFooter } from '@/components/ui/site-shell'
 import { useLang } from '@/lib/i18n'
 import { CHANGELOG } from './changelog-data'
 
-const VERSION = '2.0.0'
+const VERSION = '2.1.0'
 
 const URLS = {
   win:       `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`,
@@ -52,6 +52,15 @@ const DownloadIcon = ({ size = 16 }: { size?: number }) => (
 )
 
 type OS = 'win' | 'mac' | 'linux'
+
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Скачать', item: 'https://centrio.me/download' },
+  ],
+}
 
 export default function DownloadPage() {
   const { t } = useLang()
@@ -124,6 +133,7 @@ export default function DownloadPage() {
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <style>{`
         :root { color-scheme: dark; }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

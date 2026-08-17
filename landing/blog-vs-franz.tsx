@@ -1,9 +1,10 @@
 ﻿'use client'
+import Link from 'next/link';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
 import { useLang } from '@/lib/i18n';
 
-const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.0.0.exe';
+const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.1.0.exe';
 
 const tableData = [
   { feature: 'Бесплатный тариф', centrio: '✅ До 5 сервисов навсегда', franz: '❌ Только 3 сервиса (ограничено)' },
@@ -39,10 +40,39 @@ const perfData = [
   { metric: 'CPU в простое', centrio: '< 1%', franz: '3–6%' },
 ];
 
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Блог', item: 'https://centrio.me/blog' },
+    { '@type': 'ListItem', position: 3, name: 'Centrio vs Franz: сравнение агрегаторов мессенджеров 2026', item: 'https://centrio.me/blog/vs-franz' },
+  ],
+};
+
+const BLOG_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: 'Centrio vs Franz: сравнение агрегаторов мессенджеров 2026',
+  description: 'Centrio против Franz — сравнение двух агрегаторов мессенджеров. Встроенный VPN, русский интерфейс, macOS и Linux против платного Franz без VPN.',
+  image: 'https://centrio.me/api/og',
+  datePublished: '2026-04-01',
+  dateModified: '2026-08-13',
+  author: { '@type': 'Organization', name: 'Centrio' },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Centrio',
+    logo: { '@type': 'ImageObject', url: 'https://centrio.me/logo.png' },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://centrio.me/blog/vs-franz' },
+};
+
 export default function VsFranzPage() {
   const { t } = useLang();
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BLOG_JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <SiteHeader />
       <div style={{ minHeight: '100vh', background: '#080810', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
 
@@ -57,7 +87,7 @@ export default function VsFranzPage() {
           <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 17, lineHeight: 1.7, maxWidth: 620, margin: '0 auto 16px' }}>
             Franz — один из самых известных агрегаторов мессенджеров. Но стоит ли он своих $14.99 в месяц? Сравниваем с Centrio по всем ключевым параметрам.
           </p>
-          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>{t.blog_updated ?? 'Обновлено: апрель 2026 · Время чтения: ~5 мин'}</p>
+          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>{t.blog_updated ?? 'Обновлено: август 2026 · Время чтения: ~5 мин'}</p>
         </section>
 
         <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 24px 80px' }}>
@@ -163,6 +193,15 @@ export default function VsFranzPage() {
             </div>
           </section>
 
+          <section style={{ marginBottom: 56 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: '#e2e8f0' }}>Похожие статьи</h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <Link href="/blog/vs-rambox" style={{ color: '#a5b4fc', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(165,180,252,0.25)', borderRadius: 10, padding: '8px 16px' }}>Centrio vs Rambox →</Link>
+              <Link href="/blog/vs-wavebox" style={{ color: '#a5b4fc', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(165,180,252,0.25)', borderRadius: 10, padding: '8px 16px' }}>Centrio vs Wavebox →</Link>
+              <Link href="/blog/best-messenger-aggregators" style={{ color: '#a5b4fc', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(165,180,252,0.25)', borderRadius: 10, padding: '8px 16px' }}>Топ-7 агрегаторов мессенджеров →</Link>
+            </div>
+          </section>
+
           <section style={{ textAlign: 'center' }}>
             <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>{t.blog_cta_try_free ?? 'Попробуйте Centrio бесплатно'}</h2>
             <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 28 }}>{t.blog_cta_try_free_desc ?? 'Скачайте и убедитесь сами — без ограничений по времени.'}</p>
@@ -176,7 +215,7 @@ export default function VsFranzPage() {
             >
               {t.blog_cta_dl_win ?? '⬇ Скачать Centrio для Windows'}
             </a>
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>{t.blog_cta_platforms ?? 'Версия 2.0.0 · Бесплатно · Windows · macOS · Linux'}</p>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>{t.blog_cta_platforms ?? 'Версия 2.1.0 · Бесплатно · Windows · macOS · Linux'}</p>
           </section>
         </div>
       </div>

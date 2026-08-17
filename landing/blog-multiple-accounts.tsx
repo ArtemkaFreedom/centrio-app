@@ -4,7 +4,7 @@ import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
 import { DEFAULT_OG_IMAGE } from '@/lib/seo';
 
-const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.0.0.exe';
+const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.1.0.exe';
 
 export const metadata: Metadata = {
   title: 'Несколько аккаунтов WhatsApp и Telegram на одном компьютере',
@@ -40,6 +40,33 @@ const FAQ = [
   { q: 'Можно ли так же держать несколько аккаунтов VK или Instagram?', a: 'Да, принцип одинаковый для любого сервиса — каждая добавленная вкладка получает собственную изолированную сессию, независимо от того, сколько раз вы добавили один и тот же сайт.' },
 ];
 
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Блог', item: 'https://centrio.me/blog' },
+    { '@type': 'ListItem', position: 3, name: 'Несколько аккаунтов WhatsApp и Telegram на одном компьютере', item: 'https://centrio.me/blog/multiple-accounts' },
+  ],
+};
+
+const BLOG_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: 'Несколько аккаунтов WhatsApp и Telegram на одном компьютере',
+  description: 'Как открыть 2, 3 и больше аккаунтов WhatsApp и Telegram одновременно на одном компьютере — без телефона-эмулятора и без потери уведомлений. Рабочий способ для Windows, macOS и Linux.',
+  image: 'https://centrio.me/api/og',
+  datePublished: '2026-08-01',
+  dateModified: '2026-08-01',
+  author: { '@type': 'Organization', name: 'Centrio' },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Centrio',
+    logo: { '@type': 'ImageObject', url: 'https://centrio.me/logo.png' },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://centrio.me/blog/multiple-accounts' },
+};
+
 const FAQ_JSONLD = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
@@ -54,6 +81,8 @@ export default function MultipleAccountsPage() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BLOG_JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <SiteHeader />
       <div style={{ minHeight: '100vh', background: '#080810', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
         <section style={{ maxWidth: 860, margin: '0 auto', padding: '60px 24px 48px', textAlign: 'center' }}>
@@ -118,6 +147,7 @@ export default function MultipleAccountsPage() {
               <Link href="/blog/how-to-combine-messengers" style={{ color: '#86efac', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(134,239,172,0.25)', borderRadius: 10, padding: '8px 16px' }}>Как объединить мессенджеры →</Link>
               <Link href="/blog/is-it-safe" style={{ color: '#86efac', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(134,239,172,0.25)', borderRadius: 10, padding: '8px 16px' }}>Безопасно ли это? →</Link>
               <Link href="/blog/remote-team-messengers" style={{ color: '#86efac', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(134,239,172,0.25)', borderRadius: 10, padding: '8px 16px' }}>Мессенджеры для команды →</Link>
+              <Link href="/blog/max-transition" style={{ color: '#86efac', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(134,239,172,0.25)', borderRadius: 10, padding: '8px 16px' }}>MAX и Telegram/WhatsApp вместе →</Link>
             </div>
           </section>
 
@@ -128,7 +158,7 @@ export default function MultipleAccountsPage() {
               ⬇ Скачать Centrio для Windows
             </a>
             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>
-              Версия 2.0.0 · Бесплатно · <Link href="/download/macos" style={{ color: 'inherit' }}>macOS</Link> · <Link href="/download/linux" style={{ color: 'inherit' }}>Linux</Link>
+              Версия 2.1.0 · Бесплатно · <Link href="/download/macos" style={{ color: 'inherit' }}>macOS</Link> · <Link href="/download/linux" style={{ color: 'inherit' }}>Linux</Link>
             </p>
           </section>
         </div>

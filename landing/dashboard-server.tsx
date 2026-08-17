@@ -60,6 +60,15 @@ const PLAN_LABELS: Record<string, string> = {
 // the actual grant amount is always decided server-side.
 const REFERRAL_BONUS_DAYS = 14
 
+// Silent poll cadence for an open support-ticket thread (lets an admin reply
+// — from the dashboard or via the Telegram tickets integration — show up
+// without the user reloading the page). Matches TICKET_POLL_MS in
+// admin-server.tsx deliberately: both share the same global express-rate-limit
+// budget (100 req/15min per IP across ALL /api/ routes, see
+// api-index-server.js), and 30s leaves enough headroom that a thread left
+// open for the full window doesn't eat the budget other dashboard calls need.
+const TICKET_THREAD_POLL_MS = 30000
+
 // ── SVG Icons ─────────────────────────────────────────────────────
 const IcoOverview = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -530,7 +539,7 @@ function DashboardPageInner() {
   // useSearchParams() needing a Suspense boundary; the fix here is simpler
   // since we just need to skip window access, not restructure the tree.
   const referralLink = referralInfo && typeof window !== 'undefined'
-    ? `${window.location.origin}/register?ref=${referralInfo.referralCode}`
+    ? `${window.location.origin}/auth/register?ref=${referralInfo.referralCode}`
     : ''
 
   const copyReferralLink = async () => {
@@ -557,7 +566,8 @@ function DashboardPageInner() {
     try {
       const { data } = await api.post('/api/payments/promo/redeem', { code: promoCode.trim() })
       if (data?.success) {
-        setPromoMsg({ type: 'ok', text: `Промокод активирован — +${data.data.months} мес. Pro` })
+        const grant = data.data.days != null ? `${data.data.days} дн.` : `${data.data.months} мес.`
+        setPromoMsg({ type: 'ok', text: `Промокод активирован — +${grant} Pro` })
         setPromoCode('')
         refreshUser()
         loadPayments()
@@ -612,6 +622,34 @@ function DashboardPageInner() {
     setReplyBody('')
     loadTickets()
   }
+
+  // While a ticket thread is open, quietly re-fetch it in the background so a
+  // support/admin/Telegram reply appears without a page reload. Deliberately
+  // does NOT touch loadingTicketThread (no spinner flash) and only replaces
+  // activeTicket when something actually changed, so it doesn't disturb the
+  // reply form or re-render the message list on every idle tick. Paused while
+  // the tab isn't visible to stay well within the shared /api/ rate limit.
+  useEffect(() => {
+    if (!activeTicket) return
+    const ticketId = activeTicket.id
+    let cancelled = false
+
+    async function pollThread() {
+      if (typeof document !== 'undefined' && document.hidden) return
+      try {
+        const { data } = await api.get(`/api/tickets/${ticketId}`)
+        if (cancelled || !data) return
+        setActiveTicket(prev => {
+          if (!prev || prev.id !== data.id) return prev
+          const changed = prev.status !== data.status || (prev.messages || []).length !== (data.messages || []).length
+          return changed ? data : prev
+        })
+      } catch { /* сеть недоступна — просто пропускаем этот цикл опроса */ }
+    }
+
+    const interval = setInterval(pollThread, TICKET_THREAD_POLL_MS)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [activeTicket?.id])
 
   const createTicket = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -690,7 +728,7 @@ function DashboardPageInner() {
   } as React.CSSProperties
 
   return (
-    <div className={montserrat.className} style={{ minHeight:'100vh', background:'#060a14', color:'#fff', display:'flex' }}>
+    <div className={`dash-shell ${montserrat.className}`} style={{ minHeight:'100vh', background:'#060a14', color:'#fff', display:'flex' }}>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
@@ -902,6 +940,53 @@ function DashboardPageInner() {
         .form-msg{ font-size:12.5px; font-weight:600; }
         .form-msg.ok{ color:#22c55e; }
         .form-msg.err{ color:#f87171; }
+
+        /* ── Mobile responsiveness ── */
+        @media (max-width: 900px){
+          .dash-shell{ flex-direction:column !important; overflow-x:hidden !important; }
+          .dash-sidebar{
+            width:100% !important; height:auto !important; min-height:0 !important;
+            position:relative !important; top:auto !important;
+            flex-direction:row !important; flex-wrap:wrap !important; align-items:center !important;
+            border-right:none !important; border-bottom:1px solid rgba(255,255,255,0.07) !important;
+            padding:14px 16px !important; gap:10px !important;
+          }
+          .dash-sidebar > a{ margin-bottom:0 !important; flex-shrink:0; }
+          .dash-menu-label{ display:none !important; }
+          .dash-nav{
+            flex-direction:row !important; flex:1 1 100% !important; order:3;
+            overflow-x:auto !important; gap:6px !important;
+            -webkit-overflow-scrolling:touch;
+          }
+          .dash-nav .nav-item{
+            width:auto !important; flex-shrink:0; white-space:nowrap;
+            padding:9px 12px !important;
+          }
+          .dash-nav .nav-item.active::before{ display:none; }
+          .dash-usercard{
+            border-top:none !important; padding-top:0 !important;
+            margin-left:auto; display:flex !important; align-items:center; gap:8px;
+          }
+          .dash-usercard > button:first-child{ margin-bottom:0 !important; }
+          .dash-usercard .upgrade-cta{ display:none; }
+          .dash-usercard .btn-ghost{ width:auto !important; padding:9px 12px !important; font-size:0 !important; gap:0 !important; }
+          .dash-usercard .btn-ghost svg{ font-size:initial; }
+          .dash-main{ padding:20px 16px !important; }
+
+          .dash-grid-4{ grid-template-columns:1fr 1fr !important; }
+          .dash-grid-main-320{ grid-template-columns:1fr !important; }
+          .dash-grid-320-1{ grid-template-columns:1fr !important; }
+          .dash-grid-3{ grid-template-columns:1fr !important; }
+          .dash-plan-cards{ flex-direction:column !important; }
+          .dash-summary-strip{ grid-template-columns:1fr 1fr !important; row-gap:16px !important; }
+          .dash-summary-strip > div:nth-child(3){ border-left:none !important; margin-left:0 !important; }
+        }
+        @media (max-width: 520px){
+          .dash-grid-4{ grid-template-columns:1fr 1fr !important; gap:10px !important; }
+          .dash-summary-strip{ grid-template-columns:1fr !important; }
+          .dash-summary-strip > div{ border-left:none !important; margin-left:0 !important; padding-left:0 !important; }
+          .dash-main{ padding:16px 12px !important; }
+        }
       `}</style>
 
       {/* ── Ambient glow ── */}
@@ -909,7 +994,7 @@ function DashboardPageInner() {
       <div style={{ position:'fixed', bottom:-100, right:'10%', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle, rgba(99,102,241,0.09) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
 
       {/* ════════════════ SIDEBAR ════════════════ */}
-      <aside style={{
+      <aside className="dash-sidebar" style={{
         width: 252, flexShrink: 0, height: '100vh', position: 'sticky', top: 0,
         background: 'rgba(255,255,255,0.025)',
         backdropFilter: 'blur(40px)', WebkitBackdropFilter: 'blur(40px)',
@@ -924,8 +1009,8 @@ function DashboardPageInner() {
         </a>
 
         {/* Navigation */}
-        <nav style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
-          <div style={{ fontSize:10.5, fontWeight:800, color:'rgba(255,255,255,0.25)', letterSpacing:'.09em', textTransform:'uppercase', marginBottom:6, paddingLeft:4 }}>
+        <nav className="dash-nav" style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+          <div className="dash-menu-label" style={{ fontSize:10.5, fontWeight:800, color:'rgba(255,255,255,0.25)', letterSpacing:'.09em', textTransform:'uppercase', marginBottom:6, paddingLeft:4 }}>
             Меню
           </div>
           {NAV.map(({ key, label, Icon }) => (
@@ -941,7 +1026,7 @@ function DashboardPageInner() {
         </nav>
 
         {/* User card */}
-        <div style={{ borderTop:'1px solid rgba(255,255,255,0.07)', paddingTop:18 }}>
+        <div className="dash-usercard" style={{ borderTop:'1px solid rgba(255,255,255,0.07)', paddingTop:18 }}>
           <button
             onClick={() => setTab('profile')}
             style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14, paddingLeft:2, background:'none', border:'none', cursor:'pointer', width:'100%', textAlign:'left', font:'inherit' }}
@@ -972,7 +1057,7 @@ function DashboardPageInner() {
       </aside>
 
       {/* ════════════════ MAIN ════════════════ */}
-      <main style={{ flex:1, minHeight:'100vh', overflowY:'auto', padding:'36px 32px', position:'relative', zIndex:1 }}>
+      <main className="dash-main" style={{ flex:1, minHeight:'100vh', overflowY:'auto', padding:'36px 32px', position:'relative', zIndex:1 }}>
 
         {/* ──────────── OVERVIEW ──────────── */}
         {tab === 'overview' && (
@@ -1005,7 +1090,7 @@ function DashboardPageInner() {
             )}
 
             {/* Stat cards */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:24 }}>
+            <div className="dash-grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:24 }}>
               {[
                 {
                   label: 'Время сегодня',
@@ -1050,7 +1135,7 @@ function DashboardPageInner() {
             </div>
 
             {/* Chart + Services */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:20, marginBottom:20 }}>
+            <div className="dash-grid-main-320" style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:20, marginBottom:20 }}>
               {/* Activity chart */}
               <div className="glass-card" style={{ padding:28 }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24 }}>
@@ -1126,7 +1211,7 @@ function DashboardPageInner() {
             </div>
 
             {/* Summary strip */}
-            <div style={{ ...glassBlue, padding:'22px 28px', display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:0 }}>
+            <div className="dash-summary-strip" style={{ ...glassBlue, padding:'22px 28px', display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:0 }}>
               {[
                 { label:'Всего в приложении', value: fmtTime(stats?.total.appTime || 0), Icon: IcoTime },
                 { label:'Всего уведомлений',  value: (stats?.total.notifCount || 0).toLocaleString(), Icon: IcoBell },
@@ -1152,7 +1237,7 @@ function DashboardPageInner() {
               <p style={{ color:'rgba(255,255,255,0.38)', fontSize:13.5 }}>Личные данные и безопасность аккаунта</p>
             </div>
 
-            <div style={{ display:'grid', gridTemplateColumns:'320px 1fr', gap:20, alignItems:'start' }}>
+            <div className="dash-grid-320-1" style={{ display:'grid', gridTemplateColumns:'320px 1fr', gap:20, alignItems:'start' }}>
               {/* Identity card */}
               <div className="glass-card" style={{ padding:'32px 26px', textAlign:'center' }}>
                 <div style={{ position:'relative', width:92, margin:'0 auto' }}>
@@ -1577,7 +1662,7 @@ function DashboardPageInner() {
             </div>
 
             {/* Plan cards */}
-            <div style={{ display:'flex', gap:16, marginBottom:32 }}>
+            <div className="dash-plan-cards" style={{ display:'flex', gap:16, marginBottom:32 }}>
               {/* Free */}
               <div className={`plan-card${!isPro ? ' current-plan' : ''}`}>
                 <div>
@@ -1741,7 +1826,7 @@ function DashboardPageInner() {
             {/* How it works */}
             <div className="glass-card" style={{ padding:'20px 24px', marginBottom:20 }}>
               <div className="section-title" style={{ marginBottom:16 }}>Как это работает</div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+              <div className="dash-grid-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
                 {[
                   { n: '1', title: 'Поделитесь ссылкой', text: 'Отправьте свою реферальную ссылку другу — в мессенджере, почте или соцсетях' },
                   { n: '2', title: 'Друг регистрируется', text: 'Он переходит по ссылке и создаёт аккаунт Centrio — это бесплатно и ни к чему не обязывает' },
@@ -1784,7 +1869,7 @@ function DashboardPageInner() {
             </div>
 
             {/* Stats */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:20 }}>
+            <div className="dash-grid-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:20 }}>
               {[
                 { label: 'Приглашено',              value: referralInfo?.totalReferred ?? 0,   color: '#3b82f6', Icon: IcoUser },
                 { label: 'Оплатили (бонус начислен)', value: referralInfo?.bonusesGranted ?? 0,  color: '#22c55e', Icon: IcoCheck },

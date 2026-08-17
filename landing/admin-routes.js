@@ -79,49 +79,105 @@ function isOnline(lastSeenAt) {
 }
 
 // ── GET /api/admin/users ──────────────────────────────────────────────────────
+const USER_SELECT = {
+    id: true, email: true, name: true, avatar: true,
+    plan: true, planExpiresAt: true, isActive: true, isAdmin: true,
+    lastSeenAt: true, createdAt: true, autoRenew: true,
+    googleId: true, yandexId: true, githubId: true,
+    telegramId: true, vkId: true, mailId: true, passwordHash: true,
+    _count: { select: { messengers: true, folders: true, sessions: true } }
+}
+
+function mapUserRow(u) {
+    return {
+        id: u.id, email: u.email, name: u.name, avatar: u.avatar,
+        plan: u.plan, planExpiresAt: u.planExpiresAt,
+        isActive: u.isActive, isAdmin: u.isAdmin,
+        lastSeenAt: u.lastSeenAt, createdAt: u.createdAt,
+        autoRenew:  u.autoRenew || false,
+        hasPassword: !!u.passwordHash,
+        online:     isOnline(u.lastSeenAt),
+        provider:   detectProvider(u),
+        messengers: u._count.messengers,
+        folders:    u._count.folders,
+        sessions:   u._count.sessions
+    }
+}
+
+// Пустая строка/отсутствие параметра → нет фильтра; иначе — валидное неотрицательное целое.
+function parseCountParam(value) {
+    if (value === undefined || value === null || value === '') return null
+    const n = parseInt(value, 10)
+    return Number.isFinite(n) && n >= 0 ? n : null
+}
+
 router.get('/users', async (req, res) => {
     try {
         const page   = Math.max(1, parseInt(req.query.page  || '1'))
         const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit || '50')))
-        const skip   = (page - 1) * limit
         const search = (req.query.search || '').trim()
+        const planFilter = (req.query.plan || '').trim().toUpperCase()
 
-        const where = search
-            ? { OR: [
+        const where = {
+            ...(search ? { OR: [
                 { email: { contains: search, mode: 'insensitive' } },
                 { name:  { contains: search, mode: 'insensitive' } }
-              ]}
-            : {}
+              ]} : {}),
+            // Валидируем против конкретного списка планов — не пропускаем
+            // произвольную строку в Prisma-фильтр напрямую из query.
+            ...(['FREE', 'PRO', 'TEAM'].includes(planFilter) ? { plan: planFilter } : {})
+        }
 
-        const [users, total] = await Promise.all([
-            prisma.user.findMany({
-                where, skip, take: limit,
+        const minMessengers = parseCountParam(req.query.minMessengers)
+        const maxMessengers = parseCountParam(req.query.maxMessengers)
+        const hasMessengerFilter = minMessengers !== null || maxMessengers !== null
+
+        let result, total
+
+        if (hasMessengerFilter) {
+            // Prisma не поддерживает фильтрацию `where` по числу связанных
+            // записей (_count) — только existence-фильтры (some/none/every).
+            // Без раздутия схемы сырым SQL (schema.prisma живёт только на
+            // сервере, вслепую по неизвестным именам таблиц не пишем) считаем
+            // это в два шага: лёгкий запрос id+_count по всем подходящим под
+            // остальные фильтры пользователям → фильтруем диапазон в JS →
+            // тянем полную выборку только для id текущей страницы.
+            const allMatching = await prisma.user.findMany({
+                where,
                 orderBy: { createdAt: 'desc' },
-                select: {
-                    id: true, email: true, name: true, avatar: true,
-                    plan: true, planExpiresAt: true, isActive: true, isAdmin: true,
-                    lastSeenAt: true, createdAt: true, autoRenew: true,
-                    googleId: true, yandexId: true, githubId: true,
-                    telegramId: true, vkId: true, mailId: true, passwordHash: true,
-                    _count: { select: { messengers: true, folders: true, sessions: true } }
-                }
-            }),
-            prisma.user.count({ where })
-        ])
+                select: { id: true, _count: { select: { messengers: true } } }
+            })
 
-        const result = users.map(u => ({
-            id: u.id, email: u.email, name: u.name, avatar: u.avatar,
-            plan: u.plan, planExpiresAt: u.planExpiresAt,
-            isActive: u.isActive, isAdmin: u.isAdmin,
-            lastSeenAt: u.lastSeenAt, createdAt: u.createdAt,
-            autoRenew:  u.autoRenew || false,
-            hasPassword: !!u.passwordHash,
-            online:     isOnline(u.lastSeenAt),
-            provider:   detectProvider(u),
-            messengers: u._count.messengers,
-            folders:    u._count.folders,
-            sessions:   u._count.sessions
-        }))
+            const filteredIds = allMatching
+                .filter(u => {
+                    const c = u._count.messengers
+                    if (minMessengers !== null && c < minMessengers) return false
+                    if (maxMessengers !== null && c > maxMessengers) return false
+                    return true
+                })
+                .map(u => u.id)
+
+            total = filteredIds.length
+            const pageIds = filteredIds.slice((page - 1) * limit, (page - 1) * limit + limit)
+
+            const users = await prisma.user.findMany({
+                where: { id: { in: pageIds } },
+                select: USER_SELECT
+            })
+
+            // `id: { in }` не сохраняет порядок — восстанавливаем порядок
+            // страницы (createdAt desc), заданный в filteredIds выше.
+            const byId = new Map(users.map(u => [u.id, u]))
+            result = pageIds.map(id => byId.get(id)).filter(Boolean).map(mapUserRow)
+        } else {
+            const skip = (page - 1) * limit
+            const [users, count] = await Promise.all([
+                prisma.user.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, select: USER_SELECT }),
+                prisma.user.count({ where })
+            ])
+            result = users.map(mapUserRow)
+            total = count
+        }
 
         res.json({ users: result, total, page, pages: Math.ceil(total / limit) })
     } catch (err) {
@@ -374,12 +430,29 @@ router.get('/promo-codes', async (req, res) => {
 
 router.post('/promo-codes', async (req, res) => {
     try {
-        const { code, months, maxUses, expiresAt } = req.body
+        const { code, months, days, maxUses, expiresAt } = req.body
         const normalized = String(code || '').trim().toUpperCase().slice(0, 40)
-        const monthsNum = parseInt(months, 10)
         if (!normalized) return res.status(400).json({ error: 'code обязателен' })
-        if (!Number.isInteger(monthsNum) || monthsNum < 1 || monthsNum > 24) {
-            return res.status(400).json({ error: 'months должен быть целым числом от 1 до 24' })
+
+        // A code grants either whole months or a fixed number of days — never
+        // both — so redeem logic (payments-server.js) can branch on which one
+        // is set without ambiguity.
+        const hasMonths = months != null && months !== ''
+        const hasDays = days != null && days !== ''
+        if (hasMonths === hasDays) {
+            return res.status(400).json({ error: 'Укажите либо months, либо days (ровно один из параметров)' })
+        }
+        let monthsNum = null, daysNum = null
+        if (hasMonths) {
+            monthsNum = parseInt(months, 10)
+            if (!Number.isInteger(monthsNum) || monthsNum < 1 || monthsNum > 24) {
+                return res.status(400).json({ error: 'months должен быть целым числом от 1 до 24' })
+            }
+        } else {
+            daysNum = parseInt(days, 10)
+            if (!Number.isInteger(daysNum) || daysNum < 1 || daysNum > 366) {
+                return res.status(400).json({ error: 'days должен быть целым числом от 1 до 366' })
+            }
         }
         const maxUsesNum = maxUses != null && maxUses !== '' ? parseInt(maxUses, 10) : null
         if (maxUsesNum != null && (!Number.isInteger(maxUsesNum) || maxUsesNum < 1)) {
@@ -389,11 +462,12 @@ router.post('/promo-codes', async (req, res) => {
             data: {
                 code: normalized,
                 months: monthsNum,
+                days: daysNum,
                 maxUses: maxUsesNum,
                 expiresAt: expiresAt ? new Date(expiresAt) : null
             }
         })
-        audit(req, 'promo.create', { id: promo.id, code: promo.code, months: promo.months })
+        audit(req, 'promo.create', { id: promo.id, code: promo.code, months: promo.months, days: promo.days })
         res.json({ ok: true, code: promo })
     } catch (err) {
         if (err.code === 'P2002') return res.status(409).json({ error: 'Такой код уже существует' })
@@ -456,6 +530,8 @@ router.get('/users/:id/payments', async (req, res) => {
 // status), read a full thread, reply (flips status -> ANSWERED and emails
 // the user), and an explicit close/reopen toggle.
 const { sendTicketReplyEmail } = require('../lib/email')
+const { createTicketTopic, postTicketMessage, closeTicketTopic, reopenTicketTopic, postToNewsChannel, escapeHtml } = require('../lib/telegram-bot')
+const { ARTICLES, articleUrl, suggestedPostText } = require('../lib/blog-articles')
 
 router.get('/tickets', async (req, res) => {
     try {
@@ -517,6 +593,29 @@ router.post('/tickets/:id/messages', async (req, res) => {
             .catch(e => console.error('[tickets] reply email failed:', e.message))
 
         res.status(201).json({ ok: true, message })
+
+        // Fire-and-forget Telegram mirror (runs after the response is sent,
+        // matching the other three sync sites in tickets-server.js/here).
+        // Replies made here (the web dashboard) get echoed into the topic so
+        // the thread stays complete no matter which side the admin answers
+        // from. Replies that originate the other way (admin typing directly
+        // in Telegram) come in via the webhook, which writes straight to the
+        // DB and does NOT call back into postTicketMessage() — that
+        // asymmetry is what prevents an infinite echo loop between the two
+        // channels.
+        ;(async () => {
+            try {
+                let threadId = ticket.telegramTopicId
+                if (!threadId) {
+                    // Ticket predates the Telegram integration (or topic
+                    // creation failed originally) — create one lazily.
+                    threadId = await createTicketTopic(ticket)
+                    if (threadId) await prisma.ticket.update({ where: { id: ticket.id }, data: { telegramTopicId: threadId } })
+                }
+                if (!threadId) return
+                await postTicketMessage(threadId, `<b>Ответ администратора (сайт)</b>\n\n${escapeHtml(message.body)}`)
+            } catch (e) { console.error('[tickets] telegram sync (admin reply) failed:', e.message) }
+        })()
     } catch (err) {
         console.error('Admin POST /tickets/:id/messages error:', err)
         res.status(500).json({ error: 'Server error' })
@@ -532,6 +631,13 @@ router.patch('/tickets/:id/status', async (req, res) => {
         const ticket = await prisma.ticket.update({ where: { id: req.params.id }, data: { status } })
         audit(req, 'ticket.status.update', { id: ticket.id, status })
         res.json({ ok: true, ticket })
+
+        if (ticket.telegramTopicId) {
+            const syncTopic = status === 'CLOSED' ? closeTicketTopic : reopenTicketTopic
+            // OPEN/ANSWERED both just need the topic open (reopen is a no-op
+            // on an already-open topic per the Bot API).
+            syncTopic(ticket.telegramTopicId).catch(e => console.error('[tickets] telegram topic sync failed:', e.message))
+        }
     } catch (err) {
         if (err.code === 'P2025') return res.status(404).json({ error: 'Не найден' })
         console.error('Admin PATCH /tickets/:id/status error:', err)
@@ -539,11 +645,110 @@ router.patch('/tickets/:id/status', async (req, res) => {
     }
 })
 
+// ── Новостной канал (@centrioapp, публичный broadcast-канал в Telegram) ────
+// Отдельно от tickets-топиков: postToNewsChannel шлёт в NEWS_CHAT_ID
+// (публичный канал), а не в приватную форум-супергруппу поддержки — см.
+// шапку lib/telegram-bot.js. NewsPost — история уже опубликованного, чтобы
+// (а) не предлагать в кандидатах статью, которая уже была в канале, и
+// (б) не дать дважды опубликовать одну и ту же статью (уникальный slug).
+router.get('/news/candidates', async (req, res) => {
+    try {
+        const posted = await prisma.newsPost.findMany({ where: { slug: { not: null } }, select: { slug: true } })
+        const postedSlugs = new Set(posted.map(p => p.slug))
+        const candidates = ARTICLES
+            .filter(a => !postedSlugs.has(a.slug))
+            .map(a => ({ slug: a.slug, title: a.title, url: articleUrl(a.slug), suggestedText: suggestedPostText(a) }))
+        res.json({ candidates })
+    } catch (err) {
+        console.error('Admin GET /news/candidates error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.get('/news', async (req, res) => {
+    try {
+        const posts = await prisma.newsPost.findMany({ orderBy: { createdAt: 'desc' }, take: 50 })
+        res.json({ posts })
+    } catch (err) {
+        console.error('Admin GET /news error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
+router.post('/news', async (req, res) => {
+    try {
+        const { text, slug, disablePreview } = req.body || {}
+        if (!text || !String(text).trim()) {
+            return res.status(400).json({ error: 'Укажите текст поста' })
+        }
+        const trimmed = String(text).trim()
+
+        // Telegram's sendMessage hard limit is 4096 chars; lib/telegram-bot.js
+        // clip()s to 3900 before sending so the call itself never fails on
+        // length — but silently truncating a public post is the wrong
+        // failure mode (the admin would have no idea it happened). Reject
+        // up front instead so they shorten it themselves.
+        if (trimmed.length > 3900) {
+            return res.status(400).json({ error: `Текст слишком длинный (${trimmed.length} символов, максимум 3900) — сократите пост` })
+        }
+
+        const title = (slug && ARTICLES.find(a => a.slug === slug)?.title) || trimmed.slice(0, 80)
+
+        // Claim the slug in the DB BEFORE sending to Telegram — not after,
+        // like an earlier version of this route did. That ordering had a
+        // real race: two near-simultaneous requests for the same article
+        // could both pass a pre-send existence check and both actually
+        // broadcast to the public channel, with the unique index only
+        // catching the *second DB row* (by which point the duplicate
+        // message had already gone out, and the catch block below would
+        // mask it as a success). Claiming first makes the unique index gate
+        // the send itself: the loser gets a 409 and never calls
+        // postToNewsChannel at all. Manual posts (slug: null) skip this —
+        // Postgres treats every NULL as distinct under the unique index, so
+        // there's no dedup invariant to protect for them.
+        let claim = null
+        if (slug) {
+            try {
+                claim = await prisma.newsPost.create({ data: { slug, title, telegramMessageId: null } })
+            } catch (dbErr) {
+                if (dbErr.code === 'P2002') return res.status(409).json({ error: 'Эта статья уже опубликована в канале' })
+                throw dbErr
+            }
+        }
+
+        const result = await postToNewsChannel(trimmed, { disablePreview: !!disablePreview })
+        if (!result) {
+            // Send failed — release the claim so the slug isn't stuck
+            // "posted" forever and the admin can retry.
+            if (claim) await prisma.newsPost.delete({ where: { id: claim.id } }).catch(() => {})
+            return res.status(502).json({ error: 'Не удалось отправить сообщение в Telegram — проверьте логи сервера' })
+        }
+
+        let post
+        try {
+            post = claim
+                ? await prisma.newsPost.update({ where: { id: claim.id }, data: { telegramMessageId: result.message_id || null } })
+                : await prisma.newsPost.create({ data: { slug: null, title, telegramMessageId: result.message_id || null } })
+        } catch (dbErr) {
+            // Сообщение уже реально ушло в публичный канал — сбой записи в
+            // БД не должен выглядеть как сбой всей операции (иначе админ
+            // повторит попытку и продублирует пост). Громко логируем,
+            // отвечаем успехом; в истории просто не будет этой записи.
+            console.error('[news] posted to Telegram but failed to record NewsPost:', dbErr.message)
+            post = { slug: slug || null, title, telegramMessageId: result.message_id || null, createdAt: new Date() }
+        }
+
+        res.status(201).json({ ok: true, post })
+        audit(req, 'news.post', { slug: slug || null, telegramMessageId: result.message_id })
+    } catch (err) {
+        console.error('Admin POST /news error:', err)
+        res.status(500).json({ error: 'Server error' })
+    }
+})
+
 // ── Рассылки (broadcast emails) ─────────────────────────────────────
-// Needs the Broadcast model added to schema.prisma first — see
-// landing/schema-broadcast.js (not yet run on the server, deploys are
-// frozen this session; run it + `npx prisma generate` before this section
-// goes live).
+// Broadcast model added via landing/schema-broadcast.js, already applied
+// and live on the server (confirmed in prisma/schema.prisma).
 const BROADCAST_AUDIENCES = { ALL: {}, FREE: { plan: 'FREE' }, PRO: { plan: { in: ['PRO', 'TEAM'] } } }
 
 function broadcastEscapeHtml(str) {

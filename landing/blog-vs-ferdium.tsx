@@ -4,7 +4,7 @@ import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
 import { DEFAULT_OG_IMAGE } from '@/lib/seo';
 
-const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.0.0.exe';
+const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.1.0.exe';
 
 export const metadata: Metadata = {
   title: 'Centrio vs Ferdium: сравнение агрегаторов мессенджеров 2026',
@@ -30,9 +30,38 @@ const ROWS = [
   { feature: 'Открытый исходный код', centrio: '❌', ferdium: '✅' },
 ];
 
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Блог', item: 'https://centrio.me/blog' },
+    { '@type': 'ListItem', position: 3, name: 'Centrio vs Ferdium: сравнение агрегаторов мессенджеров 2026', item: 'https://centrio.me/blog/vs-ferdium' },
+  ],
+};
+
+const BLOG_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: 'Centrio vs Ferdium: сравнение агрегаторов мессенджеров 2026',
+  description: 'Centrio против Ferdium — сравнение бесплатного open-source агрегатора и Centrio с встроенным VPN, поддержкой VK и русскоязычной поддержкой. Что выбрать в 2026 году?',
+  image: 'https://centrio.me/api/og',
+  datePublished: '2026-08-01',
+  dateModified: '2026-08-01',
+  author: { '@type': 'Organization', name: 'Centrio' },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Centrio',
+    logo: { '@type': 'ImageObject', url: 'https://centrio.me/logo.png' },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://centrio.me/blog/vs-ferdium' },
+};
+
 export default function VsFerdiumPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BLOG_JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <SiteHeader />
       <div style={{ minHeight: '100vh', background: '#080810', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
         <section style={{ maxWidth: 860, margin: '0 auto', padding: '60px 24px 50px', textAlign: 'center' }}>
@@ -119,7 +148,7 @@ export default function VsFerdiumPage() {
             <a href={WIN_DOWNLOAD} style={{ display: 'inline-block', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', borderRadius: 12, padding: '14px 36px', textDecoration: 'none', fontWeight: 700, fontSize: 16, boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}>
               ⬇ Скачать Centrio для Windows
             </a>
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>Версия 2.0.0 · Бесплатно · Windows · macOS · Linux</p>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>Версия 2.1.0 · Бесплатно · Windows · macOS · Linux</p>
           </section>
         </div>
       </div>

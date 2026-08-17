@@ -372,6 +372,9 @@ function createCloudUiApi({
         document.getElementById('cloudEditNameWrap').style.display = 'none'
         document.getElementById('cloudEditNameBtn').style.display  = 'flex'
 
+        const promoMsgEl = document.getElementById('cloudPromoMsg')
+        if (promoMsgEl) promoMsgEl.style.display = 'none'
+
         _updatePlanCards(plan)
         _renderProSection(user, plan, isPro)
         _renderLocalStats()

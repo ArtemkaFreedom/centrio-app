@@ -2,6 +2,7 @@ const router = require('express').Router()
 const authMiddleware = require('../middleware/auth')
 const prisma = require('../utils/prisma')
 const { rateLimit } = require('../middleware/rateLimit')
+const { createTicketTopic, postTicketMessage, reopenTicketTopic, escapeHtml } = require('../lib/telegram-bot')
 
 // Support tickets — authenticated user-facing thread endpoints. Admin-facing
 // counterparts (list all, reply, close/reopen) live in admin-routes.js,
@@ -46,6 +47,21 @@ router.post('/', createTicketLimiter, authMiddleware, async (req, res) => {
     })
 
     res.status(201).json(ticket)
+
+    // Fire-and-forget: mirror into the Telegram tickets forum after
+    // responding, so a slow/unavailable Telegram API never delays ticket
+    // creation for the user. Failure here is logged, not surfaced.
+    ;(async () => {
+      try {
+        const threadId = await createTicketTopic(ticket)
+        if (!threadId) return
+        await prisma.ticket.update({ where: { id: ticket.id }, data: { telegramTopicId: threadId } })
+        await postTicketMessage(threadId,
+          `<b>Новое обращение</b>\n` +
+          `От: ${escapeHtml(req.user.email)}\n\n` +
+          escapeHtml(body.trim()))
+      } catch (e) { console.error('[tickets] telegram sync (create) failed:', e.message) }
+    })()
   } catch (err) {
     console.error('Ticket create error:', err.message)
     res.status(500).json({ error: 'Ошибка создания обращения' })
@@ -97,12 +113,24 @@ router.post('/:id/messages', replyLimiter, authMiddleware, async (req, res) => {
     const ticket = await prisma.ticket.findFirst({ where: { id: req.params.id, userId: req.user.id } })
     if (!ticket) return res.status(404).json({ error: 'Обращение не найдено' })
 
+    const wasClosed = ticket.status === 'CLOSED'
+
     const [message] = await prisma.$transaction([
       prisma.ticketMessage.create({ data: { ticketId: ticket.id, isAdmin: false, body: body.trim() } }),
       prisma.ticket.update({ where: { id: ticket.id }, data: { status: 'OPEN' } })
     ])
 
     res.status(201).json(message)
+
+    // Fire-and-forget Telegram mirror — see POST / above for rationale.
+    ;(async () => {
+      try {
+        if (!ticket.telegramTopicId) return
+        if (wasClosed) await reopenTicketTopic(ticket.telegramTopicId)
+        await postTicketMessage(ticket.telegramTopicId,
+          `<b>Пользователь ответил</b>\n\n${escapeHtml(body.trim())}`)
+      } catch (e) { console.error('[tickets] telegram sync (reply) failed:', e.message) }
+    })()
   } catch (err) {
     console.error('Ticket reply error:', err.message)
     res.status(500).json({ error: 'Ошибка отправки сообщения' })

@@ -1,9 +1,10 @@
 ﻿'use client'
+import Link from 'next/link';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
 import { useLang } from '@/lib/i18n';
 
-const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.0.0.exe';
+const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.1.0.exe';
 
 const tableData = [
   { feature: 'Бесплатный тариф', centrio: '✅ До 5 сервисов', wavebox: '❌ Только 14-дневный триал' },
@@ -38,10 +39,39 @@ const perfData = [
   { metric: 'CPU в простое', centrio: '< 1%', wavebox: '2–5%' },
 ];
 
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Блог', item: 'https://centrio.me/blog' },
+    { '@type': 'ListItem', position: 3, name: 'Centrio vs Wavebox: сравнение агрегаторов мессенджеров 2026', item: 'https://centrio.me/blog/vs-wavebox' },
+  ],
+};
+
+const BLOG_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: 'Centrio vs Wavebox: сравнение агрегаторов мессенджеров 2026',
+  description: 'Centrio против Wavebox — детальное сравнение. Wavebox стоит $19/мес, нет VPN, нет русского интерфейса. Centrio — 199 ₽/мес, встроенный VPN, 5 языков.',
+  image: 'https://centrio.me/api/og',
+  datePublished: '2026-04-01',
+  dateModified: '2026-08-13',
+  author: { '@type': 'Organization', name: 'Centrio' },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Centrio',
+    logo: { '@type': 'ImageObject', url: 'https://centrio.me/logo.png' },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://centrio.me/blog/vs-wavebox' },
+};
+
 export default function VsWaveboxPage() {
   const { t } = useLang();
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BLOG_JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <SiteHeader />
       <div style={{ minHeight: '100vh', background: '#080810', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
         <section style={{ maxWidth: 860, margin: '0 auto', padding: '60px 24px 48px', textAlign: 'center' }}>
@@ -55,7 +85,7 @@ export default function VsWaveboxPage() {
           <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 17, lineHeight: 1.7, maxWidth: 620, margin: '0 auto 16px' }}>
             Wavebox позиционирует себя как «рабочее место» для команд. Но стоит ли он $19/мес когда есть Centrio за 199 ₽?
           </p>
-          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>{t.blog_updated ?? 'Обновлено: апрель 2026 · Время чтения: ~6 мин'}</p>
+          <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>{t.blog_updated ?? 'Обновлено: август 2026 · Время чтения: ~6 мин'}</p>
         </section>
 
         <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 24px 80px' }}>
@@ -161,6 +191,15 @@ export default function VsWaveboxPage() {
             </div>
           </section>
 
+          <section style={{ marginBottom: 56 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, color: '#e2e8f0' }}>Похожие статьи</h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <Link href="/blog/vs-rambox" style={{ color: '#a5b4fc', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(165,180,252,0.25)', borderRadius: 10, padding: '8px 16px' }}>Centrio vs Rambox →</Link>
+              <Link href="/blog/vs-franz" style={{ color: '#a5b4fc', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(165,180,252,0.25)', borderRadius: 10, padding: '8px 16px' }}>Centrio vs Franz →</Link>
+              <Link href="/blog/best-messenger-aggregators" style={{ color: '#a5b4fc', fontSize: 14.5, textDecoration: 'none', border: '1px solid rgba(165,180,252,0.25)', borderRadius: 10, padding: '8px 16px' }}>Топ-7 агрегаторов мессенджеров →</Link>
+            </div>
+          </section>
+
           <section style={{ textAlign: 'center' }}>
             <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>{t.blog_cta_try_free ?? 'Попробуйте Centrio бесплатно'}</h2>
             <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: 28 }}>{t.blog_cta_try_free_desc ?? 'Скачайте и убедитесь сами — без ограничений по времени.'}</p>
@@ -168,7 +207,7 @@ export default function VsWaveboxPage() {
               style={{ display: 'inline-block', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', borderRadius: 12, padding: '14px 36px', textDecoration: 'none', fontWeight: 700, fontSize: 16, boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}>
               {t.blog_cta_dl_win ?? '⬇ Скачать Centrio для Windows'}
             </a>
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>{t.blog_cta_platforms ?? 'Версия 2.0.0 · Бесплатно · Windows · macOS · Linux'}</p>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>{t.blog_cta_platforms ?? 'Версия 2.1.0 · Бесплатно · Windows · macOS · Linux'}</p>
           </section>
         </div>
       </div>

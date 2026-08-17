@@ -242,16 +242,38 @@ function createMessengersApi({
         })
     }
 
+    // BUGFIX ("в Алису не загружаются некоторые изображения, точечно"): see
+    // the matching comment on electronAPI.chromeVersion in preload.js for the
+    // full root-cause writeup. Short version — this string used to be a
+    // literal frozen at commit time ("...Chrome/120.0.0.0..."), which drifts
+    // out of sync with the real Chromium build inside Electron (Chromium
+    // generates Sec-CH-UA Client Hints from its own real version no matter
+    // what this attribute says), and Yandex properties like alice.yandex.ru
+    // apparently use that mismatch to selectively degrade requests. Cached
+    // once — chromeVersion never changes during the process lifetime.
+    let cachedWebviewUserAgent = null
+    function buildWebviewUserAgent() {
+        if (cachedWebviewUserAgent) return cachedWebviewUserAgent
+
+        const chromeVersion = window.electronAPI?.chromeVersion
+        const versionToken = chromeVersion ? `${chromeVersion}.0.0.0`.split('.').slice(0, 4).join('.') : null
+
+        cachedWebviewUserAgent = versionToken
+            ? `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${versionToken} Safari/537.36`
+            // Fallback to the old literal only if the real version couldn't be
+            // read for some reason — better a possibly-stale UA than none.
+            : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+        return cachedWebviewUserAgent
+    }
+
     function addWebview(messenger) {
         const webview = document.createElement('webview')
         webview.id = `webview-${messenger.id}`
         webview.src = messenger.url
         webview.setAttribute('allowpopups', 'true')
         webview.setAttribute('partition', `persist:${messenger.id}`)
-        webview.setAttribute(
-            'useragent',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        )
+        webview.setAttribute('useragent', buildWebviewUserAgent())
 
         if (preloadPath) {
             webview.setAttribute('preload', preloadPath)

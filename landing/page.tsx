@@ -7,7 +7,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { GlassPricingSection, type PricingCardProps } from '@/components/ui/animated-glassy-pricing'
 import { COMPARE_LINKS } from '@/lib/site-nav'
 
-const VERSION = '2.0.0'
+const VERSION = '2.1.0'
 const WIN_DOWNLOAD = `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`
 
 /* ─── SVG icons ──────────────────────────────────────────────────────────── */
@@ -77,7 +77,7 @@ function SupportModal({ t, onClose }: { t: any; onClose: () => void }) {
     e.preventDefault(); setSending(true)
     await new Promise(r => setTimeout(r, 800)); setSent(true); setSending(false)
   }
-  const inp: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: '11px 14px', color: '#fafafa', fontSize: 14, outline: 'none', fontFamily: 'inherit' }
+  const inp: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: '11px 14px', color: '#F5F1E8', fontSize: 14, outline: 'none', fontFamily: 'inherit' }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
@@ -89,23 +89,113 @@ function SupportModal({ t, onClose }: { t: any; onClose: () => void }) {
         {sent ? (
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
             <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(34,197,94,.08)', border: '1px solid rgba(34,197,94,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-            <p style={{ color: '#fafafa', fontSize: 16, fontWeight: 600 }}>{t.sup_sent}</p>
-            <button onClick={onClose} style={{ marginTop: 16, background: 'rgba(124,58,237,.9)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>{t.sup_close}</button>
+            <p style={{ color: '#F5F1E8', fontSize: 16, fontWeight: 600 }}>{t.sup_sent}</p>
+            <button onClick={onClose} style={{ marginTop: 16, background: 'rgba(47,111,237,.9)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 24px', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>{t.sup_close}</button>
           </div>
         ) : (
           <form onSubmit={handleSend}>
-            <h3 style={{ color: '#fafafa', fontSize: 19, fontWeight: 700, marginBottom: 22, letterSpacing: '-.02em' }}>{t.sup_title}</h3>
+            <h3 style={{ color: '#F5F1E8', fontSize: 19, fontWeight: 700, marginBottom: 22, letterSpacing: '-.02em' }}>{t.sup_title}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input style={inp} placeholder={t.sup_name} value={name} onChange={e => setName(e.target.value)} required />
               <input style={inp} type="email" placeholder={t.sup_email} value={email} onChange={e => setEmail(e.target.value)} required />
               <textarea style={{ ...inp, resize: 'vertical', minHeight: 96 }} placeholder={t.sup_msg} value={msg} onChange={e => setMsg(e.target.value)} required />
             </div>
-            <button type="submit" disabled={sending} style={{ marginTop: 16, width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: sending ? .7 : 1 }}>
+            <button type="submit" disabled={sending} style={{ marginTop: 16, width: '100%', background: '#2F6FED', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: sending ? .7 : 1 }}>
               {sending ? '...' : t.sup_send}
             </button>
           </form>
         )}
       </motion.div>
+    </motion.div>
+  )
+}
+
+function ScreenshotLightbox({ screenshots, idx, setIdx, title }: { screenshots: string[]; idx: number; setIdx: (i: number | null) => void; title: string }) {
+  const go = (d: number) => setIdx((idx + d + screenshots.length) % screenshots.length)
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setIdx(null)}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.9)', backdropFilter: 'blur(24px)' }} />
+      <button aria-label="Закрыть" onClick={() => setIdx(null)}
+        style={{ position: 'absolute', top: 20, right: 20, zIndex: 2, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>×</button>
+      <button aria-label="Назад" onClick={(e) => { e.stopPropagation(); go(-1) }}
+        style={{ position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)', zIndex: 2, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button aria-label="Вперёд" onClick={(e) => { e.stopPropagation(); go(1) }}
+        style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', zIndex: 2, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <motion.div key={idx} initial={{ scale: .96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: .96, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+        style={{ position: 'relative', zIndex: 1, maxWidth: 'min(1100px, 90vw)', maxHeight: '86vh' }} onClick={e => e.stopPropagation()}>
+        <img src={screenshots[idx]} alt={`Centrio — ${title} ${idx + 1}`}
+          style={{ display: 'block', width: '100%', height: '100%', maxHeight: '86vh', objectFit: 'contain', borderRadius: 14, boxShadow: '0 40px 140px rgba(0,0,0,.9)', border: '1px solid rgba(255,255,255,.08)' }} />
+        <div style={{ textAlign: 'center', marginTop: 14, color: 'rgba(245,241,232,.4)', fontSize: 13 }}>{idx + 1} / {screenshots.length}</div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+const PROMO_CODE = 'PRO14'
+
+function PromoPopup({ t, onClose }: { t: any; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard?.writeText(PROMO_CODE).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: .96 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+      style={{
+        position: 'fixed', right: 20, bottom: 20, zIndex: 250, width: 'min(380px, calc(100vw - 40px))',
+        background: 'linear-gradient(165deg, #15151a 0%, #0e0e11 100%)', border: '1px solid rgba(90,169,255,.18)',
+        borderRadius: 18, padding: '26px 24px 22px', boxShadow: '0 30px 90px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.03) inset',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ position: 'absolute', top: -60, right: -60, width: 180, height: 180, background: 'radial-gradient(ellipse, rgba(90,169,255,.22) 0%, transparent 70%)', filter: 'blur(30px)', pointerEvents: 'none' }} />
+      <button onClick={onClose} aria-label={t.sup_close}
+        style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.4)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, zIndex: 1 }}>×</button>
+
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(155deg, #3D7FF2 0%, #2059D6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 8px 20px rgba(47,111,237,.35)' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+        </div>
+        <div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#93C5FF' }}>{t.promo_eyebrow}</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: '#F5F1E8', letterSpacing: '-.01em', marginTop: 2 }}>{t.promo_title}</div>
+        </div>
+      </div>
+
+      <p style={{ position: 'relative', zIndex: 1, fontSize: 13.5, lineHeight: 1.55, color: 'rgba(245,241,232,.55)', margin: '0 0 18px' }}>{t.promo_sub}</p>
+
+      <div style={{ position: 'relative', zIndex: 1, marginBottom: 16 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(245,241,232,.35)', marginBottom: 7 }}>{t.promo_code_hint}</div>
+        <button onClick={handleCopy} style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          background: 'rgba(90,169,255,.08)', border: '1px dashed rgba(90,169,255,.35)', borderRadius: 10,
+          padding: '10px 14px', cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '.06em', color: '#F5F1E8' }}>{PROMO_CODE}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: copied ? '#5AD98F' : '#93C5FF', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+            {copied ? (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            )}
+            {copied ? t.promo_copied : t.promo_copy}
+          </span>
+        </button>
+      </div>
+
+      <a href={WIN_DOWNLOAD} onClick={onClose} className="btn-p" style={{ position: 'relative', zIndex: 1, display: 'flex', width: '100%', justifyContent: 'center', fontSize: 14, padding: '12px' }}>
+        {t.promo_cta}
+      </a>
+      <p style={{ position: 'relative', zIndex: 1, fontSize: 11.5, color: 'rgba(245,241,232,.32)', textAlign: 'center', margin: '10px 0 0' }}>{t.promo_cta_sub}</p>
     </motion.div>
   )
 }
@@ -120,13 +210,15 @@ function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => voi
   }, [])
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button onClick={() => setOpen(!open)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, padding: '6px 11px', color: 'rgba(250,250,250,.45)', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-        {LANG_LABELS[lang]}<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      <button onClick={() => setOpen(!open)} className="lang-btn" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, padding: '6px 11px', color: 'rgba(245,241,232,.45)', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <svg className="lang-globe" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'none', flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span className="lang-label">{LANG_LABELS[lang]}</span>
+        <svg className="lang-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && (
         <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#111113', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', zIndex: 50, minWidth: 120, boxShadow: '0 16px 48px rgba(0,0,0,.8)' }}>
           {LANGS.map(l => (
-            <button key={l} onClick={() => { setLang(l); setOpen(false) }} style={{ display: 'block', width: '100%', padding: '8px 14px', background: l === lang ? 'rgba(124,58,237,.12)' : 'transparent', border: 'none', color: l === lang ? '#a78bfa' : 'rgba(250,250,250,.45)', fontSize: 13, fontWeight: l === lang ? 600 : 400, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+            <button key={l} onClick={() => { setLang(l); setOpen(false) }} style={{ display: 'block', width: '100%', padding: '8px 14px', background: l === lang ? 'rgba(47,111,237,.12)' : 'transparent', border: 'none', color: l === lang ? '#93C5FF' : 'rgba(245,241,232,.45)', fontSize: 13, fontWeight: l === lang ? 600 : 400, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
               {LANG_LABELS[l]}
             </button>
           ))}
@@ -260,7 +352,7 @@ function AppMockup() {
         border: '1px solid rgba(255,255,255,.12)',
         borderRadius: 14,
         overflow: 'hidden',
-        boxShadow: '0 0 0 1px rgba(255,255,255,.04), 0 60px 140px rgba(0,0,0,.9), 0 0 80px rgba(124,58,237,.12)',
+        boxShadow: '0 0 0 1px rgba(255,255,255,.04), 0 60px 140px rgba(0,0,0,.9)',
         width: '100%',
         maxWidth: 560,
       }}>
@@ -273,11 +365,8 @@ function AppMockup() {
 
       {/* Titlebar */}
       <div style={{ background: 'rgba(0,0,0,.5)', padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-        <div style={{ display: 'flex', gap: 5 }}>
-          {['#ef4444','#f59e0b','#22c55e'].map(c => (
-            <div key={c} style={{ width: 9, height: 9, borderRadius: '50%', background: c, opacity: .8 }} />
-          ))}
-        </div>
+        <img src="/logo.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0, opacity: .9 }} />
+        <span style={{ fontSize: 12, fontWeight: 650, color: 'rgba(245,241,232,.55)', letterSpacing: '-.01em', flexShrink: 0 }}>Centrio</span>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
           <div style={{ background: 'rgba(255,255,255,.05)', borderRadius: 6, padding: '3px 12px', display: 'flex', alignItems: 'center', gap: 5, width: 160 }}>
             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -289,8 +378,8 @@ function AppMockup() {
 
       <div style={{ display: 'flex', height: 340 }}>
 
-        {/* Icon sidebar */}
-        <div style={{ width: 48, background: 'rgba(0,0,0,.35)', borderRight: '1px solid rgba(255,255,255,.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 6, flexShrink: 0 }}>
+        {/* Icon sidebar — mirrors the real app's rail: apps top-to-bottom, system controls at the end */}
+        <div style={{ width: 48, background: 'rgba(0,0,0,.35)', borderRight: '1px solid rgba(255,255,255,.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0', gap: 4, flexShrink: 0 }}>
           {MOCK_DATA.map((app, i) => (
             <div key={i} onClick={() => switchTo(i)} style={{ cursor: 'pointer', position: 'relative' }}>
               <div style={{
@@ -313,8 +402,22 @@ function AppMockup() {
               )}
             </div>
           ))}
+          <div style={{ width: 32, height: 32, borderRadius: 10, border: '1.5px dashed rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.2)', fontSize: 16, flexShrink: 0 }}>+</div>
+
           <div style={{ flex: 1 }} />
-          <div style={{ width: 32, height: 32, borderRadius: 10, border: '1.5px dashed rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.2)', fontSize: 16 }}>+</div>
+
+          {/* System controls — settings, blocking, split (matches the real app's rail) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center', paddingTop: 4, borderTop: '1px solid rgba(255,255,255,.05)', width: '100%', flexShrink: 0 }}>
+            {[
+              <svg key="s" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.32)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+              <svg key="l" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.32)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+              <svg key="sp" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.32)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/></svg>,
+            ].map((icon, si) => (
+              <div key={si} style={{ width: 24, height: 24, borderRadius: 7, background: 'rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {icon}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Chat list */}
@@ -337,11 +440,11 @@ function AppMockup() {
               {active.chats.map((c, i) => (
                 <div key={i} style={{ padding: '9px 10px', background: i === 0 ? `${active.color}18` : 'transparent', borderLeft: i === 0 ? `2px solid ${active.color}` : '2px solid transparent', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                    <span style={{ fontSize: 11, fontWeight: i === 0 ? 700 : 500, color: i === 0 ? '#fafafa' : 'rgba(250,250,250,.65)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                    <span style={{ fontSize: 9, color: 'rgba(250,250,250,.25)', flexShrink: 0, marginLeft: 4 }}>{c.time}</span>
+                    <span style={{ fontSize: 11, fontWeight: i === 0 ? 700 : 500, color: i === 0 ? '#F5F1E8' : 'rgba(245,241,232,.65)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                    <span style={{ fontSize: 9, color: 'rgba(245,241,232,.25)', flexShrink: 0, marginLeft: 4 }}>{c.time}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 10, color: 'rgba(250,250,250,.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.msg}</span>
+                    <span style={{ fontSize: 10, color: 'rgba(245,241,232,.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.msg}</span>
                     {c.unread > 0 && <span style={{ background: active.color, color: '#fff', fontSize: 8.5, fontWeight: 700, borderRadius: 8, minWidth: 15, height: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', flexShrink: 0 }}>{c.unread}</span>}
                   </div>
                 </div>
@@ -366,7 +469,7 @@ function AppMockup() {
               <motion.div key={activeIdx}
                 initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}>
-                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#fafafa' }}>{active.contact}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#F5F1E8' }}>{active.contact}</div>
                 <div style={{ fontSize: 9.5, color: '#22c55e', fontWeight: 500 }}>в сети</div>
               </motion.div>
             </AnimatePresence>
@@ -403,7 +506,7 @@ function AppMockup() {
 
           {/* Input */}
           <div style={{ padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,.04)', display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-            <div style={{ flex: 1, background: 'rgba(255,255,255,.05)', borderRadius: 8, padding: '6px 10px', fontSize: 10, color: 'rgba(250,250,250,.2)' }}>Написать сообщение...</div>
+            <div style={{ flex: 1, background: 'rgba(255,255,255,.05)', borderRadius: 8, padding: '6px 10px', fontSize: 10, color: 'rgba(245,241,232,.2)' }}>Написать сообщение...</div>
             <div style={{ width: 26, height: 26, borderRadius: 8, background: active.color + 'cc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .3s' }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </div>
@@ -415,8 +518,8 @@ function AppMockup() {
 }
 
 /* ─── Feature icon ───────────────────────────────────────────────────────── */
-function FIcon({ name }: { name: string }) {
-  const p = { viewBox: '0 0 24 24', fill: 'none', stroke: '#a78bfa', strokeWidth: '1.7', width: '20', height: '20', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+function FIcon({ name, color = 'rgba(245,241,232,.55)' }: { name: string; color?: string }) {
+  const p = { viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: '1.7', width: '20', height: '20', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   if (name === 'grid')   return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
   if (name === 'bell')   return <svg {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
   if (name === 'folder') return <svg {...p}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -426,6 +529,7 @@ function FIcon({ name }: { name: string }) {
   if (name === 'cloud')  return <svg {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
   if (name === 'sound')  return <svg {...p}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
   if (name === 'update') return <svg {...p}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+  if (name === 'split')  return <svg {...p}><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
   return null
 }
 
@@ -434,13 +538,32 @@ function FIcon({ name }: { name: string }) {
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function LandingPage() {
   const { lang, t, setLang } = useLang()
+  const screenshots = lang === 'ru'
+    ? ['/screenshots/ru/1.png', '/screenshots/ru/2.png', '/screenshots/ru/3.png', '/screenshots/ru/4.png', '/screenshots/ru/5.png']
+    : ['/screenshots/en/1.png', '/screenshots/en/2.png', '/screenshots/en/3.png', '/screenshots/en/4.png', '/screenshots/en/5.png']
   const [scrolled, setScrolled] = useState(false)
   const [pastHero, setPastHero] = useState(false)
   const [stickyDismissed, setStickyDismissed] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
+  const [promoOpen, setPromoOpen] = useState(false)
   const c1 = useAnimatedCounter(15)
   const c2 = useAnimatedCounter(52184)
   const c3 = useAnimatedCounter(4)
+  const ssRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (lightboxIdx === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIdx(null)
+      if (e.key === 'ArrowRight') setLightboxIdx(v => v === null ? v : (v + 1) % screenshots.length)
+      if (e.key === 'ArrowLeft') setLightboxIdx(v => v === null ? v : (v - 1 + screenshots.length) % screenshots.length)
+    }
+    window.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow }
+  }, [lightboxIdx, screenshots.length])
 
   useEffect(() => {
     const fn = () => {
@@ -449,6 +572,17 @@ export default function LandingPage() {
     }
     window.addEventListener('scroll', fn); return () => window.removeEventListener('scroll', fn)
   }, [])
+
+  useEffect(() => {
+    if (localStorage.getItem('centrio_promo_seen')) return
+    const timer = setTimeout(() => setPromoOpen(true), 10000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const dismissPromo = () => {
+    setPromoOpen(false)
+    localStorage.setItem('centrio_promo_seen', '1')
+  }
 
   const messengers = [
     { name: 'Telegram',      img: '/messengers/telegram.png', color: '#2AABEE' },
@@ -477,7 +611,20 @@ export default function LandingPage() {
     { icon: 'lock',   title: t.f6t, desc: t.f6d },
   ]
 
-  const C = 'rgba(250,250,250,'
+  const capabilities = [
+    { icon: 'grid',   title: t.f1t,  desc: t.f1d,  tier: 'basic' as const },
+    { icon: 'folder', title: t.f3t,  desc: t.f3d,  tier: 'basic' as const },
+    { icon: 'bell',   title: t.f2t,  desc: t.f2d,  tier: 'basic' as const },
+    { icon: 'theme',  title: t.f5t,  desc: t.f5d,  tier: 'basic' as const },
+    { icon: 'globe',  title: t.f4t,  desc: t.f4d,  tier: 'basic' as const },
+    { icon: 'sound',  title: t.f8t,  desc: t.f8d,  tier: 'basic' as const },
+    { icon: 'split',  title: t.f10t, desc: t.f10d, tier: 'pro' as const },
+    { icon: 'lock',   title: t.f6t,  desc: t.f6d,  tier: 'pro' as const },
+    { icon: 'cloud',  title: t.f7t,  desc: t.f7d,  tier: 'pro' as const },
+    { icon: 'update', title: t.f9t,  desc: t.f9d,  tier: 'basic' as const },
+  ]
+
+  const C = 'rgba(245,241,232,'
 
   return (
     <>
@@ -486,19 +633,19 @@ export default function LandingPage() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body {
-          background: #09090b;
-          color: #fafafa;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          background: #0b0a08;
+          color: #F5F1E8;
+          font-family: var(--font-geist), -apple-system, BlinkMacSystemFont, sans-serif;
           overflow-x: hidden;
           -webkit-font-smoothing: antialiased;
         }
-        /* Subtle grid */
+        /* Subtle grid, warmed off pure white */
         body::before {
           content: '';
           position: fixed; inset: 0; z-index: 0; pointer-events: none;
           background-image:
-            linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+            linear-gradient(rgba(255,235,210,.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,235,210,.025) 1px, transparent 1px);
           background-size: 40px 40px;
           mask-image: radial-gradient(ellipse 80% 80% at 50% 0%, black 30%, transparent 80%);
           -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 0%, black 30%, transparent 80%);
@@ -511,7 +658,6 @@ export default function LandingPage() {
         @keyframes mq-r { 0%{transform:translateX(-50%)} 100%{transform:translateX(0)} }
         @keyframes float { 0%,100%{transform:translateY(0) perspective(1000px) rotateY(-6deg) rotateX(1.5deg)} 50%{transform:translateY(-10px) perspective(1000px) rotateY(-6deg) rotateX(1.5deg)} }
         @keyframes grad-border { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
-        @keyframes shimmer-text { 0%{background-position:200% center} 100%{background-position:-200% center} }
         @keyframes progress-fill { from { width: 0% } to { width: 100% } }
         @keyframes typing-dot {
           0%, 60%, 100% { transform: translateY(0); opacity: .3 }
@@ -528,34 +674,37 @@ export default function LandingPage() {
         .cmp-grid { display: grid; grid-template-columns: 1fr 1.1fr 1fr 1fr 1fr; }
         .cmp-header { padding: 12px 14px; font-size: 12px; font-weight: 700; letter-spacing: -.01em; }
         .cmp-cell { padding: 13px 14px; font-size: 12.5px; border-top: 1px solid rgba(255,255,255,.05); }
-        .cmp-centrio { background: rgba(124,58,237,.07); border-left: 1px solid rgba(124,58,237,.2); border-right: 1px solid rgba(124,58,237,.2); }
-        .cmp-centrio-top { border-top: 1px solid rgba(124,58,237,.2); border-radius: 10px 10px 0 0; }
-        .cmp-centrio-bot { border-bottom: 1px solid rgba(124,58,237,.2); border-radius: 0 0 10px 10px; }
+        .cmp-centrio { background: rgba(255,255,255,.035); border-left: 1px solid rgba(255,255,255,.1); border-right: 1px solid rgba(255,255,255,.1); }
+        .cmp-centrio-top { border-top: 2px solid #5AA9FF; border-radius: 10px 10px 0 0; }
+        .cmp-centrio-bot { border-bottom: 1px solid rgba(255,255,255,.1); border-radius: 0 0 10px 10px; }
         @media (max-width: 680px) { .cmp-grid { grid-template-columns: 1fr 1fr; } .cmp-hide { display: none !important; } }
 
-        /* Gradient text */
-        .gt {
-          background: linear-gradient(90deg, #c084fc 0%, #818cf8 50%, #67e8f9 100%);
-          background-size: 200% auto;
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-          animation: shimmer-text 4s linear infinite;
-        }
+        /* Accent word — flat color, no gradient/shimmer. Weight/size carries
+           hierarchy, not decoration (matches Linear/Raycast/Arc headline
+           treatment — a single confident accent color, not a moving gradient). */
+        .gt { color: #5AA9FF; }
 
-        /* Nav */
+        /* Nav — reads as the title bar of the page, echoing the AppMockup
+           window chrome below it (same traffic-light dots). */
         .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
-        .nav.sc { background: rgba(9,9,11,.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid rgba(255,255,255,.06); }
-        .nlink { color: ${C}.38); font-size: 13.5px; font-weight: 450; text-decoration: none; transition: color .2s; }
-        .nlink:hover { color: #fafafa; }
+        .nav.sc { background: rgba(11,10,8,.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-bottom: 1px solid rgba(255,255,255,.06); }
+        .nlink { font-family: var(--font-geist); color: ${C}.4); font-size: 13.5px; font-weight: 500; text-decoration: none; transition: all .2s; letter-spacing: -.01em; padding: 7px 12px; border-radius: 8px; }
+        .nlink:hover { color: #F5F1E8; background: rgba(255,255,255,.05); }
+        .win-dots { display: flex; gap: 5px; flex-shrink: 0; }
+        .win-dots span { width: 8px; height: 8px; border-radius: 50%; opacity: .75; }
+        .nav-div { width: 1px; height: 20px; background: rgba(255,255,255,.08); margin: 0 2px; flex-shrink: 0; }
 
         /* Buttons */
         .btn-p {
           display: inline-flex; align-items: center; gap: 8px;
-          background: #7c3aed; color: #fff; font-weight: 600; font-size: 14px;
+          background: linear-gradient(155deg, #3D7FF2 0%, #2F6FED 45%, #2059D6 100%);
+          color: #fff; font-weight: 600; font-size: 14px;
           padding: 11px 22px; border-radius: 10px; border: none; cursor: pointer;
-          text-decoration: none; transition: all .2s; white-space: nowrap; font-family: inherit;
-          box-shadow: 0 0 0 1px rgba(124,58,237,.5), 0 4px 20px rgba(124,58,237,.25);
+          text-decoration: none; transition: all .18s cubic-bezier(.4,0,.2,1); white-space: nowrap; font-family: inherit;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 2px rgba(15,45,110,.3), 0 0 0 1px rgba(47,111,237,.15);
         }
-        .btn-p:hover { background: #6d28d9; transform: translateY(-1px); box-shadow: 0 0 0 1px rgba(124,58,237,.6), 0 8px 28px rgba(124,58,237,.35); }
+        .btn-p:hover { background: linear-gradient(155deg, #4A89F5 0%, #3877EF 45%, #2660DE 100%); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.26), 0 4px 14px rgba(47,111,237,.35), 0 0 0 1px rgba(90,169,255,.3); }
+        .btn-p:active { transform: translateY(0); }
 
         .btn-s {
           display: inline-flex; align-items: center; gap: 8px;
@@ -563,9 +712,14 @@ export default function LandingPage() {
           color: ${C}.65); font-weight: 500; font-size: 14px; padding: 11px 22px;
           border-radius: 10px; cursor: pointer; text-decoration: none; transition: all .2s; white-space: nowrap;
         }
-        .btn-s:hover { border-color: rgba(255,255,255,.22); color: #fafafa; background: rgba(255,255,255,.03); }
+        .btn-s:hover { border-color: rgba(255,255,255,.22); color: #F5F1E8; background: rgba(255,255,255,.03); }
 
-        /* Cards */
+        /* Cards — two-tier elevation. L1 (.card) is the flat resting tier used
+           by every regular tile; L2 (.card-elevated) is a visibly heavier
+           surface (brighter bg, stronger border, real ambient shadow) reserved
+           for the one tile per section that should read as "the main thing" —
+           mirrors Linear's tonal-layering elevation system instead of every
+           block sharing one identical flat treatment. */
         .card {
           background: rgba(255,255,255,.03);
           border: 1px solid rgba(255,255,255,.07);
@@ -573,23 +727,32 @@ export default function LandingPage() {
           transition: all .3s ease;
         }
         .card:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); }
+        .card-elevated {
+          position: relative;
+          background: rgba(255,255,255,.055);
+          border: 1px solid rgba(255,255,255,.1);
+          box-shadow: 0 30px 70px rgba(0,0,0,.45);
+        }
+        .card-elevated:hover { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); }
 
-        /* Section label */
+        /* Section label — small-caps sans eyebrow, wide tracking carries the
+           "label" read instead of leaning on a monospace face for it. */
         .label {
           display: inline-block;
-          font-size: 11px; font-weight: 600; letter-spacing: .1em;
-          text-transform: uppercase; color: #a78bfa; margin-bottom: 14px;
+          font-family: var(--font-geist);
+          font-size: 11px; font-weight: 700; letter-spacing: .1em;
+          text-transform: uppercase; color: #93C5FF; margin-bottom: 14px;
         }
-        .sh { font-size: clamp(26px,3.5vw,46px); font-weight: 700; line-height: 1.1; letter-spacing: -.03em; color: #fafafa; }
+        .sh { font-family: var(--font-display), var(--font-geist); font-size: clamp(26px,3.5vw,46px); font-weight: 700; line-height: 1.1; letter-spacing: -.02em; color: #F5F1E8; }
         .sp { font-size: 15.5px; color: ${C}.38); line-height: 1.85; margin-top: 14px; }
 
         /* Messenger card */
         .mc {
-          display: flex; flex-direction: column; align-items: center; gap: 7px;
+          display: flex; flex-direction: column; align-items: center; gap: 9px;
           background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
-          border-radius: 12px; padding: 14px 12px; min-width: 86px; flex-shrink: 0; transition: all .2s;
+          border-radius: 14px; padding: 18px 14px; min-width: 104px; flex-shrink: 0; transition: all .2s;
         }
-        .mc:hover { background: rgba(124,58,237,.07); border-color: rgba(124,58,237,.2); transform: translateY(-3px); }
+        .mc:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.16); transform: translateY(-3px); }
 
         /* Marquee */
         .mql { display: flex; gap: 10px; animation: mq-l 42s linear infinite; width: max-content; }
@@ -601,14 +764,32 @@ export default function LandingPage() {
           -webkit-mask-image: linear-gradient(to right, transparent, black 100px, black calc(100% - 100px), transparent);
         }
 
+        /* Screenshots gallery — browser-chrome-framed, tilted deck.
+           overflow-x MUST be auto (not visible) or the track has no way to
+           scroll — frames past the viewport edge were unreachable, so only
+           the first ~2 of 5 screenshots were ever visible. */
+        .ss-scroll { min-width: 0; flex: 1; overflow-x: auto; overflow-y: visible; padding: 40px 4px 44px; scrollbar-width: none; scroll-snap-type: x proximity; cursor: grab; }
+        .ss-scroll:active { cursor: grabbing; }
+        .ss-scroll::-webkit-scrollbar { display: none; }
+        .ss-track { display: flex; gap: 24px; width: max-content; }
+        .ss-nav { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); color: ${C}.5); cursor: pointer; transition: all .2s; flex-shrink: 0; }
+        .ss-nav:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); color: #F5F1E8; }
+        .ss-frame {
+          width: min(48vw, 380px); flex-shrink: 0; border-radius: 12px; overflow: hidden;
+          scroll-snap-align: center; transition: transform .35s ease;
+        }
+        .ss-frame:hover { transform: translateY(-10px) scale(1.02); z-index: 2; }
+        .ss-frame img { display: block; width: 100%; height: auto; border-radius: 12px; }
+
         /* OS card */
         .osc {
           display: flex; flex-direction: column; align-items: center; gap: 10px;
           background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
-          border-radius: 14px; padding: 28px 36px; text-decoration: none; transition: all .25s;
+          border-radius: 18px; padding: 28px 36px; text-decoration: none; transition: all .25s;
           color: ${C}.65); min-width: 156px;
+          box-shadow: 0 20px 50px rgba(0,0,0,.35);
         }
-        .osc:hover { background: rgba(124,58,237,.06); border-color: rgba(124,58,237,.3); transform: translateY(-4px); color: #fafafa; }
+        .osc:hover { background: rgba(255,255,255,.055); border-color: rgba(255,255,255,.18); transform: translateY(-4px); color: #F5F1E8; box-shadow: 0 30px 70px rgba(0,0,0,.5); }
 
         /* Divider */
         .div { height: 1px; background: rgba(255,255,255,.06); }
@@ -616,7 +797,21 @@ export default function LandingPage() {
         /* Footer links */
         .fl  { display: block; font-size: 13px; color: ${C}.32); text-decoration: none; margin-bottom: 8px; transition: color .15s; }
         .fl:hover { color: ${C}.7); }
-        .flh { font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: ${C}.22); margin-bottom: 14px; display: block; }
+        .flh { font-family: var(--font-geist); font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: ${C}.22); margin-bottom: 14px; display: block; }
+
+        /* Features bento — flagship tile spans 2 rows, two small squares beside it, three across the bottom */
+        .feat-grid { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: minmax(140px, auto); gap: 12px; }
+        .feat-0 { grid-column: 1 / 5; grid-row: 1 / 3; }
+        .feat-1 { grid-column: 5 / 7; grid-row: 1 / 2; }
+        .feat-2 { grid-column: 5 / 6; grid-row: 2 / 3; }
+        .feat-3 { grid-column: 6 / 7; grid-row: 2 / 3; }
+        .feat-4 { grid-column: 1 / 4; grid-row: 3 / 4; }
+        .feat-5 { grid-column: 4 / 7; grid-row: 3 / 4; }
+
+        /* All-capabilities grid */
+        .cap-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .cap-card { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; height: 100%; }
+        .cap-card-icon { width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; background: rgba(90,169,255,.1); border: 1px solid rgba(90,169,255,.22); display: flex; align-items: center; justify-content: center; }
 
         /* Responsive */
         @media (max-width: 860px) {
@@ -624,18 +819,60 @@ export default function LandingPage() {
           .mockup-col { display: none !important; }
           .navlinks   { display: none !important; }
           .feat-grid  { grid-template-columns: 1fr 1fr !important; }
+          .feat-0     { grid-column: span 2 !important; grid-row: span 2 !important; }
+          .feat-1, .feat-2, .feat-3, .feat-4, .feat-5 { grid-column: span 1 !important; grid-row: span 1 !important; }
           .ftcols     { grid-template-columns: 1fr 1fr !important; }
         }
         @media (max-width: 540px) {
           .feat-grid { grid-template-columns: 1fr !important; }
+          .feat-0, .feat-1, .feat-2, .feat-3, .feat-4, .feat-5 { grid-column: span 1 !important; }
+          .cap-grid  { grid-template-columns: 1fr !important; }
           .dl-wrap   { flex-direction: column !important; align-items: center !important; }
           .ftcols    { grid-template-columns: 1fr !important; }
           .pl-wrap   { flex-direction: column !important; }
+        }
+
+        /* Nav right side: collapse to icon-only so it never overflows the
+           viewport — mirrors the same breakpoint/approach already proven on
+           SiteHeader.tsx (shared header used by every other page). */
+        @media (max-width: 560px) {
+          .nav-right { gap: 6px !important; }
+
+          .lang-label, .lang-chevron { display: none !important; }
+          .lang-globe { display: flex !important; }
+          .lang-btn { padding: 7px 9px !important; }
+
+          .lk-text { display: none !important; }
+          .lk-icon { display: flex !important; }
+          .lk-link { padding: 8px 10px !important; }
+
+          .dl-text { display: none !important; }
+          .dl-btn { padding: 9px 11px !important; gap: 0 !important; }
+        }
+
+        /* Sticky download banner: prevent horizontal overflow on narrow
+           screens — no-wrap text + icon + close button don't fit under
+           ~420px, so drop the tagline and tighten spacing/padding first. */
+        @media (max-width: 480px) {
+          .sticky-dl-tagline { display: none !important; }
+          .sticky-dl-bar { padding: 8px 8px 8px 12px !important; gap: 8px !important; }
+          .sticky-dl-btn-text { display: none !important; }
+          .sticky-dl-btn { padding: 8px !important; }
         }
       `}</style>
 
       <AnimatePresence>
         {supportOpen && <SupportModal t={t} onClose={() => setSupportOpen(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {lightboxIdx !== null && (
+          <ScreenshotLightbox screenshots={screenshots} idx={lightboxIdx} setIdx={setLightboxIdx} title={t.ss_title} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {promoOpen && <PromoPopup t={t} onClose={dismissPromo} />}
       </AnimatePresence>
 
       {/* ── STICKY DOWNLOAD BANNER ── */}
@@ -646,13 +883,14 @@ export default function LandingPage() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-            style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 150, background: 'rgba(9,9,11,.96)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 16, padding: '10px 10px 10px 18px', display: 'flex', alignItems: 'center', gap: 12, backdropFilter: 'blur(28px)', boxShadow: '0 8px 48px rgba(0,0,0,.85), 0 0 0 1px rgba(124,58,237,.12), 0 0 40px rgba(124,58,237,.08)', maxWidth: 'calc(100vw - 32px)', whiteSpace: 'nowrap' }}>
+            className="sticky-dl-bar"
+            style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 150, background: 'rgba(11,10,8,.96)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 16, padding: '10px 10px 10px 18px', display: 'flex', alignItems: 'center', gap: 12, backdropFilter: 'blur(28px)', boxShadow: '0 8px 48px rgba(0,0,0,.85)', maxWidth: 'calc(100vw - 32px)', whiteSpace: 'nowrap', overflow: 'hidden' }}>
             <img src="/logo.png" alt="" style={{ width: 26, height: 26, objectFit: 'contain', flexShrink: 0 }} />
-            <span style={{ fontSize: 13.5, fontWeight: 500, color: 'rgba(250,250,250,.65)' }}>Все мессенджеры в одном —</span>
-            <span style={{ fontSize: 13.5, fontWeight: 700, color: '#fafafa' }}>Centrio</span>
-            <a href={WIN_DOWNLOAD} className="btn-p" style={{ fontSize: 13, padding: '8px 18px', borderRadius: 9, flexShrink: 0 }}>
+            <span className="sticky-dl-tagline" style={{ fontSize: 13.5, fontWeight: 500, color: 'rgba(245,241,232,.65)' }}>Все мессенджеры в одном —</span>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: '#F5F1E8', flexShrink: 0 }}>Centrio</span>
+            <a href={WIN_DOWNLOAD} className="btn-p sticky-dl-btn" style={{ fontSize: 13, padding: '8px 18px', borderRadius: 9, flexShrink: 0 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Скачать бесплатно
+              <span className="sticky-dl-btn-text">Скачать бесплатно</span>
             </a>
             <button onClick={() => setStickyDismissed(true)} style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.4)', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0, fontFamily: 'inherit' }}>×</button>
           </motion.div>
@@ -664,9 +902,16 @@ export default function LandingPage() {
         {/* ── NAV ── */}
         <nav className={`nav${scrolled ? ' sc' : ''}`}>
           <div className="wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 62 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <img src="/logo.png" alt="Centrio" style={{ width: 26, height: 26, objectFit: 'contain' }} />
-              <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: '-.02em' }}>Centrio</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+              <div className="win-dots" aria-hidden="true">
+                <span style={{ background: '#ef4444' }} />
+                <span style={{ background: '#f59e0b' }} />
+                <span style={{ background: '#22c55e' }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img src="/logo.png" alt="Centrio" style={{ width: 26, height: 26, objectFit: 'contain' }} />
+                <span style={{ fontFamily: 'var(--font-display), var(--font-geist)', fontWeight: 700, fontSize: 17, letterSpacing: '-.02em' }}>Centrio</span>
+              </div>
             </div>
             <div className="navlinks" style={{ display: 'flex', gap: 28 }}>
               {([[t.nav_features,'#features'],[t.nav_messengers,'#messengers'],[t.nav_pricing,'#pricing'],[t.nav_download,'#download']] as [string,string][]).map(([l,h]) => (
@@ -674,46 +919,48 @@ export default function LandingPage() {
               ))}
               <Link href="/blog" className="nlink">{t.nav_blog}</Link>
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="nav-right" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <LangSwitcher lang={lang} setLang={setLang} />
-              <Link href="/auth/login" style={{ fontSize: 13, fontWeight: 500, color: 'rgba(250,250,250,.42)', textDecoration: 'none', padding: '7px 13px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', transition: 'all .2s' }}
-                onMouseEnter={e => { e.currentTarget.style.color='#fafafa'; e.currentTarget.style.borderColor='rgba(255,255,255,.15)' }}
-                onMouseLeave={e => { e.currentTarget.style.color='rgba(250,250,250,.42)'; e.currentTarget.style.borderColor='rgba(255,255,255,.07)' }}>
-                {t.nav_dashboard}
+              <Link href="/auth/login" className="lk-link" style={{ fontSize: 13, fontWeight: 500, color: 'rgba(245,241,232,.42)', textDecoration: 'none', padding: '7px 13px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', transition: 'all .2s', display: 'flex', alignItems: 'center', gap: 6 }}
+                onMouseEnter={e => { e.currentTarget.style.color='#F5F1E8'; e.currentTarget.style.borderColor='rgba(255,255,255,.15)' }}
+                onMouseLeave={e => { e.currentTarget.style.color='rgba(245,241,232,.42)'; e.currentTarget.style.borderColor='rgba(255,255,255,.07)' }}>
+                <svg className="lk-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'none', flexShrink: 0 }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span className="lk-text">{t.nav_dashboard}</span>
               </Link>
-              <a href="/download" className="btn-p" style={{ fontSize: 13, padding: '8px 16px', borderRadius: 9 }}>
+              <div className="nav-div" aria-hidden="true" />
+              <a href="/download" className="btn-p dl-btn" style={{ fontSize: 13, padding: '8px 16px', borderRadius: 9 }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                {t.nav_dl_btn}
+                <span className="dl-text">{t.nav_dl_btn}</span>
               </a>
             </div>
           </div>
         </nav>
 
         {/* ── HERO ── */}
-        <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: 62, position: 'relative', overflow: 'hidden' }}>
-          {/* Top glow */}
-          <div style={{ position: 'absolute', top: -200, left: '50%', transform: 'translateX(-50%)', width: 900, height: 500, background: 'radial-gradient(ellipse, rgba(124,58,237,.14) 0%, transparent 65%)', filter: 'blur(60px)', pointerEvents: 'none' }} />
+        <section style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: 62, position: 'relative', overflow: 'visible' }}>
+          {/* Off-axis glow — lit from the upper-right, not dead-center */}
+          <div style={{ position: 'absolute', top: -200, right: '10%', width: 640, height: 420, background: 'radial-gradient(ellipse, rgba(90,169,255,.09) 0%, transparent 68%)', filter: 'blur(70px)', pointerEvents: 'none' }} />
 
-          <div className="wrap" style={{ width: '100%', padding: '80px 24px' }}>
-            <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+          <div className="wrap" style={{ width: '100%', padding: '80px 24px', overflow: 'visible' }}>
+            <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1.08fr .92fr', gap: 44, alignItems: 'center' }}>
 
               {/* Left — text */}
               <div>
                 <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, ease: [.22,1,.36,1] }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(124,58,237,.1)', border: '1px solid rgba(124,58,237,.25)', borderRadius: 100, padding: '4px 14px 4px 8px', fontSize: 12, fontWeight: 500, color: '#c4b5fd', marginBottom: 28 }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#a78bfa', display: 'inline-block' }} />
-                    v{VERSION} · {t.hero_badge}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 100, padding: '4px 14px 4px 8px', fontSize: 12, fontWeight: 500, color: 'rgba(245,241,232,.55)', marginBottom: 28 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#5AA9FF', display: 'inline-block' }} />
+                    <span style={{ fontFamily: 'var(--font-geist)', fontWeight: 600, fontSize: 11.5 }}>v{VERSION}</span> · {t.hero_badge}
                   </div>
                 </motion.div>
 
                 <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .55, ease: [.22,1,.36,1], delay: .07 }}
-                  style={{ fontSize: 'clamp(38px,4.8vw,68px)', fontWeight: 800, lineHeight: 1.06, letterSpacing: '-.04em', marginBottom: 22 }}>
+                  style={{ fontFamily: 'var(--font-display), var(--font-geist)', fontSize: 'clamp(38px,4.8vw,68px)', fontWeight: 700, lineHeight: 1.04, letterSpacing: '-.03em', marginBottom: 22 }}>
                   {t.hero_h1a}<br />
                   <span className="gt">{t.hero_h1b}</span>
                 </motion.h1>
 
                 <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, ease: [.22,1,.36,1], delay: .14 }}
-                  style={{ fontSize: 16, color: 'rgba(250,250,250,.45)', lineHeight: 1.8, marginBottom: 36, maxWidth: 440 }}>
+                  style={{ fontSize: 16, color: 'rgba(245,241,232,.45)', lineHeight: 1.8, marginBottom: 36, maxWidth: 440 }}>
                   {t.hero_sub}
                 </motion.p>
 
@@ -735,10 +982,10 @@ export default function LandingPage() {
                     { ref: c3.ref, val: c3.val, suf: `.${VERSION.split('.')[2]}`, label: t.stat3l },
                   ].map((s, i) => (
                     <div key={i} style={{ paddingRight: 28, borderRight: i < 2 ? '1px solid rgba(255,255,255,.07)' : 'none', marginRight: i < 2 ? 28 : 0 }}>
-                      <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-.04em', color: '#fafafa', lineHeight: 1 }}>
-                        <span ref={s.ref}>{s.val}</span><span style={{ color: '#a78bfa' }}>{s.suf}</span>
+                      <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-.04em', color: '#F5F1E8', lineHeight: 1 }}>
+                        <span ref={s.ref}>{s.val}</span><span style={{ color: '#93C5FF' }}>{s.suf}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: 'rgba(250,250,250,.28)', marginTop: 4, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em' }}>{s.label}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(245,241,232,.28)', marginTop: 4, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em' }}>{s.label}</div>
                     </div>
                   ))}
                 </motion.div>
@@ -750,25 +997,25 @@ export default function LandingPage() {
                 initial={{ opacity: 0, x: 40 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: .7, ease: [.22,1,.36,1], delay: .15 }}
-                style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}
+                style={{ position: 'relative', display: 'flex', justifyContent: 'flex-end', marginRight: '-6%' }}
               >
                 {/* Glow behind mockup */}
-                <div style={{ position: 'absolute', inset: -40, background: 'radial-gradient(ellipse 70% 60% at 55% 50%, rgba(124,58,237,.2) 0%, transparent 65%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', inset: -40, background: 'radial-gradient(ellipse 70% 60% at 55% 50%, rgba(90,169,255,.12) 0%, transparent 65%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
 
                 {/* Floating notification */}
                 <motion.div
                   initial={{ opacity: 0, scale: .82, y: 12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   transition={{ delay: .9, type: 'spring', stiffness: 320, damping: 18 }}
-                  style={{ position: 'absolute', top: -16, right: -10, zIndex: 20, background: 'rgba(9,9,11,.95)', border: '1px solid rgba(37,211,102,.25)', borderRadius: 14, padding: '10px 13px', width: 196, backdropFilter: 'blur(20px)', boxShadow: '0 16px 48px rgba(0,0,0,.7)' }}>
+                  style={{ position: 'absolute', top: -16, right: -10, zIndex: 20, background: 'rgba(11,10,8,.95)', border: '1px solid rgba(37,211,102,.25)', borderRadius: 14, padding: '10px 13px', width: 196, backdropFilter: 'blur(20px)', boxShadow: '0 16px 48px rgba(0,0,0,.7)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
                     <div style={{ width: 24, height: 24, borderRadius: 7, background: 'linear-gradient(135deg,#25D366,#18a04c)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                       <img src="/messengers/whatsapp.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#fafafa' }}>WhatsApp</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 9, color: 'rgba(250,250,250,.28)' }}>сейчас</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#F5F1E8' }}>WhatsApp</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 9, color: 'rgba(245,241,232,.28)' }}>сейчас</span>
                   </div>
-                  <p style={{ fontSize: 10.5, color: 'rgba(250,250,250,.45)', lineHeight: 1.45 }}>Маша: Спасибо за помощь! 🙏</p>
+                  <p style={{ fontSize: 10.5, color: 'rgba(245,241,232,.45)', lineHeight: 1.45 }}>Маша: Спасибо за помощь! 🙏</p>
                 </motion.div>
 
                 {/* Second notification */}
@@ -776,15 +1023,28 @@ export default function LandingPage() {
                   initial={{ opacity: 0, scale: .82, y: -12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   transition={{ delay: 1.15, type: 'spring', stiffness: 320, damping: 18 }}
-                  style={{ position: 'absolute', bottom: -10, right: -18, zIndex: 20, background: 'rgba(9,9,11,.95)', border: '1px solid rgba(88,101,242,.25)', borderRadius: 14, padding: '10px 13px', width: 188, backdropFilter: 'blur(20px)', boxShadow: '0 16px 48px rgba(0,0,0,.7)' }}>
+                  style={{ position: 'absolute', bottom: -10, right: -18, zIndex: 20, background: 'rgba(11,10,8,.95)', border: '1px solid rgba(88,101,242,.25)', borderRadius: 14, padding: '10px 13px', width: 188, backdropFilter: 'blur(20px)', boxShadow: '0 16px 48px rgba(0,0,0,.7)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
                     <div style={{ width: 24, height: 24, borderRadius: 7, background: 'linear-gradient(135deg,#5865F2,#4752c4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {MessengerSvgs.discord && <svg viewBox="0 0 24 24" fill="white" width="13" height="13"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>}
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#fafafa' }}>Discord</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#F5F1E8' }}>Discord</span>
                   </div>
-                  <p style={{ fontSize: 10.5, color: 'rgba(250,250,250,.45)', lineHeight: 1.45 }}>Релиз v2.1 готов 🚀</p>
+                  <p style={{ fontSize: 10.5, color: 'rgba(245,241,232,.45)', lineHeight: 1.45 }}>Релиз v2.1 готов 🚀</p>
                 </motion.div>
+
+                {/* Second window peeking from behind — makes "every messenger,
+                    one desktop" literal instead of just claiming it in copy */}
+                <div style={{
+                  position: 'absolute', top: 30, left: -28, width: '82%', height: 300,
+                  background: '#0c0c14', border: '1px solid rgba(255,255,255,.08)', borderRadius: 14,
+                  transform: 'rotate(-3deg) scale(.94)', zIndex: 5, opacity: .5,
+                  boxShadow: '0 40px 100px rgba(0,0,0,.6)', overflow: 'hidden', pointerEvents: 'none',
+                }}>
+                  <div style={{ background: 'rgba(0,0,0,.5)', padding: '9px 14px', display: 'flex', gap: 5, borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                    <img src="/logo.png" alt="" style={{ width: 13, height: 13, objectFit: 'contain', opacity: .55 }} />
+                  </div>
+                </div>
 
                 {/* App window with float animation */}
                 <div style={{ animation: 'float 7s ease-in-out infinite', position: 'relative', zIndex: 10, width: '100%' }}>
@@ -813,10 +1073,10 @@ export default function LandingPage() {
               <div className="mql">
                 {[...messengers, ...messengers].map((m, i) => (
                   <div key={i} className="mc">
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: m.color + '1a', border: `1px solid ${m.color}2e`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                      {m.img ? <img src={m.img} alt={m.name} style={{ width: 28, height: 28, objectFit: 'contain' }} /> : <span style={{ transform: 'scale(.82)', display: 'flex' }}>{MessengerSvgs[m.svg!]}</span>}
+                    <div style={{ width: 56, height: 56, borderRadius: 15, background: m.color + '1a', border: `1px solid ${m.color}2e`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                      {m.img ? <img src={m.img} alt={m.name} style={{ width: 38, height: 38, objectFit: 'contain' }} /> : <span style={{ transform: 'scale(1.1)', display: 'flex' }}>{MessengerSvgs[m.svg!]}</span>}
                     </div>
-                    <span style={{ fontSize: 10.5, fontWeight: 500, color: 'rgba(250,250,250,.4)', whiteSpace: 'nowrap' }}>{m.name}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(245,241,232,.4)', whiteSpace: 'nowrap' }}>{m.name}</span>
                   </div>
                 ))}
               </div>
@@ -825,14 +1085,57 @@ export default function LandingPage() {
               <div className="mqr">
                 {[...messengers.slice(7), ...messengers.slice(0,7), ...messengers.slice(7), ...messengers.slice(0,7)].map((m, i) => (
                   <div key={i} className="mc">
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: m.color + '1a', border: `1px solid ${m.color}2e`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                      {m.img ? <img src={m.img} alt={m.name} style={{ width: 28, height: 28, objectFit: 'contain' }} /> : <span style={{ transform: 'scale(.82)', display: 'flex' }}>{MessengerSvgs[m.svg!]}</span>}
+                    <div style={{ width: 56, height: 56, borderRadius: 15, background: m.color + '1a', border: `1px solid ${m.color}2e`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                      {m.img ? <img src={m.img} alt={m.name} style={{ width: 38, height: 38, objectFit: 'contain' }} /> : <span style={{ transform: 'scale(1.1)', display: 'flex' }}>{MessengerSvgs[m.svg!]}</span>}
                     </div>
-                    <span style={{ fontSize: 10.5, fontWeight: 500, color: 'rgba(250,250,250,.4)', whiteSpace: 'nowrap' }}>{m.name}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(245,241,232,.4)', whiteSpace: 'nowrap' }}>{m.name}</span>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        </section>
+
+        <div className="div" />
+
+        {/* ── SCREENSHOTS ── */}
+        <section id="screenshots" style={{ padding: '96px 0' }}>
+          <div className="wrap">
+            <Reveal>
+              <div style={{ textAlign: 'center', marginBottom: 40 }}>
+                <div className="label">{t.ss_label}</div>
+                <h2 className="sh">{t.ss_title}</h2>
+                <p className="sp" style={{ maxWidth: 460, margin: '12px auto 0' }}>{t.ss_sub}</p>
+              </div>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button type="button" aria-label="Назад" className="ss-nav" onClick={() => ssRef.current?.scrollBy({ left: -400, behavior: 'smooth' })}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div className="ss-scroll" ref={ssRef}>
+                  <div className="ss-track">
+                    {screenshots.map((src, i) => (
+                      <div
+                        key={src}
+                        className="ss-frame"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${t.ss_title} ${i + 1} — ${t.ss_zoom_hint}`}
+                        onClick={() => setLightboxIdx(i)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIdx(i) } }}
+                        style={{ cursor: 'zoom-in' }}
+                      >
+                        <img src={src} alt={`Centrio — ${t.ss_title} ${i + 1}`} loading="lazy" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button type="button" aria-label="Вперёд" className="ss-nav" onClick={() => ssRef.current?.scrollBy({ left: 400, behavior: 'smooth' })}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </Reveal>
           </div>
         </section>
 
@@ -849,18 +1152,43 @@ export default function LandingPage() {
               </div>
             </Reveal>
 
-            <div className="feat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              {features.map((f, i) => (
-                <Reveal key={i} delay={i * 0.06}>
-                  <div className="card" style={{ padding: '24px 22px', height: '100%' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 11, background: 'rgba(124,58,237,.1)', border: '1px solid rgba(124,58,237,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                      <FIcon name={f.icon} />
+            <div className="feat-grid">
+              {features.map((f, i) => {
+                const flagship = i === 0
+                const square = i === 2 || i === 3
+                return (
+                  <Reveal key={i} delay={i * 0.06} y={16}>
+                    <div className={`card${flagship ? '-elevated' : ''} feat-${i}`} style={{ padding: flagship ? '32px 28px' : square ? '18px' : '22px 20px', height: '100%', borderRadius: flagship ? 20 : 14, display: 'flex', flexDirection: 'column', justifyContent: flagship ? 'flex-end' : square ? 'center' : 'flex-start', alignItems: square ? 'center' : 'stretch', textAlign: square ? 'center' : 'left', position: 'relative', overflow: 'hidden' }}>
+                      {flagship && (
+                        <img src="/logo.png" alt="" style={{ position: 'absolute', top: 20, left: 20, width: 20, height: 20, objectFit: 'contain', opacity: .8, zIndex: 1 }} />
+                      )}
+                      {flagship && (
+                        <div style={{ position: 'absolute', top: 18, right: 18, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, pointerEvents: 'none' }}>
+                          {messengers.slice(0, 6).map((m, mi) => (
+                            <div key={mi} style={{
+                              width: 34, height: 34, borderRadius: 10,
+                              background: `${m.color}14`, border: `1px solid ${m.color}26`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              opacity: .55, transform: `rotate(${(mi % 2 === 0 ? -1 : 1) * (4 + mi)}deg)`,
+                            }}>
+                              {(m as any).img
+                                ? <img src={(m as any).img} alt="" style={{ width: 17, height: 17, objectFit: 'contain' }} />
+                                : <span style={{ transform: 'scale(.5)', display: 'flex' }}>{MessengerSvgs[(m as any).svg]}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ width: flagship ? 48 : square ? 40 : 38, height: flagship ? 48 : square ? 40 : 38, borderRadius: flagship ? 13 : 10, background: flagship ? 'rgba(90,169,255,.1)' : 'rgba(255,255,255,.05)', border: flagship ? '1px solid rgba(90,169,255,.22)' : '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: flagship ? 22 : square ? 10 : 14, position: 'relative', zIndex: 1 }}>
+                        <FIcon name={f.icon} color={flagship ? '#5AA9FF' : undefined} />
+                      </div>
+                      <h3 style={{ fontSize: flagship ? 20 : square ? 13.5 : 15, fontWeight: 650, color: '#F5F1E8', marginBottom: square ? 0 : 8, letterSpacing: '-.02em', lineHeight: 1.3, position: 'relative', zIndex: 1 }}>{f.title}</h3>
+                      {!square && (
+                        <p style={{ fontSize: flagship ? 14.5 : 13.5, color: 'rgba(245,241,232,.35)', lineHeight: 1.7, maxWidth: flagship ? 360 : 'none', position: 'relative', zIndex: 1 }}>{f.desc}</p>
+                      )}
                     </div>
-                    <h3 style={{ fontSize: 15, fontWeight: 650, color: '#fafafa', marginBottom: 7, letterSpacing: '-.02em' }}>{f.title}</h3>
-                    <p style={{ fontSize: 13.5, color: 'rgba(250,250,250,.35)', lineHeight: 1.7 }}>{f.desc}</p>
-                  </div>
-                </Reveal>
-              ))}
+                  </Reveal>
+                )
+              })}
             </div>
           </div>
         </section>
@@ -872,52 +1200,73 @@ export default function LandingPage() {
           <div className="wrap">
             <Reveal>
               <div style={{ textAlign: 'center', marginBottom: 52 }}>
-                <div className="label">СРАВНЕНИЕ</div>
-                <h2 className="sh">Почему именно <span className="gt">Centrio</span>?</h2>
-                <p className="sp" style={{ maxWidth: 420, margin: '12px auto 0' }}>Сравниваем честно — по цене, скорости и поддержке российских сервисов</p>
+                <div className="label">{t.cmp_label}</div>
+                <h2 className="sh">{t.cmp_title} <span className="gt">{t.cmp_title2}</span></h2>
+                <p className="sp" style={{ maxWidth: 420, margin: '12px auto 0' }}>{t.cmp_sub}</p>
               </div>
             </Reveal>
             <Reveal delay={0.08}>
               <div style={{ overflowX: 'auto' }}>
                 <div className="cmp-grid" style={{ minWidth: 560 }}>
                   {/* Header */}
-                  <div className="cmp-header" style={{ color: 'rgba(250,250,250,.3)' }}>Функция</div>
-                  <div className="cmp-header cmp-centrio cmp-centrio-top" style={{ color: '#c4b5fd', textAlign: 'center' }}>
+                  <div className="cmp-header" style={{ color: 'rgba(245,241,232,.3)' }}>{t.cmp_col_feature}</div>
+                  <div className="cmp-header cmp-centrio cmp-centrio-top" style={{ color: '#C9E4FF', textAlign: 'center' }}>
                     Centrio
-                    <span style={{ marginLeft: 6, fontSize: 10, background: 'rgba(124,58,237,.3)', border: '1px solid rgba(124,58,237,.4)', borderRadius: 100, padding: '2px 7px', verticalAlign: 'middle' }}>★ наш выбор</span>
+                    <span style={{ marginLeft: 6, fontSize: 10, background: 'rgba(47,111,237,.3)', border: '1px solid rgba(47,111,237,.4)', borderRadius: 100, padding: '2px 7px', verticalAlign: 'middle' }}>★ {t.cmp_badge}</span>
                   </div>
                   {['Rambox', 'Franz', 'Wavebox'].map(n => (
-                    <div key={n} className="cmp-header cmp-hide" style={{ color: 'rgba(250,250,250,.3)', textAlign: 'center' }}>{n}</div>
+                    <div key={n} className="cmp-header cmp-hide" style={{ color: 'rgba(245,241,232,.3)', textAlign: 'center' }}>{n}</div>
                   ))}
 
                   {/* Rows */}
-                  {[
-                    { label: 'Цена',                   centrio: 'Бесплатно', rambox: '$7+/мес',  franz: 'Бесплатно*', wavebox: '$15.99/мес', ok: true },
-                    { label: 'Расход RAM',              centrio: '~200 МБ',   rambox: '~500 МБ',  franz: '~400 МБ',    wavebox: '~600 МБ' },
-                    { label: 'ВК / Яндекс.Почта',      centrio: true,        rambox: false,      franz: false,        wavebox: false },
-                    { label: 'Русский интерфейс',       centrio: true,        rambox: false,      franz: false,        wavebox: false },
-                    { label: 'Без подписки навсегда',   centrio: true,        rambox: false,      franz: false,        wavebox: false },
-                    { label: 'Кастомные темы',          centrio: true,        rambox: true,       franz: false,        wavebox: true },
-                  ].map((row, ri, arr) => {
+                  {(() => {
+                    type CmpRow = {
+                      label: string
+                      centrio?: string | boolean; rambox?: string | boolean; franz?: string | boolean; wavebox?: string | boolean
+                      ram?: { centrio: number; rambox: number; franz: number; wavebox: number }
+                    }
+                    const rows: CmpRow[] = [
+                      { label: t.cmp_row_price, centrio: t.cmp_free, rambox: `$7+${t.cmp_mo}`, franz: t.cmp_free_star, wavebox: `$15.99${t.cmp_mo}` },
+                      { label: t.cmp_row_ram,   ram: { centrio: 200, rambox: 500, franz: 400, wavebox: 600 } },
+                      { label: t.cmp_row_ru,    centrio: true, rambox: false, franz: false, wavebox: false },
+                      { label: t.cmp_row_lang,  centrio: true, rambox: false, franz: false, wavebox: false },
+                      { label: t.cmp_row_free,  centrio: true, rambox: false, franz: false, wavebox: false },
+                      { label: t.cmp_row_theme, centrio: true, rambox: true,  franz: false, wavebox: true },
+                    ]
+                    return rows.map((row, ri, arr) => {
                     const isLast = ri === arr.length - 1
                     const renderVal = (v: boolean | string, isCentrio = false) => {
                       if (typeof v === 'boolean') return v
-                        ? <span style={{ color: '#4ade80', fontSize: 14, fontWeight: 700 }}>✓</span>
-                        : <span style={{ color: 'rgba(250,250,250,.2)', fontSize: 14 }}>✗</span>
-                      return <span style={{ color: isCentrio ? '#fafafa' : 'rgba(250,250,250,.35)', fontWeight: isCentrio ? 600 : 400 }}>{v}</span>
+                        ? <span style={{ color: '#7DD3C0', fontSize: 14, fontWeight: 700 }}>✓</span>
+                        : <span style={{ color: 'rgba(245,241,232,.2)', fontSize: 14 }}>✗</span>
+                      return <span style={{ color: isCentrio ? '#F5F1E8' : 'rgba(245,241,232,.35)', fontWeight: isCentrio ? 600 : 400 }}>{v}</span>
+                    }
+                    const renderRam = (mb: number, isCentrio: boolean) => {
+                      const maxMb = 600
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 11.5, fontWeight: isCentrio ? 700 : 500, color: isCentrio ? '#C9E4FF' : 'rgba(245,241,232,.4)' }}>~{mb} MB</span>
+                          <div style={{ width: '70%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}>
+                            <div style={{ width: `${(mb / maxMb) * 100}%`, height: '100%', borderRadius: 2, background: isCentrio ? '#5AA9FF' : 'rgba(245,241,232,.22)' }} />
+                          </div>
+                        </div>
+                      )
                     }
                     return (
                       <React.Fragment key={ri}>
-                        <div className="cmp-cell" style={{ color: 'rgba(250,250,250,.5)', fontSize: 12.5 }}>{row.label}</div>
-                        <div className={`cmp-cell cmp-centrio${isLast ? ' cmp-centrio-bot' : ''}`} style={{ textAlign: 'center' }}>{renderVal(row.centrio, true)}</div>
-                        <div className="cmp-cell cmp-hide" style={{ textAlign: 'center' }}>{renderVal(row.rambox)}</div>
-                        <div className="cmp-cell cmp-hide" style={{ textAlign: 'center' }}>{renderVal(row.franz)}</div>
-                        <div className="cmp-cell cmp-hide" style={{ textAlign: 'center' }}>{renderVal(row.wavebox)}</div>
+                        <div className="cmp-cell" style={{ color: 'rgba(245,241,232,.5)', fontSize: 12.5 }}>{row.label}</div>
+                        <div className={`cmp-cell cmp-centrio${isLast ? ' cmp-centrio-bot' : ''}`} style={{ textAlign: 'center' }}>
+                          {row.ram ? renderRam(row.ram.centrio, true) : renderVal(row.centrio!, true)}
+                        </div>
+                        <div className="cmp-cell cmp-hide" style={{ textAlign: 'center' }}>{row.ram ? renderRam(row.ram.rambox, false) : renderVal(row.rambox!)}</div>
+                        <div className="cmp-cell cmp-hide" style={{ textAlign: 'center' }}>{row.ram ? renderRam(row.ram.franz, false) : renderVal(row.franz!)}</div>
+                        <div className="cmp-cell cmp-hide" style={{ textAlign: 'center' }}>{row.ram ? renderRam(row.ram.wavebox, false) : renderVal(row.wavebox!)}</div>
                       </React.Fragment>
                     )
-                  })}
+                  })
+                  })()}
                 </div>
-                <p style={{ fontSize: 11, color: 'rgba(250,250,250,.18)', marginTop: 10, textAlign: 'center' }}>* Бесплатная версия Franz имеет ограничения. Данные актуальны на июнь 2026.</p>
+                <p style={{ fontSize: 11, color: 'rgba(245,241,232,.18)', marginTop: 10, textAlign: 'center' }}>{t.cmp_footnote}</p>
               </div>
             </Reveal>
           </div>
@@ -944,9 +1293,9 @@ export default function LandingPage() {
               ]).map((p, i) => (
                 <Reveal key={p.key} delay={i * 0.07}>
                   <Link href={p.href} className="osc">
-                    <div style={{ color: 'rgba(250,250,250,.4)', transition: 'color .25s' }}>{OsIcons[p.key]}</div>
+                    <div style={{ color: 'rgba(245,241,232,.4)', transition: 'color .25s' }}>{OsIcons[p.key]}</div>
                     <span style={{ fontSize: 15, fontWeight: 650, letterSpacing: '-.02em' }}>{p.label}</span>
-                    <span style={{ fontSize: 12, color: 'rgba(250,250,250,.28)' }}>{p.sub}</span>
+                    <span style={{ fontSize: 12, color: 'rgba(245,241,232,.28)' }}>{p.sub}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(34,197,94,.06)', border: '1px solid rgba(34,197,94,.15)', borderRadius: 100, padding: '3px 10px', marginTop: 2 }}>
                       <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e' }} />
                       <span style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(34,197,94,.75)' }}>{t.dl_hero_stable}</span>
@@ -962,7 +1311,7 @@ export default function LandingPage() {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   {t.hero_cta} — Windows {VERSION}
                 </a>
-                <p style={{ marginTop: 10, fontSize: 12, color: 'rgba(250,250,250,.2)' }}>{t.dl_sub}</p>
+                <p style={{ marginTop: 10, fontSize: 12, color: 'rgba(245,241,232,.2)' }}>{t.dl_sub}</p>
               </div>
             </Reveal>
           </div>
@@ -970,9 +1319,47 @@ export default function LandingPage() {
 
         <div className="div" />
 
+        {/* ── ALL CAPABILITIES ── */}
+        <section id="capabilities" style={{ padding: '96px 0', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: 900, height: 420, background: 'radial-gradient(ellipse, rgba(47,111,237,.06) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none' }} />
+          <div className="wrap" style={{ position: 'relative' }}>
+            <Reveal>
+              <div style={{ textAlign: 'center', marginBottom: 52 }}>
+                <div className="label">{t.cap_label}</div>
+                <h2 className="sh">{t.cap_title} <span className="gt">{t.cap_title2}</span></h2>
+                <p className="sp" style={{ maxWidth: 440, margin: '12px auto 0' }}>{t.cap_sub}</p>
+              </div>
+            </Reveal>
+
+            <div className="cap-grid">
+              {capabilities.map((cItem, i) => (
+                <Reveal key={i} delay={i * 0.045} y={14}>
+                  <div className="card cap-card">
+                    <div className="cap-card-icon">
+                      <FIcon name={cItem.icon} color="#5AA9FF" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <h3 style={{ fontSize: 14.5, fontWeight: 650, color: '#F5F1E8', letterSpacing: '-.01em' }}>{cItem.title}</h3>
+                        {cItem.tier === 'pro' && (
+                          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.04em', color: '#C9E4FF', background: 'rgba(47,111,237,.16)', border: '1px solid rgba(47,111,237,.3)', borderRadius: 100, padding: '1.5px 7px', flexShrink: 0 }}>PRO</span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: 12.5, color: 'rgba(245,241,232,.35)', lineHeight: 1.55 }}>{cItem.desc}</p>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div className="div" />
+
         {/* ── PRICING ── */}
-        <section id="pricing" style={{ padding: '96px 0' }}>
-          <div className="wrap">
+        <section id="pricing" style={{ padding: '96px 0', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)', width: 700, height: 400, background: 'radial-gradient(ellipse, rgba(47,111,237,.08) 0%, transparent 70%)', filter: 'blur(70px)', pointerEvents: 'none' }} />
+          <div className="wrap" style={{ position: 'relative' }}>
             <Reveal>
               <div style={{ textAlign: 'center', marginBottom: 52 }}>
                 <div className="label">{t.nav_pricing}</div>
@@ -997,15 +1384,15 @@ export default function LandingPage() {
         <section style={{ padding: '96px 0' }}>
           <div className="wrap">
             <Reveal>
-              <div style={{ background: 'rgba(124,58,237,.06)', border: '1px solid rgba(124,58,237,.2)', borderRadius: 20, padding: '56px 48px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)', width: 600, height: 300, background: 'radial-gradient(ellipse, rgba(124,58,237,.18) 0%, transparent 65%)', filter: 'blur(50px)', pointerEvents: 'none' }} />
+              <div style={{ background: 'rgba(47,111,237,.06)', border: '1px solid rgba(47,111,237,.2)', borderRadius: 28, padding: '56px 48px', textAlign: 'center', position: 'relative', overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,.5), 0 0 0 1px rgba(47,111,237,.06)' }}>
+                <div style={{ position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)', width: 600, height: 300, background: 'radial-gradient(ellipse, rgba(90,169,255,.12) 0%, transparent 65%)', filter: 'blur(50px)', pointerEvents: 'none' }} />
                 <div style={{ position: 'relative', zIndex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
                     <img src="/logo.png" alt="Centrio" style={{ width: 38, height: 38, objectFit: 'contain' }} />
                     <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.03em' }}>Centrio</span>
                   </div>
-                  <h2 style={{ fontSize: 'clamp(28px,4vw,52px)', fontWeight: 800, letterSpacing: '-.04em', lineHeight: 1.1, marginBottom: 16, color: '#fafafa' }}>{t.dl_title}</h2>
-                  <p style={{ fontSize: 15.5, color: 'rgba(250,250,250,.4)', lineHeight: 1.8, marginBottom: 36, maxWidth: 440, margin: '0 auto 36px' }}>{t.dl_sub}</p>
+                  <h2 style={{ fontSize: 'clamp(28px,4vw,52px)', fontWeight: 800, letterSpacing: '-.04em', lineHeight: 1.1, marginBottom: 16, color: '#F5F1E8' }}>{t.dl_title}</h2>
+                  <p style={{ fontSize: 15.5, color: 'rgba(245,241,232,.4)', lineHeight: 1.8, marginBottom: 36, maxWidth: 440, margin: '0 auto 36px' }}>{t.dl_sub}</p>
                   <div className="dl-wrap" style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
                     <a href={WIN_DOWNLOAD} className="btn-p" style={{ fontSize: 14.5, padding: '13px 30px' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1028,10 +1415,20 @@ export default function LandingPage() {
                   <img src="/logo.png" alt="Centrio" style={{ width: 24, height: 24, objectFit: 'contain' }} />
                   <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-.02em' }}>Centrio</span>
                 </div>
-                <p style={{ fontSize: 13, color: 'rgba(250,250,250,.28)', lineHeight: 1.8, maxWidth: 240, marginBottom: 20 }}>Все мессенджеры в одном приложении. Бесплатно для Windows, macOS и Linux.</p>
-                <a href="https://t.me/centrio_app" target="_blank" rel="noopener" style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(250,250,250,.32)', textDecoration: 'none', transition: 'all .2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.color='#fafafa'; e.currentTarget.style.borderColor='rgba(255,255,255,.15)' }}
-                  onMouseLeave={e => { e.currentTarget.style.color='rgba(250,250,250,.32)'; e.currentTarget.style.borderColor='rgba(255,255,255,.07)' }}>
+                <p style={{ fontSize: 13, color: 'rgba(245,241,232,.28)', lineHeight: 1.8, maxWidth: 240, marginBottom: 20 }}>Все мессенджеры в одном приложении. Бесплатно для Windows, macOS и Linux.</p>
+                {/* Fixed 2026-08-13: was pointing at t.me/centrio_app — a
+                    different, noindex/nofollow, empty-bio Telegram handle
+                    (confirmed via live curl: og:description empty, no
+                    subscriber count, robots noindex). The real public
+                    channel (used by lib/telegram-bot.js NEWS_CHAT_ID and the
+                    admin news-post tab) is @centrioapp — confirmed live via
+                    curl: real bio "Официальная поддержка Centrio...".
+                    Same bug class as the /register referral-link mismatch
+                    fixed the same day: a link elsewhere in the codebase
+                    pointing at the wrong target. */}
+                <a href="https://t.me/centrioapp" target="_blank" rel="noopener" style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(245,241,232,.32)', textDecoration: 'none', transition: 'all .2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.color='#F5F1E8'; e.currentTarget.style.borderColor='rgba(255,255,255,.15)' }}
+                  onMouseLeave={e => { e.currentTarget.style.color='rgba(245,241,232,.32)'; e.currentTarget.style.borderColor='rgba(255,255,255,.07)' }}>
                   <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.04 9.607c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.903.614z"/></svg>
                 </a>
               </div>
@@ -1064,8 +1461,8 @@ export default function LandingPage() {
             </div>
             <div className="div" style={{ marginBottom: 20 }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-              <p style={{ fontSize: 12, color: 'rgba(250,250,250,.18)' }}>© 2026 Centrio. Все права защищены.</p>
-              <p style={{ fontSize: 12, color: 'rgba(250,250,250,.12)' }}>v{VERSION}</p>
+              <p style={{ fontSize: 12, color: 'rgba(245,241,232,.18)' }}>© 2026 Centrio. Все права защищены.</p>
+              <p style={{ fontSize: 12, color: 'rgba(245,241,232,.12)' }}>v{VERSION}</p>
             </div>
           </div>
         </footer>

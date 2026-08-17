@@ -49,6 +49,19 @@ const UPLOADS = [
     { local: path.join(__dirname, '..', 'landing', 'auto-renew-cron.js'),        remote: `${REMOTE_BASE}/src/cron/autoRenew.js` },
     // Confirmed live via `test -f` before adding, same as the entries above.
     { local: path.join(__dirname, '..', 'server-src', 'utils', 'tokens.js'),     remote: `${REMOTE_BASE}/src/utils/tokens.js` },
+    // Added 2026-08-13 (Telegram tickets integration). tickets.js and
+    // index.js existed live but were never wired into this deploy script —
+    // confirmed byte-identical via diff before adding, so this backfill is
+    // safe. From now on both are covered by the syntax-check + restart flow
+    // below instead of relying on manual SSH edits.
+    { local: path.join(__dirname, '..', 'landing', 'tickets-server.js'),         remote: `${REMOTE_BASE}/src/routes/tickets.js` },
+    { local: path.join(__dirname, '..', 'landing', 'api-index-server.js'),       remote: `${REMOTE_BASE}/src/index.js` },
+    { local: path.join(__dirname, '..', 'landing', 'telegram-webhook-route.js'), remote: `${REMOTE_BASE}/src/routes/telegram-webhook.js` },
+    { local: path.join(__dirname, '..', 'landing', 'lib', 'telegram-bot.js'),    remote: `${REMOTE_BASE}/src/lib/telegram-bot.js` },
+    // Added 2026-08-13 (news channel auto-posting). Static metadata mirror of
+    // the POSTS array in landing/blog-index.tsx — see comment at the top of
+    // blog-articles.js for why it's duplicated instead of imported.
+    { local: path.join(__dirname, '..', 'landing', 'lib', 'blog-articles.js'),  remote: `${REMOTE_BASE}/src/lib/blog-articles.js` },
 ]
 
 function exec(conn, cmd) {

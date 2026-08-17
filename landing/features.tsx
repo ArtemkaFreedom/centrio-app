@@ -114,18 +114,33 @@ const features = [
   },
 ];
 
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Возможности', item: 'https://centrio.me/features' },
+  ],
+};
+
 export default function FeaturesPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <style>{`
         .feature-card { transition: transform .2s, border-color .2s, box-shadow .2s; }
         .feature-card:hover { transform: translateY(-3px); }
+        .feat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        @media (max-width: 400px) {
+          .feat-grid { grid-template-columns: 1fr; }
+          .feature-card { padding: 22px 18px !important; }
+        }
       `}</style>
       <SiteHeader />
       <div style={{ minHeight: '100vh', background: '#080810', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
         <section style={{ maxWidth: 900, margin: '0 auto', padding: '60px 24px 48px', textAlign: 'center' }}>
           <div style={{ display: 'inline-block', background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', borderRadius: 20, padding: '4px 14px', fontSize: 13, fontWeight: 500, marginBottom: 20 }}>
-            Возможности · v2.0.0
+            Возможности · v2.1.0
           </div>
           <h1 style={{ fontSize: 'clamp(28px,5vw,52px)', fontWeight: 800, letterSpacing: '-1px', lineHeight: 1.15, margin: '0 0 20px' }}>
             Всё, что умеет{' '}
@@ -137,7 +152,7 @@ export default function FeaturesPage() {
         </section>
 
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 80px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+          <div className="feat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
             {features.map((f) => (
               <div key={f.title} className="feature-card" style={{
                 background: 'rgba(255,255,255,0.03)',
@@ -174,11 +189,11 @@ export default function FeaturesPage() {
           <div style={{ textAlign: 'center', marginTop: 60 }}>
             <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>Готовы попробовать?</h2>
             <p style={{ color: 'rgba(255,255,255,0.45)', marginBottom: 28, fontSize: 16 }}>5 сервисов навсегда бесплатно. Без карты.</p>
-            <a href="https://download.centrio.me/Centrio%20Setup%202.0.0.exe"
+            <a href="https://download.centrio.me/Centrio%20Setup%202.1.0.exe"
               style={{ display: 'inline-block', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', borderRadius: 14, padding: '15px 40px', textDecoration: 'none', fontWeight: 700, fontSize: 16, boxShadow: '0 4px 24px rgba(99,102,241,0.4)' }}>
               ⬇ Скачать Centrio бесплатно
             </a>
-            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, marginTop: 12 }}>v2.0.0 · Windows · macOS · Linux</p>
+            <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, marginTop: 12 }}>v2.1.0 · Windows · macOS · Linux</p>
           </div>
         </div>
       </div>

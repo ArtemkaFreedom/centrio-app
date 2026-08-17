@@ -181,6 +181,88 @@ const NOTIF_DRAIN_SCRIPT = `(function() {
 
 const NOTIF_POLL_MS = 2000
 
+// ── Диагностика "аудиосообщения иногда не воспроизводятся" (репорт: WhatsApp
+// Web и Яндекс Мессенджер, перемежающийся характер) ─────────────────────────
+// Статический разбор кода приложения (adblock-паттерны в
+// main/services/adblock.js, отсутствие permission-хендлера для медиа, стандартные
+// атрибуты <webview>, отсутствие перехвата <audio>/.play() в webview-preload.js,
+// CDP-мост для SW-уведомлений в main/services/swNotifPatcher.js) не нашёл ни
+// одной точки в РАСШИРЕНИИ приложения, которая могла бы блокировать
+// воспроизведение медиа — единственный правдоподобный источник именно
+// ПЕРЕМЕЖАЮЩИХСЯ сбоев (не блокировка целиком, а "иногда") — сетевой слой
+// (VPN/прокси-туннель, см. main/services/proxy.js) или сам мессенджер/CDN.
+// Дальше без воспроизводимого случая двигаться нельзя — вместо угадывания
+// добавляем пассивный диагностический хук тем же подтверждённо рабочим каналом
+// (executeJavaScript on dom-ready), что и счётчик непрочитанных/уведомления
+// выше — preload-атрибут <webview> для этого не годится (см. комментарий над
+// UNREAD_DETECT_SCRIPT). 'error'/'stalled' на <audio>/<video> не всплывают —
+// слушаем в фазе capture на document. Следующее реальное воспроизведение бага
+// запишет code/message/networkState/src в лог главного процесса.
+const MEDIA_DIAG_PATCH_SCRIPT = `(function() {
+    if (window.__centrioMediaDiagPatched) return 'already-patched'
+    window.__centrioMediaDiagPatched = true
+    window.__centrioPendingMediaErrors = window.__centrioPendingMediaErrors || []
+
+    function isMedia(el) {
+        return el && (el.tagName === 'AUDIO' || el.tagName === 'VIDEO')
+    }
+
+    function report(type, el) {
+        try {
+            var err = el.error
+            window.__centrioPendingMediaErrors.push({
+                type: type,
+                src: String(el.currentSrc || el.src || ''),
+                code: err ? err.code : null,
+                message: err && err.message ? String(err.message) : '',
+                networkState: el.networkState,
+                readyState: el.readyState
+            })
+            // Не даём очереди расти бесконечно, если сбоев сразу много
+            if (window.__centrioPendingMediaErrors.length > 20) {
+                window.__centrioPendingMediaErrors.splice(0, window.__centrioPendingMediaErrors.length - 20)
+            }
+        } catch (e) {}
+    }
+
+    document.addEventListener('error', function (e) {
+        if (isMedia(e.target)) report('error', e.target)
+    }, true)
+    document.addEventListener('stalled', function (e) {
+        if (isMedia(e.target)) report('stalled', e.target)
+    }, true)
+
+    return 'patched'
+})()`
+
+const MEDIA_DIAG_DRAIN_SCRIPT = `(function() {
+    if (!window.__centrioPendingMediaErrors || !window.__centrioPendingMediaErrors.length) return []
+    return window.__centrioPendingMediaErrors.splice(0, window.__centrioPendingMediaErrors.length)
+})()`
+
+const MEDIA_DIAG_POLL_MS = 3000
+
+function startMediaDiagPolling(contents, getMainWindow) {
+    const messengerId = findMessengerIdForSession(contents.session)
+
+    const poll = () => {
+        if (contents.isDestroyed()) return
+        contents.executeJavaScript(MEDIA_DIAG_DRAIN_SCRIPT).then((items) => {
+            if (!Array.isArray(items) || !items.length) return
+            items.forEach((item) => {
+                log.warn(
+                    `[media-diag] messenger=${messengerId || '?'} ${item.type} ` +
+                    `src=${item.src} code=${item.code} message="${item.message}" ` +
+                    `networkState=${item.networkState} readyState=${item.readyState}`
+                )
+            })
+        }).catch(() => {})
+    }
+
+    const timer = setInterval(poll, MEDIA_DIAG_POLL_MS)
+    contents.once('destroyed', () => clearInterval(timer))
+}
+
 function startNotifPolling(contents, getMainWindow) {
     const messengerId = findMessengerIdForSession(contents.session)
     if (!messengerId) return
@@ -387,6 +469,7 @@ function registerAppEvents({
             // запускаем второй параллельный интервал поверх уже идущего.
             let unreadPollingStarted = false
             let notifPollingStarted = false
+            let mediaDiagPollingStarted = false
             contents.on('dom-ready', () => {
                 if (!unreadPollingStarted) {
                     unreadPollingStarted = true
@@ -403,6 +486,18 @@ function registerAppEvents({
                 if (!notifPollingStarted) {
                     notifPollingStarted = true
                     startNotifPolling(contents, getMainWindow)
+                }
+
+                // Диагностика бага "аудиосообщения иногда не воспроизводятся"
+                // (WhatsApp Web / Яндекс Мессенджер) — см. комментарий над
+                // MEDIA_DIAG_PATCH_SCRIPT. Тот же паттерн, что и NOTIF_PATCH_SCRIPT
+                // выше: патч ставим на каждый dom-ready (новый document/window
+                // при внутренней навигации), опрос очереди — один раз на contents.
+                contents.executeJavaScript(MEDIA_DIAG_PATCH_SCRIPT).catch(() => {})
+
+                if (!mediaDiagPollingStarted) {
+                    mediaDiagPollingStarted = true
+                    startMediaDiagPolling(contents, getMainWindow)
                 }
             })
 

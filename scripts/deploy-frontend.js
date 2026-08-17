@@ -51,6 +51,12 @@ const UPLOADS = [
     { local: path.join(__dirname, '..', 'landing', 'page.tsx'),            remote: `${REMOTE_BASE}/src/app/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'download.tsx'),        remote: `${REMOTE_BASE}/src/app/download/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'i18n.ts'),             remote: `${REMOTE_BASE}/src/lib/i18n.ts` },
+    // Was never covered by this script — page.tsx imports GlassPricingSection
+    // from here, but the file only ever existed live on the server (never
+    // synced), so local edits to it silently never reached production.
+    // Found 2026-08-14 while redesigning the pricing section's off-brand
+    // cyan/glassmorphic styling.
+    { local: path.join(__dirname, '..', 'landing', 'animated-glassy-pricing.tsx'), remote: `${REMOTE_BASE}/src/components/ui/animated-glassy-pricing.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'SiteFooter.tsx'),      remote: `${REMOTE_BASE}/src/components/SiteFooter.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'SiteHeader.tsx'),      remote: `${REMOTE_BASE}/src/components/SiteHeader.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'SeoFooter.tsx'),       remote: `${REMOTE_BASE}/src/components/SeoFooter.tsx` },
@@ -81,6 +87,11 @@ const UPLOADS = [
     // is uploaded twice (colocated) because Next.js relative imports (`./changelog-data`)
     // resolve per-directory on the server; both pricing/page.tsx and download/page.tsx import it.
     { local: path.join(__dirname, '..', 'landing', 'pricing.tsx'),          remote: `${REMOTE_BASE}/src/app/pricing/page.tsx` },
+    // Was missing entirely — /faq/page.tsx had never been covered by any
+    // deploy script, so the 2026-08-13 mobile-responsiveness edit to
+    // faq.tsx never reached production despite the deploy run "succeeding"
+    // (it just silently rebuilt without this file's changes).
+    { local: path.join(__dirname, '..', 'landing', 'faq.tsx'),              remote: `${REMOTE_BASE}/src/app/faq/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'changelog-data.ts'),    remote: `${REMOTE_BASE}/src/app/pricing/changelog-data.ts` },
     { local: path.join(__dirname, '..', 'landing', 'changelog-data.ts'),    remote: `${REMOTE_BASE}/src/app/download/changelog-data.ts` },
     // 2026-08-13 SEO batch: branded 404 (was previously untracked — the live
@@ -93,10 +104,74 @@ const UPLOADS = [
     { local: path.join(__dirname, '..', 'landing', 'not-found.tsx'),        remote: `${REMOTE_BASE}/src/app/not-found.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-index.tsx'),       remote: `${REMOTE_BASE}/src/app/blog/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'sitemap.ts'),           remote: `${REMOTE_BASE}/src/app/sitemap.ts` },
+    // robots.ts — replaces public/robots.txt, which was uploaded by hand
+    // and never lived in git. Same directory as sitemap.ts, so no mkdir
+    // needed; Next.js serves it at /robots.txt.
+    { local: path.join(__dirname, '..', 'landing', 'robots.ts'),            remote: `${REMOTE_BASE}/src/app/robots.ts` },
     { local: path.join(__dirname, '..', 'landing', 'blog-multiple-accounts.tsx'),       remote: `${REMOTE_BASE}/src/app/blog/multiple-accounts/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-telegram-vpn-block.tsx'),      remote: `${REMOTE_BASE}/src/app/blog/telegram-vpn-block/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-best-aggregators.tsx'),        remote: `${REMOTE_BASE}/src/app/blog/best-messenger-aggregators/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-social-media-one-place.tsx'),  remote: `${REMOTE_BASE}/src/app/blog/all-social-media-one-place/page.tsx` },
+    // 2026-08-13: found while investigating a live 404 on referral links —
+    // register.tsx (the /auth/register page, confirmed live via `find`)
+    // existed on the server but was never covered by any deploy script,
+    // meaning it could only ever be updated by hand over SSH. Adding it here
+    // so the dashboard-server.tsx referral-link fix (same commit) actually
+    // reaches this file's directory too, and so it doesn't silently drift
+    // again in the future.
+    { local: path.join(__dirname, '..', 'landing', 'register.tsx'),       remote: `${REMOTE_BASE}/src/app/auth/register/page.tsx` },
+    // 2026-08-13 SEO audit: these 7 *-layout.tsx files hold per-page
+    // metadata (title/description/canonical) for client-component pages
+    // that can't export metadata themselves (faq.tsx, pricing.tsx,
+    // terms.tsx, refund.tsx, blog-vs-{rambox,franz,wavebox}.tsx are all
+    // 'use client'). None were ever in this script's UPLOADS — only old
+    // one-off scripts (deploy-seo-and-ui.js, deploy-blog-pages.js,
+    // deploy-refund.js) ever uploaded them. Confirmed all 7 live via
+    // `test -e` before adding (all present, all currently in sync — this is
+    // a latent-risk fix, not a live-bug fix: nothing is broken today, but
+    // the *next* edit to any of these files would silently fail to deploy
+    // via this script, same bug class as faq.tsx/register.tsx before it.
+    { local: path.join(__dirname, '..', 'landing', 'faq-layout.tsx'),            remote: `${REMOTE_BASE}/src/app/faq/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'pricing-layout.tsx'),        remote: `${REMOTE_BASE}/src/app/pricing/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'terms-layout.tsx'),          remote: `${REMOTE_BASE}/src/app/terms/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'refund-layout.tsx'),         remote: `${REMOTE_BASE}/src/app/refund/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-vs-rambox-layout.tsx'), remote: `${REMOTE_BASE}/src/app/blog/vs-rambox/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-vs-franz-layout.tsx'),  remote: `${REMOTE_BASE}/src/app/blog/vs-franz/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-vs-wavebox-layout.tsx'), remote: `${REMOTE_BASE}/src/app/blog/vs-wavebox/layout.tsx` },
+    // 2026-08-13 SEO batch: dynamic 1200x630 OG banner route (see
+    // og-image-route.tsx for details). New route, doesn't exist live yet —
+    // deploy-frontend.js's `mkdir -p` step below needs the parent dir too.
+    { local: path.join(__dirname, '..', 'landing', 'og-image-route.tsx'),  remote: `${REMOTE_BASE}/src/app/api/og/route.tsx` },
+    // IndexNow key-verification file — must be served at exactly
+    // /d551cf74fb5d05ca3e40986dd9a78353.txt. Folder name IS the key value
+    // (see indexnow-key-route.ts). Paired with scripts/indexnow-submit.js.
+    { local: path.join(__dirname, '..', 'landing', 'indexnow-key-route.ts'), remote: `${REMOTE_BASE}/src/app/d551cf74fb5d05ca3e40986dd9a78353.txt/route.ts` },
+    // 2026-08-13 SEO batch: DEFAULT_OG_IMAGE fallback, imported by 25 pages
+    // (blog posts, pricing, faq, features, download) for their own openGraph
+    // metadata — was never in this script's UPLOADS at all (confirmed live
+    // path via `find` before adding), same silent-drift bug class as
+    // faq.tsx/register.tsx/the 7 *-layout.tsx files above. Without this
+    // entry, today's fix swapping the 176x176 /logo.png fallback for the
+    // dynamic 1200x630 /api/og banner would never have reached production.
+    { local: path.join(__dirname, '..', 'landing', 'seo.ts'),               remote: `${REMOTE_BASE}/src/lib/seo.ts` },
+    // 2026-08-13 SEO batch: new article targeting the MAX-transition keyword
+    // cluster (keyword-strategist agent's #1 priority — high, currently
+    // rising RU demand, underserved software-solution angle). Also updates
+    // faq.tsx (FAQPage schema) and blog-index.tsx/sitemap.ts, both already
+    // covered by their own UPLOADS entries above. NOTE: landing/lib/
+    // blog-articles.js (the admin-news-tab mirror of this same list) was
+    // also updated but deploys separately via scripts/deploy-backend.js,
+    // not this script — see that file's UPLOADS.
+    { local: path.join(__dirname, '..', 'landing', 'blog-max-transition.tsx'), remote: `${REMOTE_BASE}/src/app/blog/max-transition/page.tsx` },
+    // 2026-08-13: new article on account-ban risk (WhatsApp/Telegram) —
+    // addresses a real user concern search query, positions Centrio as a
+    // safe official-webview wrapper vs. modified/unofficial clients.
+    { local: path.join(__dirname, '..', 'landing', 'blog-whatsapp-telegram-ban-risk.tsx'), remote: `${REMOTE_BASE}/src/app/blog/whatsapp-telegram-ban-risk/page.tsx` },
+    // 2026-08-13: vs-station (captures "Station alternative" traffic — Station
+    // was discontinued by its developer in 2023) and vs-shift (rounds out
+    // comparison coverage for the remaining aggregator from best-messenger-aggregators.tsx).
+    { local: path.join(__dirname, '..', 'landing', 'blog-vs-station.tsx'), remote: `${REMOTE_BASE}/src/app/blog/vs-station/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'blog-vs-shift.tsx'),   remote: `${REMOTE_BASE}/src/app/blog/vs-shift/page.tsx` },
 ]
 
 function exec(conn, cmd) {
@@ -121,6 +196,15 @@ const conn = new Client()
 conn.on('ready', async () => {
     console.log('=== Connected (publickey) ===\n')
     try {
+        // og-image-route.tsx is a new route (api/og/) that has never existed
+        // on the server before — sftp.fastPut fails if the remote directory
+        // doesn't exist yet, unlike every other UPLOADS entry whose parent
+        // dir was already there. mkdir -p is a no-op for every dir that
+        // already exists, so this is safe to run unconditionally.
+        // blog/max-transition/, blog/whatsapp-telegram-ban-risk/, blog/vs-station/
+        // and blog/vs-shift/ are the same situation — brand new blog post routes.
+        await exec(conn, `mkdir -p ${REMOTE_BASE}/src/app/api/og ${REMOTE_BASE}/src/app/d551cf74fb5d05ca3e40986dd9a78353.txt ${REMOTE_BASE}/src/app/blog/max-transition ${REMOTE_BASE}/src/app/blog/whatsapp-telegram-ban-risk ${REMOTE_BASE}/src/app/blog/vs-station ${REMOTE_BASE}/src/app/blog/vs-shift`)
+
         const sftp = await new Promise((resolve, reject) => {
             conn.sftp((err, sftp) => err ? reject(err) : resolve(sftp))
         })

@@ -107,7 +107,29 @@ function createSoundsApi({ store, ipcRenderer, getActiveMessengers }) {
                 const file = e.target.files[0]
                 if (!file) return
 
-                const filePath = file.path || file.name
+                // BUGFIX ("свои звуки уведомлений не воспроизводятся"):
+                // Electron 32+ (this app is on 39.x) no longer exposes a real
+                // File#path in the renderer — it's always undefined, so this
+                // used to fall back to the bare file.name (e.g. "ring.mp3"),
+                // which main/services/sound.js can never resolve to an actual
+                // file on disk. playSound() then failed its fs.existsSync
+                // check and returned silently — no error anywhere, exactly
+                // matching "загружаю, но звук вообще не играет". Resolve the
+                // real absolute path via the webUtils bridge exposed in
+                // preload.js instead of trusting file.path/file.name.
+                const filePath = window.electronAPI?.getPathForFile?.(file) || ''
+
+                if (!filePath) {
+                    const orig = uploadBtn.textContent
+                    uploadBtn.textContent = 'Не удалось получить путь к файлу'
+                    uploadBtn.classList.add('input-error')
+                    setTimeout(() => {
+                        uploadBtn.textContent = orig
+                        uploadBtn.classList.remove('input-error')
+                    }, 2500)
+                    e.target.value = ''
+                    return
+                }
 
                 const customItem = document.getElementById('soundItemCustom')
                 const nameEl = document.getElementById('customSoundName')

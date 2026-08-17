@@ -536,6 +536,11 @@ module.exports = {
         subActiveUntil:       'Attiva fino al',
         extend:               'Estendi',
         subNoExpiry:          'A vita',
+        promoSection:         'Codice promo',
+        promoPh:              'Inserisci il codice promo',
+        promoApply:           'Attiva',
+        promoSuccess:         'Codice attivato — Pro sbloccato',
+        promoError:           'Impossibile attivare il codice promo',
     },
 
     pro: {

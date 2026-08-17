@@ -4,7 +4,7 @@ import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
 import { DEFAULT_OG_IMAGE } from '@/lib/seo';
 
-const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.0.0.exe';
+const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.1.0.exe';
 
 export const metadata: Metadata = {
   title: 'Мессенджеры для удалённой команды: как свести всё в одно окно',
@@ -32,9 +32,38 @@ const SETUP = [
   { n: 4, title: 'Используйте единый поиск', text: 'Поиск сразу по всем открытым сервисам экономит время, когда нужно найти сообщение, но вы не помните, в каком именно чате оно было.' },
 ];
 
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'Блог', item: 'https://centrio.me/blog' },
+    { '@type': 'ListItem', position: 3, name: 'Мессенджеры для удалённой команды: как свести всё в одно окно', item: 'https://centrio.me/blog/remote-team-messengers' },
+  ],
+};
+
+const BLOG_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: 'Мессенджеры для удалённой команды: как свести всё в одно окно',
+  description: 'Slack, Telegram, Notion, Zoom и почта — типичный набор инструментов удалённой команды. Разбираем, как организовать их в одном приложении по папкам и не терять сообщения между проектами.',
+  image: 'https://centrio.me/api/og',
+  datePublished: '2026-08-01',
+  dateModified: '2026-08-01',
+  author: { '@type': 'Organization', name: 'Centrio' },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Centrio',
+    logo: { '@type': 'ImageObject', url: 'https://centrio.me/logo.png' },
+  },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': 'https://centrio.me/blog/remote-team-messengers' },
+};
+
 export default function RemoteTeamMessengersPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BLOG_JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <SiteHeader />
       <div style={{ minHeight: '100vh', background: '#080810', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
         <section style={{ maxWidth: 860, margin: '0 auto', padding: '60px 24px 48px', textAlign: 'center' }}>
@@ -104,7 +133,7 @@ export default function RemoteTeamMessengersPage() {
               ⬇ Скачать Centrio для Windows
             </a>
             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 12 }}>
-              Версия 2.0.0 · Бесплатно · <Link href="/download/macos" style={{ color: 'inherit' }}>macOS</Link> · <Link href="/download/linux" style={{ color: 'inherit' }}>Linux</Link> · <Link href="/pricing" style={{ color: 'inherit' }}>Тарифы Pro</Link>
+              Версия 2.1.0 · Бесплатно · <Link href="/download/macos" style={{ color: 'inherit' }}>macOS</Link> · <Link href="/download/linux" style={{ color: 'inherit' }}>Linux</Link> · <Link href="/pricing" style={{ color: 'inherit' }}>Тарифы Pro</Link>
             </p>
           </section>
         </div>

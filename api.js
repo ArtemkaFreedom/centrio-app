@@ -193,5 +193,9 @@ module.exports = {
 
     readAllNotifications(token) {
         return request('POST', '/api/notifications/read-all', {}, token)
+    },
+
+    redeemPromo(token, code) {
+        return request('POST', '/api/payments/promo/redeem', { code }, token)
     }
 }

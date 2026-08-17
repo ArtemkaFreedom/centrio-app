@@ -561,7 +561,12 @@ module.exports = {
         planYearF1:          'Ранний доступ к функциям',
         subActiveUntil:      'Активна до',
         extend:              'Продлить',
-        subNoExpiry:         'Бессрочно'
+        subNoExpiry:         'Бессрочно',
+        promoSection:        'Промокод',
+        promoPh:             'Введите промокод',
+        promoApply:          'Активировать',
+        promoSuccess:        'Промокод активирован — Pro доступен',
+        promoError:          'Не удалось активировать промокод'
     },
 
     pro: {

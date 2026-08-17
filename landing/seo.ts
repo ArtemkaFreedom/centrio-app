@@ -9,11 +9,15 @@
 //
 // Import DEFAULT_OG_IMAGE and spread it into each page's own `openGraph`
 // object (`images: [DEFAULT_OG_IMAGE]`) so every page gets a working image.
-// /logo.png is a real 176x176 fallback; swap this one constant for a proper
-// 1200x630 designed banner later and every page picks it up at once.
+//
+// 2026-08-13: swapped the 176x176 /logo.png square fallback for the real
+// 1200x630 landscape banner generated at request time by
+// og-image-route.tsx (deployed to /api/og). If that route ever breaks,
+// worst case is a slow/failed image fetch on link-share previews — nothing
+// else on the site depends on this URL, so it degrades in isolation.
 export const DEFAULT_OG_IMAGE = {
-  url: 'https://centrio.me/logo.png',
-  width: 176,
-  height: 176,
-  alt: 'Centrio',
+  url: 'https://centrio.me/api/og',
+  width: 1200,
+  height: 630,
+  alt: 'Centrio — все мессенджеры в одном окне',
 }

@@ -23,13 +23,38 @@ const faqs = [
   { q: 'Как связаться с поддержкой?', a: 'Email: support@centrio.me · Telegram: @centrioapp. Время ответа: до 24 ч для бесплатных пользователей, до 4 ч для Pro.' },
 ];
 
+// FAQPage structured data, generated straight from the `faqs` array above so
+// it can never drift out of sync with what's actually rendered on the page.
+// Added 2026-08-13 — every blog post that has a FAQ section already emits
+// this (see blog-telegram-vpn-block.tsx), but /faq itself — the single page
+// most likely to earn a rich "People also ask" snippet — never did.
+const BREADCRUMB_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://centrio.me/' },
+    { '@type': 'ListItem', position: 2, name: 'FAQ', item: 'https://centrio.me/faq' },
+  ],
+};
+
+const FAQ_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+
 function AccordionItem({ q, a, index }: { q: string; a: string; index: number }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{ borderBottom: index < faqs.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
       <button
         onClick={() => setOpen(!open)}
-        style={{ width: '100%', background: 'none', border: 'none', color: '#fff', textAlign: 'left', padding: '20px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: 15, fontWeight: 600, gap: 16, lineHeight: 1.4, transition: 'color .2s' }}
+        className="faq-accordion-btn"
+        style={{ width: '100%', background: 'none', border: 'none', color: '#fff', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: 15, fontWeight: 600, gap: 16, lineHeight: 1.4, transition: 'color .2s' }}
       >
         <span style={{ color: open ? '#c084fc' : '#fff' }}>{q}</span>
         <div style={{ width: 26, height: 26, borderRadius: '50%', background: open ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid ' + (open ? 'rgba(168,85,247,0.4)' : 'rgba(255,255,255,0.1)'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .2s' }}>
@@ -39,7 +64,7 @@ function AccordionItem({ q, a, index }: { q: string; a: string; index: number })
         </div>
       </button>
       {open && (
-        <div style={{ padding: '0 28px 22px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.75, fontSize: 14.5 }}>
+        <div className="faq-accordion-body" style={{ padding: '0 28px 22px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.75, fontSize: 14.5 }}>
           {a}
         </div>
       )}
@@ -80,10 +105,17 @@ export default function FAQPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#06060f', color: '#e2e2e2', fontFamily: "'Inter', -apple-system, sans-serif", overflowX: 'hidden' }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSONLD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSONLD) }} />
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes pulse-glow { 0%,100%{opacity:.18} 50%{opacity:.38} }
         .glow-orb { position:absolute; border-radius:50%; filter:blur(120px); animation:pulse-glow 7s ease-in-out infinite; pointer-events:none; }
+        .faq-accordion-btn { padding: 20px 28px; }
+        @media (max-width: 560px) {
+          .faq-accordion-btn { padding: 16px 18px !important; font-size: 14px !important; }
+          .faq-accordion-body { padding: 0 18px 18px !important; }
+        }
       `}</style>
 
       <SiteNav active="/faq" />

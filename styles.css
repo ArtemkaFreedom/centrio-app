@@ -7641,6 +7641,45 @@ button:active {
     flex-direction: column;
     gap: 8px;
 }
+
+/* Промокод */
+.cp-promo-section {
+    padding: 4px 16px 14px;
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.cp-promo-row {
+    display: flex;
+    gap: 8px;
+}
+.cp-promo-input {
+    flex: 1;
+    font-size: 13px;
+    padding: 9px 12px;
+    text-transform: uppercase;
+}
+.cp-promo-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0 16px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: opacity 0.15s, transform 0.15s;
+}
+.cp-promo-btn:hover { opacity: 0.85; }
+.cp-promo-btn:disabled { opacity: 0.5; cursor: default; }
+.cp-promo-msg {
+    font-size: 12px;
+    font-weight: 600;
+}
+.cp-promo-msg.is-ok  { color: var(--success, #22c55e); }
+.cp-promo-msg.is-err { color: var(--danger); }
 .cp-section-label {
     font-size: 10px;
     font-weight: 700;

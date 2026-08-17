@@ -232,14 +232,14 @@ export const PricingCard = ({
   planName, description, price, period, features, disabledFeatures = [],
   badge, savingsBadge, buttonText, buttonHref, isPopular = false, buttonVariant = 'primary',
 }: PricingCardProps) => {
+  // Brand-aligned tonal card — matches page.tsx's .card / .card-elevated
+  // system (warm cream text, single orange accent) instead of the previous
+  // cyan/blue glassmorphic treatment, which was a mismatched, off-brand
+  // template component sitting inside an otherwise flat, orange-accented site.
   const cardStyle: React.CSSProperties = {
-    backdropFilter: 'blur(14px)',
-    WebkitBackdropFilter: 'blur(14px)',
-    background: isPopular
-      ? 'linear-gradient(to bottom right, rgba(255,255,255,.18), rgba(255,255,255,.08))'
-      : 'linear-gradient(to bottom right, rgba(255,255,255,.08), rgba(255,255,255,.03))',
-    border: isPopular ? '1px solid rgba(34,211,238,.3)' : '1px solid rgba(255,255,255,.1)',
-    borderRadius: 20,
+    background: isPopular ? 'rgba(255,255,255,.055)' : 'rgba(255,255,255,.03)',
+    border: isPopular ? '1px solid rgba(90,169,255,.28)' : '1px solid rgba(255,255,255,.07)',
+    borderRadius: 16,
     padding: '28px',
     flex: 1,
     maxWidth: 320,
@@ -247,33 +247,30 @@ export const PricingCard = ({
     display: 'flex',
     flexDirection: 'column' as const,
     position: 'relative' as const,
-    boxShadow: isPopular
-      ? '0 0 0 2px rgba(34,211,238,.15), 0 32px 80px rgba(0,0,0,.4)'
-      : '0 8px 32px rgba(0,0,0,.3)',
-    transform: isPopular ? 'scale(1.04)' : 'scale(1)',
-    transition: 'transform .3s, box-shadow .3s',
+    boxShadow: isPopular ? '0 30px 70px rgba(0,0,0,.4)' : 'none',
+    transition: 'background .25s, border-color .25s',
   };
 
   const buttonStyle: React.CSSProperties = buttonVariant === 'primary'
-    ? { display: 'block', width: '100%', padding: '11px', borderRadius: 12, fontWeight: 700, fontSize: 14.5, cursor: 'pointer', textDecoration: 'none', textAlign: 'center', background: 'linear-gradient(135deg,#06b6d4,#3b82f6)', color: '#000', border: 'none', marginTop: 'auto', transition: 'opacity .2s', fontFamily: 'inherit' }
-    : { display: 'block', width: '100%', padding: '11px', borderRadius: 12, fontWeight: 600, fontSize: 14.5, cursor: 'pointer', textDecoration: 'none', textAlign: 'center', background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.75)', border: '1px solid rgba(255,255,255,.15)', marginTop: 'auto', transition: 'all .2s', fontFamily: 'inherit' };
+    ? { display: 'block', width: '100%', padding: '11px', borderRadius: 10, fontWeight: 600, fontSize: 14.5, cursor: 'pointer', textDecoration: 'none', textAlign: 'center', background: '#2F6FED', color: '#fff', border: 'none', marginTop: 'auto', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.16)', transition: 'background .15s', fontFamily: 'inherit' }
+    : { display: 'block', width: '100%', padding: '11px', borderRadius: 10, fontWeight: 500, fontSize: 14.5, cursor: 'pointer', textDecoration: 'none', textAlign: 'center', background: 'transparent', color: 'rgba(245,241,232,.65)', border: '1px solid rgba(255,255,255,.1)', marginTop: 'auto', transition: 'all .2s', fontFamily: 'inherit' };
 
   return (
     <div style={cardStyle}>
       {badge && (
-        <div style={{ position: 'absolute', top: -14, right: 16, padding: '4px 14px', fontSize: 11, fontWeight: 700, borderRadius: 50, background: 'linear-gradient(135deg,#06b6d4,#3b82f6)', color: '#000', letterSpacing: '.08em' }}>
+        <div style={{ position: 'absolute', top: -14, right: 16, padding: '4px 14px', fontSize: 11, fontWeight: 700, borderRadius: 50, background: 'rgba(47,111,237,.3)', border: '1px solid rgba(47,111,237,.4)', color: '#C9E4FF', letterSpacing: '.08em' }}>
           {badge}
         </div>
       )}
 
       <div style={{ marginBottom: 12 }}>
-        <h3 style={{ fontSize: 32, fontWeight: 200, letterSpacing: '-0.03em', color: '#f0f0ff', lineHeight: 1.1 }}>{planName}</h3>
-        <p style={{ fontSize: 14, color: 'rgba(240,240,255,.55)', marginTop: 6 }}>{description}</p>
+        <h3 style={{ fontSize: 22, fontWeight: 650, letterSpacing: '-0.02em', color: '#F5F1E8', lineHeight: 1.1 }}>{planName}</h3>
+        <p style={{ fontSize: 13.5, color: 'rgba(245,241,232,.4)', marginTop: 6 }}>{description}</p>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '20px 0' }}>
-        <span style={{ fontSize: 44, fontWeight: 200, color: '#f0f0ff', letterSpacing: '-0.03em', lineHeight: 1 }}>{price}</span>
-        {period && <span style={{ fontSize: 14, color: 'rgba(240,240,255,.4)' }}>{period}</span>}
+        <span style={{ fontSize: 40, fontWeight: 700, color: '#F5F1E8', letterSpacing: '-0.03em', lineHeight: 1 }}>{price}</span>
+        {period && <span style={{ fontSize: 14, color: 'rgba(245,241,232,.35)' }}>{period}</span>}
       </div>
 
       {savingsBadge && (
@@ -282,18 +279,18 @@ export const PricingCard = ({
         </div>
       )}
 
-      <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,.12) 30%,rgba(255,255,255,.22) 50%,rgba(255,255,255,.12) 70%,transparent)', marginBottom: 18 }} />
+      <div style={{ height: 1, background: 'rgba(255,255,255,.06)', marginBottom: 18 }} />
 
-      <ul style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, color: 'rgba(240,240,255,.8)', marginBottom: 22, listStyle: 'none', padding: 0, flex: 1 }}>
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, color: 'rgba(245,241,232,.75)', marginBottom: 22, listStyle: 'none', padding: 0, flex: 1 }}>
         {features.map((f, i) => (
           <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7DD3C0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
             {f}
           </li>
         ))}
         {disabledFeatures.map((f, i) => (
           <li key={`no-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: .35 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(240,240,255,.5)" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(245,241,232,.5)" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             {f}
           </li>
         ))}

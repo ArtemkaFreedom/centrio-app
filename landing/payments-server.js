@@ -275,7 +275,11 @@ router.post('/promo/redeem', authMiddleware, async (req, res) => {
     const alreadyPro = user.plan === 'PRO' && user.planExpiresAt && user.planExpiresAt > now
     const base = alreadyPro ? user.planExpiresAt : now
     const exp  = new Date(base)
-    exp.setMonth(exp.getMonth() + promo.months)
+    // Codes grant either whole months (subscription-style) or a fixed number
+    // of days (e.g. the PRO14 trial) — never both, enforced at creation time
+    // in admin-routes.js.
+    if (promo.days != null) exp.setDate(exp.getDate() + promo.days)
+    else exp.setMonth(exp.getMonth() + promo.months)
 
     // Same-transaction: redemption row (enforces the unique constraint),
     // uses-counter bump, plan extension, and a $0 Payment row so the
@@ -293,12 +297,13 @@ router.post('/promo/redeem', authMiddleware, async (req, res) => {
           status:   'SUCCEEDED',
           provider: 'promo',
           plan:     'PRO',
-          months:   promo.months
+          months:   promo.months ?? 0,
+          days:     promo.days ?? null
         }
       })
     ])
 
-    res.json({ success: true, data: { planExpiresAt: exp, months: promo.months } })
+    res.json({ success: true, data: { planExpiresAt: exp, months: promo.months ?? null, days: promo.days ?? null } })
   } catch (err) {
     // Unique-constraint race: two concurrent redeem calls with the same
     // code from the same user can both pass the `already` check above

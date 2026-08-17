@@ -665,6 +665,17 @@
     </div>
     <div class="changelog-popup-body">
         <div class="changelog-entry">
+            <div class="changelog-version">v2.1.0</div>
+            <ul class="changelog-list">
+                <li>Исправлен «нейросетевой» моноширинный шрифт в верхнем меню и мелких заголовках сайта — заменён на обычный, аккуратный шрифт</li>
+                <li>Скриншоты приложения на сайте теперь открываются крупно по клику (лайтбокс)</li>
+                <li>На карточке «Всё в одном окне» декоративные точки-кружки заменены на логотип Centrio</li>
+                <li>Новое: промокод на 14 дней Pro в подарок — всплывающее окно с предложением появляется через 10 секунд на сайте, с крестиком закрытия</li>
+                <li>Новое: активировать промокод теперь можно прямо в приложении — в личном кабинете (окно аккаунта) появилось поле «Промокод»; активация проверяется и сохраняется на сервере, привязана к аккаунту (не более одного использования кода на аккаунт)</li>
+                <li>Админ-панель: промокоды теперь можно выдавать не только на месяцы, но и на дни — добавлен переключатель «Месяцы / Дни» при создании кода</li>
+            </ul>
+        </div>
+        <div class="changelog-entry">
             <div class="changelog-version">v2.0.0</div>
             <ul class="changelog-list">
                 <li>Большое обновление: язык приложения по умолчанию — русский (раньше новые установки могли открываться на английском)</li>
@@ -2873,6 +2884,16 @@
                 </div>
 
                 </div><!-- /cp-plans-grid -->
+            </div>
+
+            <!-- Промокод -->
+            <div class="cp-promo-section" id="cpPromoSection">
+                <div class="cp-section-label" data-i18n="cloud.promoSection"></div>
+                <div class="cp-promo-row">
+                    <input type="text" id="cloudPromoInput" class="vsc-input cp-promo-input" data-i18n-placeholder="cloud.promoPh" maxlength="32" autocomplete="off">
+                    <button id="cloudPromoBtn" class="cp-promo-btn" data-i18n="cloud.promoApply"></button>
+                </div>
+                <div id="cloudPromoMsg" class="cp-promo-msg" style="display:none;"></div>
             </div>
 
             </div><!-- /cp-scroll-area -->

@@ -30,9 +30,15 @@ function RegisterPageInner() {
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
 
-  // Referral link is /register?ref=<referrer's user id> (see landing/lib/referral.js
-  // and the referralCode handling in POST /api/auth/register). Invalid/missing
-  // values are silently ignored server-side, so there's no need to validate here.
+  // Referral link is /auth/register?ref=<referrer's user id> (see
+  // landing/lib/referral.js and the referralCode handling in POST
+  // /api/auth/register). Invalid/missing values are silently ignored
+  // server-side, so there's no need to validate here.
+  // BUG HISTORY (2026-08-13): dashboard-server.tsx used to build this link
+  // as bare `/register?ref=...` (missing the `/auth` prefix) — since this
+  // page has only ever lived at /auth/register, every referral link ever
+  // copied by a user 404'd. Fixed in dashboard-server.tsx; this file itself
+  // was never wrong, just the link generator.
   const referralCode = searchParams.get('ref') || undefined
 
   useEffect(() => {

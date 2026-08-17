@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 const validReceiveChannels = new Set([
     'app-hidden',
@@ -141,6 +141,25 @@ function normalizePayload(channel, args) {
 const electronAPI = {
     platform: process.platform,
 
+    // BUGFIX ("в Алису не загружаются некоторые изображения, точечно"):
+    // renderer/messengers.js spoofs a fixed browser UA string on every
+    // <webview> (Chrome/120, frozen since the project's initial commit) so
+    // guest sites don't detect/reject an Electron embed. This app is on
+    // Electron 39.8.10, whose real bundled Chromium is many major versions
+    // ahead of 120 — but Chromium generates the Sec-CH-UA / Sec-CH-UA-Full-
+    // Version-List Client Hints headers (and navigator.userAgentData) from
+    // its OWN real engine version regardless of the useragent attribute
+    // override, so every embedded site sees a UA string claiming Chrome 120
+    // alongside Client Hints proving a much newer real Chromium — an
+    // inconsistency real browsers never produce. Most sites ignore this, but
+    // Yandex's properties (alice.yandex.ru included) run stricter anti-bot/
+    // CDN checks and can selectively degrade requests (e.g. individual image
+    // fetches) instead of hard-blocking the page, matching the "loads, but
+    // some images silently don't" report. Exposing the real Chromium version
+    // here lets messengers.js build the UA string from truth instead of a
+    // string frozen at commit time, so it can never drift out of sync again.
+    chromeVersion: process.versions.chrome,
+
     storeGet: (key, def) => ipcRenderer.invoke('store:get', key, def),
     storeSet: (key, value) => ipcRenderer.invoke('store:set', key, value),
     storeDelete: (key) => ipcRenderer.invoke('store:delete', key),
@@ -259,7 +278,25 @@ const electronAPI = {
     extToggle:         (id, on)   => ipcRenderer.invoke('ext:toggle', id, on),
     extApplyToSession: (partition) => ipcRenderer.invoke('ext:apply-to-session', partition),
 
-    openPopupWindow: (url, opts) => ipcRenderer.invoke('open-popup-window', url, opts)
+    openPopupWindow: (url, opts) => ipcRenderer.invoke('open-popup-window', url, opts),
+
+    // BUGFIX ("свои звуки уведомлений не воспроизводятся"): Electron >= 32
+    // removed the renderer-visible File#path property for security reasons
+    // (this app is on 39.x) — a <input type="file"> File object's .path is
+    // always undefined now, so code that read file.path silently fell back
+    // to the bare file.name, which main/services/sound.js can never resolve
+    // to a real file (fs.existsSync fails, playSound() no-ops with zero
+    // error surfaced anywhere). webUtils.getPathForFile() is the sanctioned
+    // replacement, but it's only callable from main/preload — expose it here
+    // so renderer code (renderer/sounds.js) can resolve a real absolute path.
+    getPathForFile: (file) => {
+        try {
+            return webUtils.getPathForFile(file)
+        } catch (error) {
+            console.warn('[preload] getPathForFile failed:', error)
+            return ''
+        }
+    }
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)
