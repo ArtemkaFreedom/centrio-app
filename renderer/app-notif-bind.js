@@ -1,4 +1,8 @@
-// Привязка уведомлений приложения (от администратора / changelog)
+// Привязка уведомлений приложения (от администратора / changelog).
+// Панель встроена в раскладку правого сайдбара (см. #rightPanel в
+// renderer.js) — открытие/закрытие делает общий контроллер
+// openRightPanel/closeRightPanel, этот модуль отвечает только за
+// содержимое списка.
 function bindAppNotifUi({
     cloudStore,
     invokeIpc,
@@ -7,7 +11,9 @@ function bindAppNotifUi({
     tGet,
     state,
     toggleMuteAll,
-    switchTab
+    switchTab,
+    openRightPanel,
+    closeRightPanel
 }) {
     const btn          = document.getElementById('appNotifBtn')
     const panel        = document.getElementById('appNotifPanel')
@@ -20,7 +26,11 @@ function bindAppNotifUi({
     if (!btn || !panel) return
 
     let notifications = []
-    let panelOpen = false
+    // Панель теперь встроена в раскладку и её открытие/закрытие управляется
+    // общим контроллером в renderer.js (может закрыться из-за клика по
+    // ДРУГОЙ кнопке правого сайдбара) — поэтому вместо своего "open"-флага
+    // читаем актуальное состояние прямо из DOM.
+    const isPanelOpen = () => panel.classList.contains('active')
 
     // ── Локальные (от мессенджеров) vs облачные (от админки) уведомления ────────
     // Локальные записи (addMessengerNotification) персистятся через main-процесс
@@ -274,7 +284,7 @@ function bindAppNotifUi({
                 notifications = [...notifArray, ...localOnes]
                 sortNotifications()
                 updateBadge()
-                if (panelOpen) renderPanel()
+                if (isPanelOpen()) renderPanel()
 
                 for (const n of newOnes) {
                     try {
@@ -303,7 +313,7 @@ function bindAppNotifUi({
         notifications.unshift(fakeEntry)
         sortNotifications()
         updateBadge()
-        if (panelOpen) renderPanel()
+        if (isPanelOpen()) renderPanel()
 
         // Персистентность: сохраняем через main-процесс (main/ipc/appNotifications.js),
         // иначе запись живёт только в памяти этой вкладки и теряется при
@@ -313,44 +323,18 @@ function bindAppNotifUi({
     }
 
     function openPanel() {
-        document.dispatchEvent(new CustomEvent('close-all-popups'))
-
-        panelOpen = true
         syncMuteToggle()
         renderPanel()
-
-        const rect = btn.getBoundingClientRect()
-        panel.style.left = `${rect.right + 14}px`
-        panel.style.top  = '0px'
-        panel.style.display = 'flex'
-
-        requestAnimationFrame(() => {
-            const pRect = panel.getBoundingClientRect()
-            let top = rect.bottom - pRect.height
-            if (top < 12) top = 12
-            if (top + pRect.height > window.innerHeight - 12) {
-                top = window.innerHeight - pRect.height - 12
-            }
-            panel.style.top = `${Math.max(12, top)}px`
-        })
-
-        document.dispatchEvent(new CustomEvent('popup-opened'))
+        openRightPanel?.()
     }
 
     function closePanel() {
-        panelOpen = false
-        panel.style.display = 'none'
+        closeRightPanel?.()
     }
-
-    document.addEventListener('close-all-popups', closePanel)
 
     btn.addEventListener('click', (e) => {
         e.stopPropagation()
-        if (panel.style.display === 'none' || !panel.style.display) {
-            openPanel()
-        } else {
-            closePanel()
-        }
+        openPanel()
     })
 
     markAllBtn?.addEventListener('click', async (e) => {
@@ -396,11 +380,10 @@ function bindAppNotifUi({
         syncMuteToggle()
     })
 
-    document.addEventListener('click', (e) => {
-        if (panel.style.display !== 'none' && !panel.contains(e.target) && e.target !== btn) {
-            closePanel()
-        }
-    })
+    // Закрытие "кликом мимо" убрано намеренно: панель теперь встроена в
+    // раскладку правого сайдбара, закрывается только повторным кликом по
+    // той же иконке (см. toggleRightPanel в renderer.js) — клики внутри
+    // ЛЮБОЙ секции правой панели (не только этой) не должны её закрывать.
 
     // ── Локальная история (от мессенджеров) ─────────────────────────────────────
     // Live-обновления от main-процесса (на случай, если запись пришла не через
@@ -413,7 +396,7 @@ function bindAppNotifUi({
         else notifications[idx] = record
         sortNotifications()
         updateBadge()
-        if (panelOpen) renderPanel()
+        if (isPanelOpen()) renderPanel()
     }
     ipcRenderer?.on?.('app-notifs:item-update', (record) => upsertLocal(record))
 
@@ -431,7 +414,7 @@ function bindAppNotifUi({
                     notifications = [...notifications, ...toAdd]
                     sortNotifications()
                     updateBadge()
-                    if (panelOpen) renderPanel()
+                    if (isPanelOpen()) renderPanel()
                 }
             }
         } catch {}

@@ -184,6 +184,9 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
       exp.setMonth(exp.getMonth() + payment.months)
 
       const updateData = { plan: 'PRO', planExpiresAt: exp, autoRenew: true }
+      // Новый период подписки (не продление уже активного) — фиксируем
+      // дату начала для отображения "с какого дня оплачена" в приложении.
+      if (!alreadyPro) updateData.planStartedAt = now
       if (yk.payment_method && yk.payment_method.saved) {
         updateData.autoRenewPayMethodId = yk.payment_method.id
       }
@@ -227,6 +230,9 @@ router.get('/status/:paymentId', authMiddleware, async (req, res) => {
       const exp  = new Date(base)
       exp.setMonth(exp.getMonth() + payment.months)
       const updateData = { plan: 'PRO', planExpiresAt: exp, autoRenew: true }
+      // Новый период подписки (не продление уже активного) — фиксируем
+      // дату начала для отображения "с какого дня оплачена" в приложении.
+      if (!alreadyPro) updateData.planStartedAt = now
       if (yk.payment_method && yk.payment_method.saved) {
         updateData.autoRenewPayMethodId = yk.payment_method.id
       }
@@ -288,7 +294,7 @@ router.post('/promo/redeem', authMiddleware, async (req, res) => {
     await prisma.$transaction([
       prisma.promoRedemption.create({ data: { promoCodeId: promo.id, userId: req.user.id } }),
       prisma.promoCode.update({ where: { id: promo.id }, data: { usesCount: { increment: 1 } } }),
-      prisma.user.update({ where: { id: req.user.id }, data: { plan: 'PRO', planExpiresAt: exp } }),
+      prisma.user.update({ where: { id: req.user.id }, data: { plan: 'PRO', planExpiresAt: exp, ...(alreadyPro ? {} : { planStartedAt: now }) } }),
       prisma.payment.create({
         data: {
           userId:   req.user.id,
@@ -313,6 +319,35 @@ router.post('/promo/redeem', authMiddleware, async (req, res) => {
     }
     console.error('Promo redeem error:', err.message)
     res.status(500).json({ success: false, error: 'Ошибка активации промокода' })
+  }
+})
+
+// ── POST /api/payments/device-trial-redeem ──────────────────────────
+// Onboarding 14-day Pro trial for desktop users who skip account creation
+// (see renderer/onboarding-auth.js) — same idea as PRO14 above, but there's
+// no userId to gate on, so it's keyed by a hashed hardware id instead via
+// the DeviceTrial.hardwareId unique constraint. No auth — this is reached
+// before the user has any account or token. Since there's no server-side
+// User row to extend, this only *records* the grant; the desktop app is
+// responsible for treating a locally-cached, unexpired grant as Pro.
+const deviceTrialLimiter = rateLimit({ name: 'device-trial-redeem', windowMs: 60 * 60 * 1000, max: 5 })
+const DEVICE_TRIAL_DAYS = 14
+router.post('/device-trial-redeem', deviceTrialLimiter, async (req, res) => {
+  try {
+    const hardwareId = String(req.body?.hardwareId || '').trim().slice(0, 128)
+    if (!hardwareId) return res.status(400).json({ success: false, error: 'Missing hardwareId' })
+
+    const exp = new Date()
+    exp.setDate(exp.getDate() + DEVICE_TRIAL_DAYS)
+
+    await prisma.deviceTrial.create({ data: { hardwareId, expiresAt: exp } })
+    res.json({ success: true, data: { expiresAt: exp } })
+  } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(409).json({ success: false, error: 'Trial already used on this device' })
+    }
+    console.error('Device trial redeem error:', err.message)
+    res.status(500).json({ success: false, error: 'Server error' })
   }
 })
 
@@ -457,7 +492,7 @@ router.post('/crypto-activate', webhookLimiter, async (req, res) => {
 
     // Crypto payments are one-off (no saved payment method), unlike YooKassa
     // — do not set autoRenew here.
-    await prisma.user.update({ where: { id: userId }, data: { plan: 'PRO', planExpiresAt: exp } })
+    await prisma.user.update({ where: { id: userId }, data: { plan: 'PRO', planExpiresAt: exp, ...(alreadyPro ? {} : { planStartedAt: now }) } })
 
     // Captured (rather than fire-and-forget) so grantReferralBonusIfEligible
     // below can pass this payment's own id as the exclusion filter — without
@@ -545,7 +580,7 @@ router.post('/fride-webhook', webhookLimiter, async (req, res) => {
       const exp  = new Date(base)
       exp.setMonth(exp.getMonth() + payment.months)
 
-      await prisma.user.update({ where: { id: payment.userId }, data: { plan: 'PRO', planExpiresAt: exp } })
+      await prisma.user.update({ where: { id: payment.userId }, data: { plan: 'PRO', planExpiresAt: exp, ...(alreadyPro ? {} : { planStartedAt: now }) } })
       console.log('FRIDE payment OK: user=' + payment.userId + ' PRO until ' + exp.toISOString())
       sendPaymentReceiptEmail(user, payment).catch(e => console.error('[email] receipt send failed:', e.message))
       grantReferralBonusIfEligible(prisma, payment.userId, payment.id).catch(e => console.error('[referral] grant failed:', e.message))

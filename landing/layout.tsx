@@ -4,7 +4,12 @@ import Script from 'next/script'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin', 'cyrillic'], variable: '--font-geist' })
-const display = Bricolage_Grotesque({ subsets: ['latin', 'cyrillic'], variable: '--font-display' })
+// Bricolage Grotesque has no `cyrillic` subset (only latin, latin-ext,
+// vietnamese) — Turbopack silently ignored the invalid subset request,
+// but webpack's next/font loader fails the build hard on it. Bricolage is
+// only used for display/headline text (see .sh in page.tsx and friends),
+// which falls back to var(--font-geist) for any Cyrillic glyphs anyway.
+const display = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-display' })
 
 const SITE_URL = 'https://centrio.me'
 // Fixed 2026-08-03: this used to point at /og-image.png, which does not
@@ -42,6 +47,20 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: SITE_URL,
+    // Locale siblings — only the homepage has real translated routes so
+    // far (see site-nav.ts LOCALIZED_ROUTES); every other page inherits
+    // this root metadata and would otherwise declare hreflang alternates
+    // that don't exist. Page-specific metadata (download-layout.tsx etc.)
+    // already overrides `alternates` wholesale, so this only actually
+    // takes effect on the homepage itself.
+    languages: {
+      ru: SITE_URL,
+      en: `${SITE_URL}/en`,
+      zh: `${SITE_URL}/zh`,
+      fr: `${SITE_URL}/fr`,
+      it: `${SITE_URL}/it`,
+      'x-default': SITE_URL,
+    },
   },
   icons: {
     icon: [

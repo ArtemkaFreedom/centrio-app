@@ -152,6 +152,21 @@ function registerApiIpc() {
         return wrapApi(() => api.redeemPromo(token, code))
     })
 
+    // Onboarding trial for users without an account — machineIdSync() with
+    // no args returns node-machine-id's own SHA-256 hash of the platform
+    // identifier (not the raw hardware id), so nothing identifying actually
+    // leaves the device. Renders "one trial per machine" server-side by
+    // that hash instead of "one trial per userId" like PRO14 above.
+    ipcMain.handle('api-device-trial-redeem', async () => {
+        try {
+            const { machineIdSync } = require('node-machine-id')
+            const hardwareId = machineIdSync()
+            return wrapApi(() => api.deviceTrialRedeem(hardwareId))
+        } catch (error) {
+            return normalizeError(error)
+        }
+    })
+
     ipcMain.handle('api-yandex-desktop', async (event, accessToken) => {
         return wrapApi(() => api.yandexDesktop(accessToken))
     })

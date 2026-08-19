@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext, createElement, type ReactNode } from 'react'
 
 export const LANGS = ['ru','en','zh','fr','it'] as const
 export type Lang = typeof LANGS[number]
@@ -895,16 +895,35 @@ export type TDict = typeof d.ru
 
 const LANG_EVT = 'centrio-lang'
 
+// Pins a subtree to one language, bypassing localStorage entirely — used by
+// locale-prefixed routes (e.g. /en, /en/download) so the server-rendered
+// HTML a crawler sees is actually in that language instead of always
+// rendering 'ru' first and swapping client-side after hydration (which is
+// invisible to search engines and was the whole reason those routes were
+// unindexable before this). Pages with no locale route (pricing, faq,
+// features, most blog posts) render outside any provider and keep the
+// original behavior unchanged.
+const ForcedLangContext = createContext<Lang | null>(null)
+
+export function LangProvider({ forced, children }: { forced: Lang; children: ReactNode }) {
+  return createElement(ForcedLangContext.Provider, { value: forced }, children)
+}
+
 export function useLang(): { lang: Lang; t: TDict; setLang: (l: Lang) => void } {
-  const [lang, setLangState] = useState<Lang>('ru')
+  const forced = useContext(ForcedLangContext)
+  const [lang, setLangState] = useState<Lang>(forced || 'ru')
   useEffect(() => {
+    if (forced) return // locale is fixed by the route — never let a saved preference override it
     const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('centrio_lang')) as Lang | null
     if (saved && (LANGS as readonly string[]).includes(saved)) setLangState(saved as Lang)
     const handler = (e: Event) => setLangState((e as CustomEvent<Lang>).detail)
     window.addEventListener(LANG_EVT, handler)
     return () => window.removeEventListener(LANG_EVT, handler)
-  }, [])
+  }, [forced])
   const setLang = (l: Lang) => {
+    // No-op on locale-pinned routes — LangSwitcher navigates to the
+    // equivalent localized URL instead of mutating state in place there.
+    if (forced) return
     if (typeof localStorage !== 'undefined') localStorage.setItem('centrio_lang', l)
     window.dispatchEvent(new CustomEvent<Lang>(LANG_EVT, { detail: l }))
   }

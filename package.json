@@ -1,7 +1,7 @@
 {
 	"name": "messengerapp",
 	"productName": "Centrio",
-	"version": "2.1.0",
+	"version": "2.2.0",
 	"description": "All messengers in one app",
 	"author": {
 		"name": "Centrio",
@@ -44,13 +44,14 @@
 		"electron-log": "^5.4.3",
 		"electron-store": "^10.0.1",
 		"electron-updater": "^6.8.3",
+		"node-machine-id": "^1.1.12",
 		"sound-play": "^1.1.0",
 		"uuid": "^14.0.0"
 	},
 	"build": {
 		"appId": "me.centrio.app",
 		"productName": "Centrio",
-		"copyright": "Copyright Р’В© 2026 Centrio",
+		"copyright": "Copyright Р вЂ™Р’В© 2026 Centrio",
 		"directories": {
 			"output": "dist"
 		},

@@ -197,5 +197,12 @@ module.exports = {
 
     redeemPromo(token, code) {
         return request('POST', '/api/payments/promo/redeem', { code }, token)
+    },
+
+    // Unauthenticated — grants the same 14-day Pro trial as PRO14, but keyed
+    // by a hashed hardware id instead of a userId, for onboarding users who
+    // skipped account creation. No token, hence no Authorization header.
+    deviceTrialRedeem(hardwareId) {
+        return request('POST', '/api/payments/device-trial-redeem', { hardwareId })
     }
 }

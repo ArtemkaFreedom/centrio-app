@@ -12,6 +12,22 @@ function createCloudUiApi({
     }
 
     // ── Sidebar cloudBtn ──────────────────────────────────────────
+    // Подпись кнопки аккаунта в раскрытом сайдбаре: имя пользователя, если
+    // оно есть, иначе — просто "Аккаунт". textContent (не innerHTML) —
+    // имя приходит с сервера и не должно попадать в разметку как HTML.
+    function _updateCloudBtnLabel(name) {
+        let labelEl = document.getElementById('cloudBtnLabel')
+        if (!labelEl) {
+            const btn = document.getElementById('cloudBtn')
+            if (!btn) return
+            labelEl = document.createElement('span')
+            labelEl.id = 'cloudBtnLabel'
+            labelEl.className = 'activity-btn-label'
+            btn.appendChild(labelEl)
+        }
+        labelEl.textContent = name || tGet('cloud.accountBtn')
+    }
+
     function updateCloudBtn() {
         const btn = document.getElementById('cloudBtn')
         if (!btn) return
@@ -23,6 +39,7 @@ function createCloudUiApi({
                 <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/>
             </svg>`
             btn.title = tGet('cloud.accountBtn')
+            _updateCloudBtnLabel(null)
             return
         }
 
@@ -42,6 +59,7 @@ function createCloudUiApi({
                 <div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;flex-shrink:0;">${inner}</div>`
         }
         btn.title = user.name
+        _updateCloudBtnLabel(user.name)
     }
 
     // ── Аватарка в модале ─────────────────────────────────────────
@@ -334,7 +352,11 @@ function createCloudUiApi({
             // Дата окончания
             const expiryEl = document.getElementById('proSubExpiry')
             if (expiryEl) {
-                const expiry = user?.planExpiry || user?.expiresAt || user?.subscriptionExpiresAt || null
+                // Сервер отдаёт поле как planExpiresAt (см. auth-server.js /auth/me и
+                // payments-server.js) — раньше здесь проверялось planExpiry (без "es"),
+                // которого никогда не существовало, поэтому дата всегда терялась и
+                // подставлялось "Бессрочно" даже при реальном сроке подписки.
+                const expiry = user?.planExpiresAt || user?.planExpiry || user?.expiresAt || user?.subscriptionExpiresAt || null
                 const formatted = _formatPlanExpiry(expiry)
                 expiryEl.textContent = formatted || (tGet('cloud.subNoExpiry') || '—')
             }

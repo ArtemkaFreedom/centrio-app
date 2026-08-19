@@ -104,6 +104,7 @@ module.exports = {
         themeMidnight:    'Mezzanotte',
         themeGlass:       'Vetro',
         themeAdaptive:    'Adattiva',
+        themeEmbedded:    'Integrato',
         themeDock:        'Dock',
         accentColor:      'Colore principale',
         fontSize:         'Dimensione testo',
@@ -543,6 +544,62 @@ module.exports = {
         promoError:           'Impossibile attivare il codice promo',
     },
 
+    onb: {
+        headline1: 'Tutti i tuoi messenger.',
+        headline2: 'Un\'unica finestra.',
+        f1t: 'Tutti i servizi insieme',
+        f1d: 'Telegram, WhatsApp, Discord, VK e oltre 100 altri — senza schede del browser.',
+        f2t: 'Non perdere nulla',
+        f2d: 'Notifiche native da ogni servizio, separate.',
+        f3t: 'Le tue impostazioni ovunque',
+        f3d: 'Un account sincronizza servizi e impostazioni tra i dispositivi.',
+        cardTitle: 'Inizia gratis',
+        cardSub: 'Un account mantiene servizi e impostazioni sincronizzati ovunque.',
+        skip: 'Salta per ora e usa senza account — nessuna sincronizzazione cloud →',
+        continue: 'Continua',
+        svcTitle: 'Collega i tuoi servizi',
+        svcSub: 'Scegli i servizi per la tua finestra unificata. Puoi aggiungerne altri dopo.',
+        svcShowAll: 'Mostra tutti i servizi →',
+        svcSkip: 'Salta',
+        trialTitle1: 'Tutto sbloccato.',
+        trialTitle2: 'Per 14 giorni.',
+        trialSub: 'Abbiamo attivato Pro su questo account — ecco cosa significa.',
+        trialBadge: 'PRO · INCLUSO PER 14 GIORNI',
+        trialF1: 'Servizi illimitati',
+        trialF2: 'VPN integrata per ogni messenger',
+        trialF3: 'Schermo diviso ed estensioni',
+        trialF4: 'Nessuna carta necessaria — usalo e basta',
+        readyTitle: 'Centrio è pronto',
+        readySub: 'Tutto è configurato — si può iniziare.',
+        launch: 'Avvia Centrio'
+    },
+
+    sidebar: {
+        collapse: 'Comprimi barra laterale',
+        expand: 'Espandi barra laterale',
+        trialDaysLeft: 'Prova gratuita',
+        proDaysLeft: 'Abbonamento Pro',
+        daysShort: 'g'
+    },
+
+    rightbar: {
+        assistant: 'Assistente Centrio',
+        assistantSoon: 'Presto disponibile',
+        todos: 'Attività'
+    },
+
+    todos: {
+        title: 'Attività',
+        all: 'Tutte',
+        starred: 'Preferite',
+        addPlaceholder: 'Aggiungi attività…',
+        listNamePlaceholder: 'Nome elenco…',
+        addList: 'Nuovo elenco',
+        empty: 'Nessuna attività',
+        star: 'Aggiungi ai preferiti',
+        delete: 'Elimina'
+    },
+
     pro: {
         messengerLimitTitle:  'Pro richiesto',
         messengerLimitDesc:   'Il piano gratuito supporta fino a {n} messenger. Passa a Pro per illimitati.',
@@ -561,14 +618,16 @@ module.exports = {
         extensionsTitle: 'Estensioni — solo Pro',
         extensionsDesc: 'Gli strumenti integrati sono disponibili con il piano Pro.',
         featuresLabel: 'Pro sblocca:',
-        benefit1: 'Messenger illimitati',
-        benefit2: 'Fino a 5 dispositivi contemporaneamente',
-        benefit3: 'Sincronizzazione cloud delle impostazioni',
+        benefit1: 'Numero illimitato di messenger — invece di 3 nel piano gratuito',
+        benefit2: 'VPN integrata per ogni servizio',
+        benefit3: 'Sincronizzazione cloud tra dispositivi',
         benefit4: 'Cartelle e raggruppamento',
         benefit5: 'Tutti i temi e colori di accento',
         benefit6: 'Estensioni: AdBlock, traduttore e altro',
         benefit7: 'Suoni di notifica per messenger',
-        benefit8: 'Supporto prioritario'
+        benefit8: 'Supporto prioritario',
+        benefit9: 'Fino a 5 dispositivi contemporaneamente',
+        benefit10: 'Schermo diviso — più messenger contemporaneamente'
     },
 
     extensions: {

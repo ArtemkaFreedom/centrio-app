@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isRateLimited, clientKeyFromRequest } from '../../lib/rateLimit';
+import { isRateLimited, clientKeyFromRequest } from '../../../lib/rateLimit';
 
 const NOWPAYMENTS_API_KEY = process.env.NOWPAYMENTS_API_KEY!;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';

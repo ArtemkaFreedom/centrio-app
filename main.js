@@ -124,7 +124,21 @@ const ALLOWED_STORE_ROOTS = new Set([
     // switchTab() in renderer.js needs to persist the active tab id so it can
     // be restored on next launch — same disease as the splitPresets bug above
     // (store:set silently rejected for any key missing from this allowlist).
-    'activeTabId'
+    'activeTabId',
+    // Онбординг-экран первого запуска (renderer/onboarding-auth.js) — same
+    // disease as the two bugs above: a new persisted key added without also
+    // adding it here silently never gets read or written.
+    'onboardingAuthSeen',
+    // 14-day Pro trial for onboarding users without an account — see
+    // api-device-trial-redeem in main/ipc/api.js and the requirePro()/
+    // addMessenger() checks in renderer.js.
+    'localProTrialExpiresAt',
+    // Expandable left sidebar (icon-only <-> icon+label, Franz-style) —
+    // renderer.js applySidebarCollapsed()
+    'sidebarBarExpanded',
+    // Todos panel in the right sidebar — renderer/todos-bind.js, purely
+    // local, never synced to the server.
+    'todos'
 ])
 
 const DANGEROUS_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype'])

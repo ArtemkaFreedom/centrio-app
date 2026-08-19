@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { isRateLimited, clientKeyFromRequest } from '../../lib/rateLimit';
+import { isRateLimited, clientKeyFromRequest } from '../../../lib/rateLimit';
 
 const IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';

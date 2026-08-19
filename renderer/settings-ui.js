@@ -191,15 +191,22 @@ function createSettingsUiApi({
         return store.get('settings', {}) || {}
     }
 
+    // ПРИМЕЧАНИЕ: настройка "Положение панели" убрана из UI (сайдбар теперь
+    // всегда слева, справа появился отдельный сайдбар с ассистентом/задачами/
+    // уведомлениями) — но раньше эта функция ещё и вешала класс
+    // .sidebar-<position> на main-container, а куча density-правил в
+    // styles.css (.sidebar-left .activity-bar/.activity-btn/.messenger-item/
+    // .messenger-icon/.messenger-badge { ... !important }) были завязаны
+    // именно на этот класс. Поскольку position всегда 'left', эти правила
+    // молча перебивали любые новые размеры сайдбара/иконок через !important
+    // независимо от того, что задано в styles.css напрямую. Класс больше не
+    // вешаем — только перестановка DOM (harmless no-op при position='left').
     function applySidebarPosition(position) {
         const mainContainer = document.querySelector('.main-container')
         const activityBar = document.querySelector('.activity-bar')
         const contentArea = document.querySelector('.content-area')
 
         if (!mainContainer || !activityBar || !contentArea) return
-
-        mainContainer.classList.remove('sidebar-left', 'sidebar-right', 'sidebar-top', 'sidebar-bottom')
-        mainContainer.classList.add(`sidebar-${position}`)
 
         if (position === 'right' || position === 'bottom') {
             mainContainer.appendChild(activityBar)
@@ -255,8 +262,8 @@ function createSettingsUiApi({
             root.style.setProperty('--accent-glow', `${settings.accentColor}40`)
         }
 
-        document.documentElement.setAttribute('data-density', settings.density || 'comfortable')
-        applyTheme(settings.theme || 'dark')
+        document.documentElement.setAttribute('data-density', settings.density || 'normal')
+        applyTheme(settings.theme || 'embedded')
         applySidebarPosition(settings.sidebarPosition || 'left')
 
         if (settings.language) {
@@ -279,9 +286,9 @@ function createSettingsUiApi({
             trayBadge: document.getElementById('settingTrayBadge')?.checked ?? true,
             foldersEnabled: document.getElementById('settingFoldersEnabled')?.checked ?? true,
             folderLabel: document.getElementById('settingFolderLabel')?.checked ?? true,
-            theme: document.querySelector('.theme-item.active')?.dataset.theme || currentSettings.theme || 'dark',
+            theme: document.querySelector('.theme-item.active')?.dataset.theme || currentSettings.theme || 'embedded',
             accentColor: document.querySelector('.accent-item.active')?.dataset.color || currentSettings.accentColor || '#7b68ee',
-            density: document.querySelector('.density-item.active')?.dataset.density || currentSettings.density || 'comfortable',
+            density: document.querySelector('.density-item.active')?.dataset.density || currentSettings.density || 'normal',
             sidebarPosition: document.querySelector('.position-item.active')?.dataset.position || currentSettings.sidebarPosition || 'left',
             downloadDir: currentSettings.downloadDir || '',
             askDownload: document.getElementById('settingAskDownload')?.checked ?? (currentSettings.askDownload ?? true),
@@ -324,7 +331,7 @@ function createSettingsUiApi({
         if (extAdblockToggle) extAdblockToggle.checked = settings.adblockEnabled !== false
 
         document.querySelectorAll('.theme-item').forEach((item) => {
-            item.classList.toggle('active', item.dataset.theme === (settings.theme || 'dark'))
+            item.classList.toggle('active', item.dataset.theme === (settings.theme || 'embedded'))
         })
 
         document.querySelectorAll('.accent-item').forEach((item) => {
@@ -340,7 +347,7 @@ function createSettingsUiApi({
         }
 
         document.querySelectorAll('.density-item').forEach((item) => {
-            item.classList.toggle('active', item.dataset.density === (settings.density || 'comfortable'))
+            item.classList.toggle('active', item.dataset.density === (settings.density || 'normal'))
         })
 
         document.querySelectorAll('.position-item').forEach((item) => {

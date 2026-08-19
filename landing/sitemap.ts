@@ -8,11 +8,29 @@ import type { MetadataRoute } from 'next'
 
 const SITE_URL = 'https://centrio.me'
 
+// Locale siblings for the homepage — kept in sync with site-nav.ts's
+// LOCALIZED_ROUTES / NON_DEFAULT_LANGS and the four home-{lang}-layout.tsx
+// metadata files. Only listed here for paths that actually have a
+// translated route; everything else stays Russian-only and gets no
+// `alternates` entry.
+const HOME_LANGUAGES = {
+  ru: SITE_URL,
+  en: `${SITE_URL}/en`,
+  zh: `${SITE_URL}/zh`,
+  fr: `${SITE_URL}/fr`,
+  it: `${SITE_URL}/it`,
+  'x-default': SITE_URL,
+}
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date()
 
   const pages: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency']; priority: number }[] = [
     { path: '/', changeFrequency: 'weekly', priority: 1.0 },
+    { path: '/en', changeFrequency: 'weekly', priority: 0.9 },
+    { path: '/zh', changeFrequency: 'weekly', priority: 0.9 },
+    { path: '/fr', changeFrequency: 'weekly', priority: 0.9 },
+    { path: '/it', changeFrequency: 'weekly', priority: 0.9 },
     { path: '/download', changeFrequency: 'monthly', priority: 0.9 },
     { path: '/pricing', changeFrequency: 'monthly', priority: 0.9 },
     { path: '/features', changeFrequency: 'monthly', priority: 0.8 },
@@ -42,10 +60,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/refund', changeFrequency: 'yearly', priority: 0.3 },
   ]
 
+  const HOME_PATHS = new Set(['/', '/en', '/zh', '/fr', '/it'])
+
   return pages.map(({ path, changeFrequency, priority }) => ({
     url: `${SITE_URL}${path}`,
     lastModified: now,
     changeFrequency,
     priority,
+    ...(HOME_PATHS.has(path) ? { alternates: { languages: HOME_LANGUAGES } } : {}),
   }))
 }

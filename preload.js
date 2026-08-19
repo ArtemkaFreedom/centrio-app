@@ -52,6 +52,15 @@ const validInvokeChannels = new Set([
     'get-webview-preload-path', 'api-login', 'api-register', 'api-me', 'api-refresh',
     'api-sync-push', 'api-sync-pull', 'api-update-profile', 'api-get-stats', 'api-logout',
     'api-get-notifications', 'api-read-all-notifications', 'api-yandex-desktop', 'api-vk-desktop',
+    // BUGFIX: 'api-redeem-promo' was implemented end-to-end (main/ipc/api.js,
+    // renderer/cloud.js, cloud-bind.js UI) but never added to this allowlist —
+    // every call was silently blocked here before ever reaching main, so the
+    // in-app promo code field (and now the onboarding Pro-trial grant below)
+    // never actually worked despite looking wired up.
+    'api-redeem-promo',
+    // Onboarding 14-day Pro trial for users without an account — grants by
+    // hashed hardware id instead of userId (main/ipc/api.js).
+    'api-device-trial-redeem',
     'tracker:service-time', 'tracker:msg-sent', 'tracker:notif', 'tracker:msg-received',
     // main/ipc/vpn.js
     'vpn-status', 'vpn-connect', 'vpn-download-and-connect', 'vpn-connect-saved',

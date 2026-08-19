@@ -316,12 +316,13 @@
 
 <!-- MAIN -->
 <div class="main-container">
-    <div class="activity-bar">
+    <div class="activity-bar" id="activityBar">
         <div class="activity-top">
             <button id="addMessengerBtn" class="activity-btn add-btn" data-i18n-title="addMessenger">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
+                <span class="activity-btn-label" data-i18n="addMessenger"></span>
             </button>
             <div class="activity-divider"></div>
             <div id="messengerList" class="messenger-list"></div>
@@ -332,6 +333,7 @@
                     <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 </svg>
+                <span class="activity-btn-label" data-i18n="lock.lockBtn"></span>
             </button>
             <!-- Screenshot кнопка (показывается если расширение включено) -->
             <button id="screenshotBtn" class="activity-btn" title="Скриншот" style="display:none;">
@@ -339,6 +341,7 @@
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                     <circle cx="12" cy="13" r="4"/>
                 </svg>
+                <span class="activity-btn-label">Скриншот</span>
             </button>
             <!-- Сплит-экран (скрыт по умолчанию, включается через расширения) -->
             <button id="splitBtn" class="activity-btn" title="Сплит-экран" style="display:none;">
@@ -346,12 +349,14 @@
                     <rect x="2" y="3" width="20" height="18" rx="2"/>
                     <line x1="12" y1="3" x2="12" y2="21"/>
                 </svg>
+                <span class="activity-btn-label">Сплит-экран</span>
             </button>
             <!-- VPN кнопка (активна = SVG зеленеет через .vpn-active) -->
             <button id="vpnBtn" class="activity-btn vpn-btn" title="VPN">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
+                <span class="activity-btn-label">VPN</span>
             </button>
             <!-- Менеджер загрузок -->
             <button id="downloadsBtn" class="activity-btn" data-i18n-title="downloads.title" style="position:relative;">
@@ -360,21 +365,15 @@
                     <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                     <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 </svg>
+                <span class="activity-btn-label" data-i18n="downloads.title"></span>
                 <span id="downloadsBadge" class="sidebar-notif-badge" style="display:none;"></span>
-            </button>
-            <!-- Иконка уведомлений приложения (от админа / changelog) -->
-            <button id="appNotifBtn" class="activity-btn" data-i18n-title="notifications.appNotif" style="position:relative;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-                <span id="appNotifBadge" class="sidebar-notif-badge" style="display:none;"></span>
             </button>
             <button id="settingsBtn" class="activity-btn" data-i18n-title="settings.title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" stroke-width="1.8"/>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.8"/>
                 </svg>
+                <span class="activity-btn-label" data-i18n="settings.title"></span>
             </button>
             <button id="cloudBtn" class="activity-btn" data-i18n-title="cloud.accountBtn">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -383,6 +382,9 @@
                 </svg>
             </button>
         </div>
+        <button id="sidebarCollapseBtn" class="sidebar-collapse-btn" aria-label="Развернуть панель" data-i18n-title="sidebar.expand">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
     </div>
     <div class="content-area" id="contentArea">
         <div id="tabsContent" class="tabs-content"></div>
@@ -463,6 +465,104 @@
              webview не отдаст ему клик даже при высоком z-index — см. комментарий
              в начале renderer/split.js) и подгоняет под рект #contentArea. -->
         <div id="popupBackdrop" class="popup-backdrop"></div>
+    </div>
+    <!-- Правая раскрывающаяся панель — на всю высоту, встроена в раскладку
+         (не всплывающее окно), у каждой кнопки правого сайдбара своё
+         содержимое здесь; открыта максимум одна за раз. -->
+    <div class="right-panel" id="rightPanel">
+        <div id="assistantPanel" class="right-panel-section">
+            <div class="app-notif-header"><span data-i18n="rightbar.assistant"></span></div>
+            <div class="right-panel-placeholder">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3l1.9 4.9L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9L12 3z"/>
+                    <path d="M19 15l.8 2.1L22 18l-2.2.9L19 21l-.8-2.1L16 18l2.2-.9L19 15z"/>
+                </svg>
+                <span data-i18n="rightbar.assistantSoon"></span>
+            </div>
+        </div>
+        <div id="appNotifPanel" class="right-panel-section">
+            <div class="app-notif-header">
+                <span data-i18n="notifications.appNotifTitle"></span>
+                <div class="app-notif-header-actions">
+                    <button id="appNotifMuteToggle" class="app-notif-mute-btn" title="Отключить уведомления">
+                        <!-- иконка: звонок (не muted) -->
+                        <svg class="mute-icon-normal" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                        <!-- иконка: звонок перечёркнут (muted) -->
+                        <svg class="mute-icon-muted" width="15" height="15" viewBox="0 0 24 24" fill="none" style="display:none;">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <button id="appNotifMarkAllRead" class="app-notif-clear-btn" data-i18n="notifications.markAllRead"></button>
+                    <button id="appNotifDeleteAll" class="app-notif-delete-btn" title="Удалить все уведомления из панели">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <path d="M9 6V4h6v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="appNotifList" class="app-notif-list">
+                <div class="app-notif-empty" data-i18n="notifications.noNotifs"></div>
+            </div>
+        </div>
+        <div id="todosPanel" class="right-panel-section todos-panel">
+            <div class="app-notif-header">
+                <span data-i18n="todos.title"></span>
+            </div>
+            <div class="todos-tabs">
+                <button class="todos-tab" id="todosTabStarred" data-tab="starred">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <span data-i18n="todos.starred"></span>
+                </button>
+                <div id="todosListTabs" class="todos-list-tabs"></div>
+                <button type="button" id="todoListAddBtn" class="todos-list-add-btn" data-i18n-title="todos.addList">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+                <input type="text" id="todoListAddInput" class="todos-list-add-input" data-i18n-placeholder="todos.listNamePlaceholder" maxlength="40" style="display:none;">
+            </div>
+            <form id="todoAddForm" class="todo-add-form">
+                <input type="text" id="todoAddInput" class="todo-add-input" data-i18n-placeholder="todos.addPlaceholder" maxlength="200">
+            </form>
+            <div id="todosList" class="app-notif-list todos-list">
+                <div class="app-notif-empty" data-i18n="todos.empty"></div>
+            </div>
+        </div>
+    </div>
+    <div class="activity-bar right-activity-bar" id="rightActivityBar">
+        <div class="activity-top">
+            <button id="assistantBtn" class="activity-btn" data-i18n-title="rightbar.assistant">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3l1.9 4.9L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9L12 3z"/>
+                    <path d="M19 15l.8 2.1L22 18l-2.2.9L19 21l-.8-2.1L16 18l2.2-.9L19 15z"/>
+                </svg>
+                <span class="activity-btn-label" data-i18n="rightbar.assistant"></span>
+            </button>
+            <button id="todosBtn" class="activity-btn" data-i18n-title="rightbar.todos">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 11l3 3L22 4"/>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+                <span class="activity-btn-label" data-i18n="rightbar.todos"></span>
+            </button>
+        </div>
+        <div class="activity-bottom">
+            <!-- Иконка уведомлений приложения (от админа / changelog) — переехала сюда из левого сайдбара -->
+            <button id="appNotifBtn" class="activity-btn" data-i18n-title="notifications.appNotif" style="position:relative;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+                <span class="activity-btn-label" data-i18n="notifications.appNotif"></span>
+                <span id="appNotifBadge" class="sidebar-notif-badge" style="display:none;"></span>
+            </button>
+        </div>
     </div>
     <div id="welcomeScreen" style="display:none;">
         <!-- Ambient background glows -->
@@ -579,6 +679,11 @@
             </svg>
             <span id="statusUnreadText"></span>
         </span>
+        <div id="statusSubSep" class="status-divider" style="display:none"></div>
+        <span class="status-item status-sub" id="statusSub" style="display:none">
+            <span id="statusSubText"></span>
+            <a href="#" id="statusSubRenew" class="status-sub-renew" data-i18n="cloud.extend"></a>
+        </span>
         <div id="statusExtSep" class="status-divider" style="display:none"></div>
         <span class="status-item" id="statusExtIcons" style="gap:3px;display:none"></span>
     </div>
@@ -664,6 +769,22 @@
         <button class="changelog-popup-close" id="changelogPopupClose">✕</button>
     </div>
     <div class="changelog-popup-body">
+        <div class="changelog-entry">
+            <div class="changelog-version">v2.2.0</div>
+            <ul class="changelog-list">
+                <li>Новое: справа появился второй сайдбар — Ассистент (скоро), Планировщик задач и уведомления теперь там, а не слева</li>
+                <li>Новое: Планировщик задач — можно создавать отдельные списки (категории) задач, закреплять важные, отмечать выполненные</li>
+                <li>Новое: первый запуск теперь начинается с входа в аккаунт (Google, Яндекс или почта) или входа без аккаунта — при любом варианте даётся 14 дней Pro бесплатно</li>
+                <li>Новое: левый сайдбар можно раскрывать — рядом с иконками мессенджеров появляются подписи</li>
+                <li>Новое: внизу окна теперь видно статус подписки — с какого дня оплачена, сколько дней осталось, и кнопка «Продлить»</li>
+                <li>Новая тема оформления «Встроенная» — единый фон окна и скруглённые углы активной вкладки, теперь тема по умолчанию</li>
+                <li>Плотность интерфейса (Компактно / Обычно / Комфортно) в настройках теперь по-настоящему меняет размер сайдбара и иконок</li>
+                <li>Кнопка «+» добавления мессенджера теперь заранее показывает метку PRO, если бесплатный лимит (3 мессенджера) уже достигнут</li>
+                <li>Восстановлена оплата зарубежными картами в личном кабинете на сайте</li>
+                <li>Исправлена подсветка активного мессенджера в сайдбаре — теперь мягкое цветное свечение вокруг иконки</li>
+                <li>Мелкие визуальные правки: кружки-счётчики непрочитанных, отступы и вёрстка сайдбаров</li>
+            </ul>
+        </div>
         <div class="changelog-entry">
             <div class="changelog-version">v2.1.0</div>
             <ul class="changelog-list">
@@ -1699,12 +1820,12 @@
                     <div class="settings-group">
                         <div class="settings-group-title" data-i18n="settings.theme"></div>
                         <div class="theme-picker">
-                            <div class="theme-item active" data-theme="dark">
-                                <div class="theme-preview dark-preview">
+                            <div class="theme-item active" data-theme="embedded">
+                                <div class="theme-preview embedded-preview">
                                     <div class="tp-sidebar"></div>
                                     <div class="tp-content"></div>
                                 </div>
-                                <span data-i18n="settings.themeDark"></span>
+                                <span data-i18n="settings.themeEmbedded"></span>
                             </div>
                             <div class="theme-item" data-theme="dock">
                                 <div class="theme-preview dock-preview">
@@ -1744,39 +1865,14 @@
                         </div>
                     </div>
 
-                    <div class="settings-group">
-                        <div class="settings-group-title" data-i18n="settings.sidebarPosition"></div>
-                        <div class="position-picker">
-                            <div class="position-item active" data-position="left">
-                                <div class="position-preview">
-                                    <div class="pp-sidebar pp-left"></div>
-                                    <div class="pp-content"></div>
-                                </div>
-                                <span data-i18n="settings.positionLeft"></span>
-                            </div>
-                            <div class="position-item" data-position="right">
-                                <div class="position-preview">
-                                    <div class="pp-content"></div>
-                                    <div class="pp-sidebar pp-right"></div>
-                                </div>
-                                <span data-i18n="settings.positionRight"></span>
-                            </div>
-                            <div class="position-item" data-position="top">
-                                <div class="position-preview pp-vertical">
-                                    <div class="pp-sidebar pp-top"></div>
-                                    <div class="pp-content"></div>
-                                </div>
-                                <span data-i18n="settings.positionTop"></span>
-                            </div>
-                            <div class="position-item" data-position="bottom">
-                                <div class="position-preview pp-vertical">
-                                    <div class="pp-content"></div>
-                                    <div class="pp-sidebar pp-bottom"></div>
-                                </div>
-                                <span data-i18n="settings.positionBottom"></span>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Настройка положения панели убрана — скоро появится
+                         отдельный правый сайдбар (ассистент/планнер/
+                         уведомления), с которым эта настройка конфликтовала
+                         бы по смыслу. sidebarPosition в settings-ui.js
+                         сознательно не тронут — читает значение через
+                         currentSettings.sidebarPosition || 'left' с
+                         фолбэком, так что просто перестаёт быть
+                         настраиваемым и остаётся 'left'. -->
 
                     <div class="settings-group">
                         <div class="settings-group-title" data-i18n="settings.density"></div>
@@ -1793,7 +1889,7 @@
                                 </div>
                                 <span data-i18n="settings.densityCompact"></span>
                             </div>
-                            <div class="density-item" data-density="normal">
+                            <div class="density-item active" data-density="normal">
                                 <div class="density-preview normal-preview">
                                     <div class="dp-bar">
                                         <div class="dp-dot"></div>
@@ -1804,7 +1900,7 @@
                                 </div>
                                 <span data-i18n="settings.densityNormal"></span>
                             </div>
-                            <div class="density-item active" data-density="comfortable">
+                            <div class="density-item" data-density="comfortable">
                                 <div class="density-preview comfortable-preview">
                                     <div class="dp-bar">
                                         <div class="dp-dot"></div>
@@ -2627,6 +2723,175 @@
     </div>
 </div>
 
+<!-- ===== ЭКРАН ПЕРВОГО ЗАПУСКА (язык + вход) ===== -->
+<div id="onboardingScreen" class="onb-screen" style="display:none;">
+    <div class="onb-glow"></div>
+    <div class="onb-body">
+        <div class="onb-left">
+            <img src="assets/logo.png" alt="" class="onb-logo">
+            <h1 class="onb-headline">
+                <span data-i18n="onb.headline1">Все мессенджеры.</span><br>
+                <span class="onb-accent" data-i18n="onb.headline2">Одно окно.</span>
+            </h1>
+            <div class="onb-features">
+                <div class="onb-feature">
+                    <span class="onb-feature-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                    </span>
+                    <div>
+                        <div class="onb-feature-title" data-i18n="onb.f1t">Все сервисы рядом</div>
+                        <div class="onb-feature-desc" data-i18n="onb.f1d">Telegram, WhatsApp, Discord, VK и 100+ других — без вкладок браузера.</div>
+                    </div>
+                </div>
+                <div class="onb-feature">
+                    <span class="onb-feature-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    </span>
+                    <div>
+                        <div class="onb-feature-title" data-i18n="onb.f2t">Ничего не пропустишь</div>
+                        <div class="onb-feature-desc" data-i18n="onb.f2d">Нативные уведомления от каждого сервиса отдельно.</div>
+                    </div>
+                </div>
+                <div class="onb-feature">
+                    <span class="onb-feature-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/></svg>
+                    </span>
+                    <div>
+                        <div class="onb-feature-title" data-i18n="onb.f3t">Настройки везде с тобой</div>
+                        <div class="onb-feature-desc" data-i18n="onb.f3d">Аккаунт синхронизирует сервисы и настройки между устройствами.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="onb-right">
+            <div class="onb-card">
+                <div class="onb-card-title" data-i18n="onb.cardTitle">Начать бесплатно</div>
+                <p class="onb-card-sub" data-i18n="onb.cardSub">Аккаунт хранит сервисы и настройки на всех устройствах.</p>
+
+                <div id="onbOauthWait" style="display:none;flex-direction:column;align-items:center;gap:14px;padding:18px 0;">
+                    <div class="onb-spinner"></div>
+                    <div id="onbOauthWaitText" style="font-size:13px;color:var(--text-primary);text-align:center;"></div>
+                    <button id="onbOauthCancelBtn" class="onb-cancel-btn" data-i18n="modal.cancel">Отмена</button>
+                </div>
+
+                <div id="onbOauthButtons" class="oauth-buttons">
+                    <button class="oauth-btn oauth-google" id="onbOauthGoogleBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        <span data-i18n="cloud.loginGoogle">Войти через Google</span>
+                    </button>
+                    <button class="oauth-btn oauth-yandex" id="onbOauthYandexBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0z" fill="#FC3F1D"/>
+                            <path d="M13.32 7.3h-.88c-1.54 0-2.35.78-2.35 1.93 0 1.3.56 1.96 1.72 2.75l.96.65-2.74 4.07H8.17l2.52-3.73c-1.45-1.04-2.27-2.07-2.27-3.67 0-2.09 1.44-3.5 4.0-3.5h2.72V16.7H13.32V7.3z" fill="white"/>
+                        </svg>
+                        <span data-i18n="cloud.loginYandex">Войти через Яндекс</span>
+                    </button>
+                </div>
+
+                <div class="oauth-divider" id="onbOauthDivider">
+                    <span class="oauth-divider-line"></span>
+                    <span class="oauth-divider-text">или</span>
+                    <span class="oauth-divider-line"></span>
+                </div>
+
+                <input type="email" id="onbEmail" class="vsc-input" data-i18n-placeholder="cloud.emailPh" placeholder="Email">
+                <input type="password" id="onbPassword" class="vsc-input" data-i18n-placeholder="cloud.passwordPh" placeholder="Пароль">
+                <div id="onbLoginError" class="cloud-login-error" style="display:none;"></div>
+                <button id="onbLoginBtn" class="vsc-btn" data-i18n="cloud.login">Войти</button>
+                <button id="onbRegisterBtn" class="vsc-btn-secondary" data-i18n="cloud.register">Зарегистрироваться</button>
+            </div>
+
+            <button id="onbSkipBtn" class="onb-skip" data-i18n="onb.skip">Пропустить и пользоваться без аккаунта — без облачной синхронизации →</button>
+        </div>
+    </div>
+
+    <div class="onb-lang-row">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <select id="onbLangSelect" class="onb-lang-select">
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="it">Italiano</option>
+            <option value="zh">中文</option>
+        </select>
+    </div>
+</div>
+
+<!-- ===== ОНБОРДИНГ: ЭКРАН 2 — ВЫБОР СЕРВИСОВ ===== -->
+<div id="onbServicesScreen" class="onb-screen" style="display:none;">
+    <div class="onb-glow"></div>
+    <button class="onb-back-btn" id="onbServicesBackBtn" aria-label="Назад">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="onb-services-body">
+        <div class="onb-services-head">
+            <h1 class="onb-services-title" data-i18n="onb.svcTitle">Подключи свои сервисы</h1>
+            <p class="onb-services-sub" data-i18n="onb.svcSub">Выбери сервисы для единого окна. Можно добавить ещё позже.</p>
+        </div>
+
+        <div class="onb-services-scroll">
+            <div id="onbServicesGrid" class="onb-services-grid"></div>
+            <button id="onbShowAllBtn" class="onb-show-all" data-i18n="onb.svcShowAll">Показать все сервисы →</button>
+        </div>
+
+        <div class="onb-services-footer">
+            <button id="onbServicesContinueBtn" class="onb-cta-btn" data-i18n="onb.continue">Продолжить</button>
+            <button id="onbServicesSkipBtn" class="onb-skip" data-i18n="onb.svcSkip">Пропустить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ОНБОРДИНГ: ЭКРАН 3 — PRO НА 14 ДНЕЙ ===== -->
+<div id="onbTrialScreen" class="onb-screen" style="display:none;">
+    <div class="onb-glow"></div>
+    <button class="onb-back-btn" id="onbTrialBackBtn" aria-label="Назад">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="onb-trial-body">
+        <h1 class="onb-services-title">
+            <span data-i18n="onb.trialTitle1">Всё разблокировано.</span><br>
+            <span data-i18n="onb.trialTitle2">На 14 дней.</span>
+        </h1>
+        <p class="onb-services-sub" data-i18n="onb.trialSub">Мы включили Pro на этом аккаунте — вот что это значит.</p>
+
+        <div class="onb-trial-card">
+            <div class="onb-trial-badge" data-i18n="onb.trialBadge">PRO · ВКЛЮЧЕНО НА 14 ДНЕЙ</div>
+            <ul class="onb-trial-list">
+                <li data-i18n="onb.trialF1">Неограниченное количество сервисов</li>
+                <li data-i18n="onb.trialF2">Встроенный VPN на каждый мессенджер</li>
+                <li data-i18n="onb.trialF3">Сплит-экран и расширения</li>
+                <li data-i18n="onb.trialF4">Карта не нужна — просто пользуйся</li>
+            </ul>
+        </div>
+
+        <button id="onbTrialContinueBtn" class="onb-cta-btn" data-i18n="onb.continue">Продолжить</button>
+    </div>
+</div>
+
+<!-- ===== ОНБОРДИНГ: ЭКРАН 4 — ГОТОВО ===== -->
+<div id="onbReadyScreen" class="onb-screen" style="display:none;">
+    <div class="onb-glow"></div>
+    <button class="onb-back-btn" id="onbReadyBackBtn" aria-label="Назад">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="onb-ready-body">
+        <div id="onbReadyAvatar" class="onb-ready-avatar">
+            <img src="assets/logo.png" alt="" id="onbReadyAvatarImg">
+        </div>
+        <h1 class="onb-services-title" data-i18n="onb.readyTitle">Centrio готов к работе</h1>
+        <p class="onb-services-sub" id="onbReadySub" data-i18n="onb.readySub">Всё настроено — можно начинать.</p>
+        <button id="onbLaunchBtn" class="onb-cta-btn" data-i18n="onb.launch">Запустить Centrio</button>
+    </div>
+</div>
+
 <!-- ===== МОДАЛ АККАУНТА CENTRIO ===== -->
 <div id="cloudModal" class="modal">
     <div class="modal-content cloud-modal-content">
@@ -3059,59 +3324,43 @@
 <div id="upgradeModal" class="modal" style="z-index:9999;">
   <div class="modal-content modal-sm upgrade-modal-card">
 
-    <!-- gradient glow bg -->
-    <div class="upgrade-modal-glow"></div>
-
     <!-- header -->
     <div class="upgrade-modal-header">
-      <div class="upgrade-modal-icon-wrap" id="upgradeModalIcon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
-            stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="rgba(139,92,246,0.3)"/>
-        </svg>
-      </div>
       <div class="upgrade-modal-header-text">
         <div class="upgrade-modal-title" id="upgradeModalTitle">Нужен Pro</div>
         <div class="upgrade-modal-desc" id="upgradeModalDesc">Достигнут лимит бесплатного плана.</div>
       </div>
       <button class="upgrade-modal-x" id="upgradeModalClose" aria-label="Close">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
 
-    <!-- divider -->
-    <div class="upgrade-modal-divider"></div>
-
     <!-- features -->
     <div class="upgrade-modal-features" id="upgradeModalFeatures">
-      <div class="upgrade-modal-features-label" data-i18n="pro.featuresLabel">Pro открывает:</div>
       <div class="upgrade-modal-feat-list">
-        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit1">Неограниченно мессенджеров</span></div>
-        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit2">До 5 устройств одновременно</span></div>
-        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit3">Облачная синхронизация настроек</span></div>
-        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit4">Папки и группировка сервисов</span></div>
-        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit5">Все темы и акцент-цвета</span></div>
-        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit6">Расширения: AdBlock, переводчик и др.</span></div>
-        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit7">Индивидуальные звуки уведомлений</span></div>
-        <div class="upgrade-modal-feat"><span class="upgrade-feat-check">✓</span><span data-i18n="pro.benefit8">Приоритетная поддержка</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit1">Неограниченное количество мессенджеров — вместо 3 на бесплатном</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit2">Встроенный VPN на каждый сервис</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit3">Облачная синхронизация между устройствами</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit9">До 5 устройств одновременно</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit4">Папки и группировка сервисов</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit10">Сплит-экран — несколько мессенджеров одновременно</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit6">Расширения: AdBlock, переводчик и другие</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit5">Все темы и цвета акцента</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit7">Индивидуальные звуки уведомлений</span></div>
+        <div class="upgrade-modal-feat"><svg class="upgrade-feat-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="pro.benefit8">Приоритетная поддержка</span></div>
       </div>
     </div>
 
-    <!-- price hint -->
-    <div class="upgrade-modal-price-hint">от 133 ₽/мес · Отмена в любой момент</div>
-
     <!-- actions -->
     <div class="upgrade-modal-actions">
-      <button id="upgradeModalBtn" onclick="window.electronAPI?.openExternal('https://centrio.me/pricing')" class="upgrade-modal-cta">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-        </svg>
+      <button id="upgradeModalBtn" class="upgrade-modal-cta">
         <span data-i18n="pro.upgradeBtn">Перейти на Pro</span>
       </button>
       <button id="upgradeModalLater" class="upgrade-modal-later">
         <span data-i18n="pro.laterBtn">Позже</span>
       </button>
     </div>
+    <div class="upgrade-modal-price-hint">от 133 ₽/мес · Отмена в любой момент</div>
   </div>
 </div>
 
@@ -3127,39 +3376,6 @@
 </div>
 
 <!-- Панель уведомлений приложения -->
-<div id="appNotifPanel" class="app-notif-panel" style="display:none;">
-    <div class="app-notif-header">
-        <span data-i18n="notifications.appNotifTitle"></span>
-        <div class="app-notif-header-actions">
-            <button id="appNotifMuteToggle" class="app-notif-mute-btn" title="Отключить уведомления">
-                <!-- иконка: звонок (не muted) -->
-                <svg class="mute-icon-normal" width="15" height="15" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-                <!-- иконка: звонок перечёркнут (muted) -->
-                <svg class="mute-icon-muted" width="15" height="15" viewBox="0 0 24 24" fill="none" style="display:none;">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-            </button>
-            <button id="appNotifMarkAllRead" class="app-notif-clear-btn" data-i18n="notifications.markAllRead"></button>
-            <button id="appNotifDeleteAll" class="app-notif-delete-btn" title="Удалить все уведомления из панели">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    <path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    <path d="M9 6V4h6v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
-        </div>
-    </div>
-    <div id="appNotifList" class="app-notif-list">
-        <div class="app-notif-empty" data-i18n="notifications.noNotifs"></div>
-    </div>
-</div>
-
 <!-- Панель менеджера загрузок -->
 <div id="downloadsPanel" class="app-notif-panel" style="display:none;">
     <div class="app-notif-header">

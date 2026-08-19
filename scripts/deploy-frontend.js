@@ -172,6 +172,36 @@ const UPLOADS = [
     // comparison coverage for the remaining aggregator from best-messenger-aggregators.tsx).
     { local: path.join(__dirname, '..', 'landing', 'blog-vs-station.tsx'), remote: `${REMOTE_BASE}/src/app/blog/vs-station/page.tsx` },
     { local: path.join(__dirname, '..', 'landing', 'blog-vs-shift.tsx'),   remote: `${REMOTE_BASE}/src/app/blog/vs-shift/page.tsx` },
+    // 2026-08-17: restoring crypto (NOWPayments) checkout — these two API
+    // routes and their shared rate-limit helper were written earlier but
+    // never made it into this script's UPLOADS, so they never actually
+    // reached the server (confirmed via `find` — neither route existed
+    // live). New routes, so the mkdir -p step below needs their parent
+    // dirs too, same as og/route.tsx above.
+    { local: path.join(__dirname, '..', 'landing', 'api', 'create-crypto-payment', 'route.ts'), remote: `${REMOTE_BASE}/src/app/api/create-crypto-payment/route.ts` },
+    { local: path.join(__dirname, '..', 'landing', 'api', 'crypto-webhook', 'route.ts'),         remote: `${REMOTE_BASE}/src/app/api/crypto-webhook/route.ts` },
+    { local: path.join(__dirname, '..', 'landing', 'lib', 'rateLimit.ts'),                        remote: `${REMOTE_BASE}/src/lib/rateLimit.ts` },
+    // 2026-08-17: site-nav.ts (COMPARE_LINKS/MAIN_NAV single-source-of-truth
+    // file) was never in this script's UPLOADS at all — confirmed via a
+    // failed build ("Export LOCALIZED_ROUTES doesn't exist") that the live
+    // copy was a stale original never touched since it was first created.
+    // Same silent-drift bug class as every other "confirmed live via find,
+    // never in UPLOADS" entry above.
+    { local: path.join(__dirname, '..', 'landing', 'site-nav.ts'), remote: `${REMOTE_BASE}/src/lib/site-nav.ts` },
+    // 2026-08-17: multi-language SEO Phase 1 — real crawlable /en /zh /fr /it
+    // routes for the homepage (previously all 5 languages rendered at the
+    // same URL via client-side-only ?lang state, so Google only ever
+    // indexed Russian). New routes, need mkdir -p below. layout.tsx and
+    // sitemap.ts already covered by their own UPLOADS entries above, also
+    // touched by this change (hreflang + locale sitemap entries).
+    { local: path.join(__dirname, '..', 'landing', 'home-en.tsx'),        remote: `${REMOTE_BASE}/src/app/en/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'home-en-layout.tsx'), remote: `${REMOTE_BASE}/src/app/en/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'home-zh.tsx'),        remote: `${REMOTE_BASE}/src/app/zh/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'home-zh-layout.tsx'), remote: `${REMOTE_BASE}/src/app/zh/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'home-fr.tsx'),        remote: `${REMOTE_BASE}/src/app/fr/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'home-fr-layout.tsx'), remote: `${REMOTE_BASE}/src/app/fr/layout.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'home-it.tsx'),        remote: `${REMOTE_BASE}/src/app/it/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'home-it-layout.tsx'), remote: `${REMOTE_BASE}/src/app/it/layout.tsx` },
 ]
 
 function exec(conn, cmd) {
@@ -203,7 +233,7 @@ conn.on('ready', async () => {
         // already exists, so this is safe to run unconditionally.
         // blog/max-transition/, blog/whatsapp-telegram-ban-risk/, blog/vs-station/
         // and blog/vs-shift/ are the same situation — brand new blog post routes.
-        await exec(conn, `mkdir -p ${REMOTE_BASE}/src/app/api/og ${REMOTE_BASE}/src/app/d551cf74fb5d05ca3e40986dd9a78353.txt ${REMOTE_BASE}/src/app/blog/max-transition ${REMOTE_BASE}/src/app/blog/whatsapp-telegram-ban-risk ${REMOTE_BASE}/src/app/blog/vs-station ${REMOTE_BASE}/src/app/blog/vs-shift`)
+        await exec(conn, `mkdir -p ${REMOTE_BASE}/src/app/api/og ${REMOTE_BASE}/src/app/d551cf74fb5d05ca3e40986dd9a78353.txt ${REMOTE_BASE}/src/app/blog/max-transition ${REMOTE_BASE}/src/app/blog/whatsapp-telegram-ban-risk ${REMOTE_BASE}/src/app/blog/vs-station ${REMOTE_BASE}/src/app/blog/vs-shift ${REMOTE_BASE}/src/app/api/create-crypto-payment ${REMOTE_BASE}/src/app/api/crypto-webhook ${REMOTE_BASE}/src/app/en ${REMOTE_BASE}/src/app/zh ${REMOTE_BASE}/src/app/fr ${REMOTE_BASE}/src/app/it`)
 
         const sftp = await new Promise((resolve, reject) => {
             conn.sftp((err, sftp) => err ? reject(err) : resolve(sftp))

@@ -1,17 +1,29 @@
 'use client'
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
-import { MAIN_NAV } from '@/lib/site-nav'
+import { MAIN_NAV, LOCALIZED_ROUTES, canonicalPath, localizedHref } from '@/lib/site-nav'
 
 function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const pathname = usePathname()
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
+  const chooseLang = (l: Lang) => {
+    setOpen(false)
+    const canonical = canonicalPath(pathname || '/')
+    if (LOCALIZED_ROUTES.has(canonical)) {
+      router.push(localizedHref(canonical, l))
+    } else {
+      setLang(l)
+    }
+  }
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button onClick={() => setOpen(o => !o)} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 9, padding: '7px 12px', color: 'rgba(240,240,255,0.55)', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all .2s', fontFamily: 'inherit' }}>
@@ -21,7 +33,7 @@ function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => voi
       {open && (
         <div style={{ position: 'absolute', top: 'calc(100% + 7px)', right: 0, background: 'rgba(8,7,20,0.98)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 12, overflow: 'hidden', zIndex: 50, minWidth: 126, boxShadow: '0 16px 60px rgba(0,0,0,0.8)' }}>
           {LANGS.map(l => (
-            <button key={l} onClick={() => { setLang(l); setOpen(false) }} style={{ display: 'block', width: '100%', padding: '9px 16px', background: l === lang ? 'rgba(168,85,247,0.1)' : 'transparent', border: 'none', color: l === lang ? '#c084fc' : 'rgba(240,240,255,0.5)', fontSize: 13, fontWeight: l === lang ? 700 : 400, cursor: 'pointer', textAlign: 'left', transition: 'all .15s', fontFamily: 'inherit' }}>
+            <button key={l} onClick={() => chooseLang(l)} style={{ display: 'block', width: '100%', padding: '9px 16px', background: l === lang ? 'rgba(168,85,247,0.1)' : 'transparent', border: 'none', color: l === lang ? '#c084fc' : 'rgba(240,240,255,0.5)', fontSize: 13, fontWeight: l === lang ? 700 : 400, cursor: 'pointer', textAlign: 'left', transition: 'all .15s', fontFamily: 'inherit' }}>
               {LANG_LABELS[l]}
             </button>
           ))}

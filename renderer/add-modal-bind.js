@@ -8,9 +8,17 @@ function bindAddModalUi({
     fillMessengerGrid,
     addMessenger,
     requirePro,
-    tGet
+    tGet,
+    freeMessengerLimit
 }) {
-    document.getElementById('addMessengerBtn')?.addEventListener('click', () => openModal())
+    // Превентивная блокировка: раньше лимит проверялся только внутри
+    // addMessenger() — пользователь открывал модалку выбора сервиса, выбирал
+    // что-то, и только тогда узнавал что уперся в лимит. Теперь плюсик сам
+    // не открывает модалку при достижении лимита, показывает апгрейд сразу.
+    document.getElementById('addMessengerBtn')?.addEventListener('click', () => {
+        if (state.activeMessengers.length >= freeMessengerLimit && !requirePro('messengerLimit')) return
+        openModal()
+    })
     document.getElementById('welcomeAddBtn')?.addEventListener('click', () => openModal())
     document.getElementById('closeModalBtn')?.addEventListener('click', () => closeModal())
 

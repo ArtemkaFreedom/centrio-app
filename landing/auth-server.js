@@ -156,7 +156,7 @@ router.post('/register', async (req, res) => {
 
     const user = await prisma.user.create({
       data: { email, name: name || email.split('@')[0], passwordHash, referredById },
-      select: { id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true, emailVerified: true }
+      select: { id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true, planStartedAt: true, emailVerified: true }
     })
     sendWelcomeEmail(user).catch(e => console.error('[email] welcome send failed:', e.message))
     issueAndSendVerification(user).catch(e => console.error('[email] verification send failed:', e.message))
@@ -185,7 +185,7 @@ router.post('/login', async (req, res) => {
     recordLoginEvent(user.id, 'password', req)
     res.json({
       message: 'Вход выполнен успешно',
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, planExpiresAt: user.planExpiresAt, emailVerified: user.emailVerified },
+      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, planExpiresAt: user.planExpiresAt, planStartedAt: user.planStartedAt, emailVerified: user.emailVerified },
       accessToken,
       refreshToken
     })
@@ -233,7 +233,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
-        id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true, emailVerified: true,
+        id: true, email: true, name: true, avatar: true, plan: true, planExpiresAt: true, planStartedAt: true, emailVerified: true,
         googleId: true, yandexId: true, githubId: true, telegramId: true, vkId: true, mailId: true
       }
     })

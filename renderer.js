@@ -42,6 +42,7 @@ const { createOnboardingTourApi } = require('./renderer/onboarding-tour')
 const { bindSettingsUi } = require('./renderer/settings-bind')
 const { bindLockUi } = require('./renderer/lock-bind')
 const { bindCloudUi } = require('./renderer/cloud-bind')
+const { bindOnboardingScreen } = require('./renderer/onboarding-auth')
 const { bindMenuUi } = require('./renderer/menu-bind')
 const { bindWindowUi } = require('./renderer/window-bind')
 const { bindAppEvents } = require('./renderer/app-events-bind')
@@ -52,6 +53,7 @@ const { bindChangeIconUi } = require('./renderer/change-icon-bind')
 const { bindMessengerSoundUi } = require('./renderer/messenger-sound-bind')
 const { bindSidebarShellUi } = require('./renderer/sidebar-shell-bind')
 const { bindAppNotifUi } = require('./renderer/app-notif-bind')
+const { bindTodosUi } = require('./renderer/todos-bind')
 const { bindDownloadsUi } = require('./renderer/downloads-bind')
 const { bindVpnUi, bindVpnSettings } = require('./renderer/vpn-bind')
 
@@ -495,7 +497,9 @@ async function bootstrap() {
         // Cloud non-secret fields
         ['cloud.user', null],
         ['cloud.lastSyncAt', null],
-        ['cloud.lastSyncError', null]
+        ['cloud.lastSyncError', null],
+        ['onboardingAuthSeen', false],
+        ['localProTrialExpiresAt', null]
         // NOTE: cloud.accessToken and cloud.refreshToken are hydrated below
         //       via secure (encrypted) channel to avoid plain-text disk exposure
     ])
@@ -522,6 +526,7 @@ async function bootstrap() {
     // ==============================
     state.modalFiltered = [...popularMessengers]
     state.menuCollapsed = await store.getAsync('menuCollapsed', false)
+    state.sidebarBarExpanded = await store.getAsync('sidebarBarExpanded', false)
     state.appZoomLevel = await store.getAsync('appZoomLevel', 0)
     state.tabZoomLevel = await store.getAsync('tabZoomLevel', 1)
 
@@ -601,6 +606,8 @@ async function bootstrap() {
     const menuToggleBtn = document.getElementById('menuToggleBtn')
     const titlebarMenu = document.getElementById('titlebarMenu')
     const menuToggleIcon = document.getElementById('menuToggleIcon')
+    const activityBar = document.querySelector('.activity-bar')
+    const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn')
 
 
      await advanceStartup('ui', 46, { minStepTime: 260 })
@@ -640,9 +647,9 @@ async function bootstrap() {
                 messengers,
                 folders,
                 settings: {
-                    theme: settings.theme || 'dark',
+                    theme: settings.theme || 'embedded',
                     accentColor: settings.accentColor || '#7b68ee',
-                    density: settings.density || 'comfortable',
+                    density: settings.density || 'normal',
                     language: settings.language || 'ru',
                     sidebarPosition: settings.sidebarPosition || 'left',
                     showTabs: settings.showTabs !== false,
@@ -726,6 +733,8 @@ async function bootstrap() {
             // Обновляем данные пользователя с сервера (план, аватар и т.д.)
             await cloudApi.refreshUser()
             if (typeof updateCloudBtn === 'function') updateCloudBtn()
+            updateAddButtonState()
+            updateTrialStatusBar()
 
             const cloudData = await cloudSyncPull()
             const hasData = (cloudData?.messengers?.length > 0) || (cloudData?.folders?.length > 0)
@@ -1492,6 +1501,8 @@ function applyTabZoom(level) {
         tabsContent.style.pointerEvents = state.activeMessengers.length > 0 ? 'auto' : 'none'
         saveData()
         updateStatusBar()
+        updateAddButtonState()
+        updateTrialStatusBar()
     }
 
     const preloadPath = window.electronAPI?.getWebviewPreloadPath
@@ -1581,20 +1592,122 @@ function applyTabZoom(level) {
     document.getElementById('upgradeModal')?.addEventListener('click', (e) => {
         if (e.target === document.getElementById('upgradeModal')) _closeUpgradeModal()
     })
+    // BUGFIX ("окна не открывают личный кабинет"): this used to be an inline
+    // onclick that opened the external centrio.me/pricing marketing page —
+    // a dead end with no way to actually pay. The real purchase flow (plan
+    // cards + YooKassa/crypto/FRIDE buttons) lives in the in-app cloud
+    // profile modal, so route there instead — via login first if the user
+    // isn't authenticated yet, since a purchase needs an account.
+    // Corrected per user feedback: goes to the website's personal cabinet
+    // (real purchase flow — YooKassa/crypto/FRIDE method selection all live
+    // there), not the in-app cloud modal.
+    document.getElementById('upgradeModalBtn')?.addEventListener('click', () => {
+        _closeUpgradeModal()
+        window.electronAPI?.openExternal?.('https://centrio.me/dashboard')
+    })
 
-    // Возвращает true если план PRO/TEAM, иначе показывает модалку и возвращает false
-    // featureKey: 'themes' | 'accent' | 'folders' | 'sound' | 'messengerLimit'
-    function requirePro(featureKey) {
+    const FREE_MESSENGER_LIMIT = 3
+
+    // Учитывает не только серверный план аккаунта, но и локальный
+    // 14-дневный триал для пользователей без аккаунта (онбординг →
+    // «Пропустить» → api-device-trial-redeem, см. renderer/onboarding-auth.js).
+    // Пока триал не истёк, устройство считается Pro независимо от того,
+    // вошёл ли пользователь в аккаунт.
+    function hasEffectivePro() {
         const user = cloudStore.getUser()
         const plan = (user?.plan || 'FREE').toUpperCase()
-        if (plan === 'FREE') {
-            showUpgradeModal(
-                tGet(`pro.${featureKey}Title`),
-                tGet(`pro.${featureKey}Desc`)
-            )
-            return false
+        if (plan !== 'FREE') return true
+
+        const trialExpiresAt = store.get('localProTrialExpiresAt', null)
+        if (trialExpiresAt && new Date(trialExpiresAt) > new Date()) return true
+
+        return false
+    }
+
+    // Плюсик в сайдбаре получает бейдж "PRO" и блокируется превентивно, как
+    // только достигнут бесплатный лимит — раньше пользователь узнавал об
+    // этом только после клика (реактивно), теперь видно сразу на кнопке.
+    function updateAddButtonState() {
+        const btn = document.getElementById('addMessengerBtn')
+        if (!btn) return
+        const atLimit = !hasEffectivePro() && state.activeMessengers.length >= FREE_MESSENGER_LIMIT
+        btn.classList.toggle('add-btn-locked', atLimit)
+    }
+
+    // Компактная подпись подписки в нижнем статус-баре, справа от счётчика
+    // непрочитанных: "с 19 авг — осталось 92 дн." + ссылка "Продлить".
+    // Скрыта, если план FREE без активного локального триала (нечего
+    // показывать).
+    function updateTrialStatusBar() {
+        const sep    = document.getElementById('statusSubSep')
+        const item   = document.getElementById('statusSub')
+        const text   = document.getElementById('statusSubText')
+        const renew  = document.getElementById('statusSubRenew')
+        if (!sep || !item || !text || !renew) return
+
+        const user = cloudStore.getUser()
+        const plan = (user?.plan || 'FREE').toUpperCase()
+
+        const daysLeft = (expiresAt) => {
+            const msLeft = new Date(expiresAt).getTime() - Date.now()
+            if (!Number.isFinite(msLeft) || msLeft <= 0) return 0
+            return Math.max(1, Math.ceil(msLeft / 86400000))
         }
-        return true
+        const fmtShortDate = (iso) => new Date(iso).toLocaleDateString(getCurrentLanguage() || 'ru', { day: 'numeric', month: 'short' })
+
+        let info = null
+        if (plan !== 'FREE') {
+            const expiry = user?.planExpiresAt || null
+            if (expiry) {
+                const left = daysLeft(expiry)
+                if (left > 0) {
+                    const started = user?.planStartedAt || null
+                    info = {
+                        text: started
+                            ? `${fmtShortDate(started)} — ${left} ${tGet('sidebar.daysShort') || 'дн.'}`
+                            : `${left} ${tGet('sidebar.daysShort') || 'дн.'}`,
+                        showRenew: true
+                    }
+                }
+            }
+        } else {
+            const trialExpiresAt = store.get('localProTrialExpiresAt', null)
+            if (trialExpiresAt) {
+                const left = daysLeft(trialExpiresAt)
+                if (left > 0) {
+                    const started = new Date(trialExpiresAt)
+                    started.setDate(started.getDate() - 14)
+                    info = {
+                        text: `${tGet('sidebar.trialDaysLeft') || 'Триал'}: ${fmtShortDate(started.toISOString())} — ${left} ${tGet('sidebar.daysShort') || 'дн.'}`,
+                        showRenew: false
+                    }
+                }
+            }
+        }
+
+        sep.style.display = info ? '' : 'none'
+        item.style.display = info ? '' : 'none'
+        if (!info) return
+
+        text.textContent = info.text
+        renew.style.display = info.showRenew ? '' : 'none'
+    }
+
+    document.getElementById('statusSubRenew')?.addEventListener('click', (e) => {
+        e.preventDefault()
+        window.electronAPI?.openExternal?.('https://centrio.me/dashboard')
+    })
+
+    // Возвращает true если план PRO/TEAM (или активен локальный триал),
+    // иначе показывает модалку и возвращает false
+    // featureKey: 'themes' | 'accent' | 'folders' | 'sound' | 'messengerLimit'
+    function requirePro(featureKey) {
+        if (hasEffectivePro()) return true
+        showUpgradeModal(
+            tGet(`pro.${featureKey}Title`),
+            tGet(`pro.${featureKey}Desc`)
+        )
+        return false
     }
 
     // ==============================
@@ -1602,10 +1715,7 @@ function applyTabZoom(level) {
     // ==============================
     async function addMessenger(messenger) {
         // ── Plan limits ──────────────────────────────────────────
-        const user = cloudStore.getUser()
-        const plan = (user?.plan || 'FREE').toUpperCase()
-        const FREE_MESSENGER_LIMIT = 3
-        if (plan === 'FREE' && state.activeMessengers.length >= FREE_MESSENGER_LIMIT) {
+        if (!hasEffectivePro() && state.activeMessengers.length >= FREE_MESSENGER_LIMIT) {
             showUpgradeModal(
                 tGet('pro.messengerLimitTitle'),
                 tGet('pro.messengerLimitDesc').replace('{n}', FREE_MESSENGER_LIMIT)
@@ -1655,6 +1765,8 @@ function applyTabZoom(level) {
         resetMessengerNotifyState(id, 0)
 
         updateStatusBar()
+        updateAddButtonState()
+        updateTrialStatusBar()
     }
 
     // ==============================
@@ -1684,6 +1796,24 @@ function applyTabZoom(level) {
             ? '<path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
             : '<path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
     }
+
+    // Раскрываемый левый сайдбар (как во FRANZ) — независимо от меню сверху.
+    function applySidebarCollapsed() {
+        if (!activityBar || !sidebarCollapseBtn) return
+        activityBar.classList.toggle('sidebar-expanded', state.sidebarBarExpanded)
+        sidebarCollapseBtn.classList.toggle('sidebar-expanded-btn', state.sidebarBarExpanded)
+        const label = state.sidebarBarExpanded ? tGet('sidebar.collapse') : tGet('sidebar.expand')
+        sidebarCollapseBtn.setAttribute('aria-label', label)
+        sidebarCollapseBtn.setAttribute('title', label)
+        const labelEl = document.getElementById('sidebarCollapseLabel')
+        if (labelEl) labelEl.textContent = label
+    }
+
+    sidebarCollapseBtn?.addEventListener('click', () => {
+        state.sidebarBarExpanded = !state.sidebarBarExpanded
+        store.set('sidebarBarExpanded', state.sidebarBarExpanded)
+        applySidebarCollapsed()
+    })
 
     // ==============================
     // SIDEBAR DRAG-N-DROP API
@@ -2112,6 +2242,24 @@ function applyTabZoom(level) {
         openUrl: (url) => window.electronAPI?.openExternal?.(url)
     })
 
+    bindOnboardingScreen({
+        store,
+        cloudApi,
+        cloudStore,
+        cloudSyncAfterLogin,
+        cloudSyncPush,
+        tGet,
+        getCurrentLanguage,
+        setCurrentLanguage,
+        applyI18n,
+        popularMessengers,
+        addMessenger,
+        updateTrialStatusBar
+    })
+
+    updateAddButtonState()
+    updateTrialStatusBar()
+
     // Кнопка "Войти в аккаунт" на приветственном экране
     document.getElementById('welcomeLoginBtn')?.addEventListener('click', () => {
         if (cloudStore.isLoggedIn()) openCloudProfile()
@@ -2175,7 +2323,8 @@ function applyTabZoom(level) {
         fillMessengerGrid,
         addMessenger,
         requirePro,
-        tGet
+        tGet,
+        freeMessengerLimit: FREE_MESSENGER_LIMIT
     })
 
     // enabled — предпочтение пользователя ("использовать VPN для этого мессенджера"),
@@ -2326,6 +2475,59 @@ function applyTabZoom(level) {
         tGet
     })
 
+    // ==============================
+    // ПРАВАЯ ВСТРОЕННАЯ ПАНЕЛЬ (Ассистент / Задачи / Уведомления)
+    // ==============================
+    // Раскрывается вбок вместе с сайдбаром (не всплывающее окно) — у каждой
+    // кнопки правого сайдбара своя секция внутри #rightPanel, открыта не
+    // больше одной за раз. openRightPanel/closeRightPanel передаются в
+    // todos-bind.js и app-notif-bind.js вместо их прежней логики позиционирования
+    // плавающего попапа.
+    const rightPanelEl = document.getElementById('rightPanel')
+    const rightPanelButtons = {
+        assistant: document.getElementById('assistantBtn'),
+        todos: document.getElementById('todosBtn'),
+        notifications: document.getElementById('appNotifBtn')
+    }
+    const rightPanelSections = {
+        assistant: document.getElementById('assistantPanel'),
+        todos: document.getElementById('todosPanel'),
+        notifications: document.getElementById('appNotifPanel')
+    }
+    let rightPanelActiveKey = null
+
+    function closeRightPanel() {
+        rightPanelActiveKey = null
+        rightPanelEl?.classList.remove('open')
+        Object.values(rightPanelSections).forEach(el => el?.classList.remove('active'))
+        Object.values(rightPanelButtons).forEach(btn => btn?.classList.remove('active'))
+    }
+
+    function openRightPanel(key) {
+        document.dispatchEvent(new CustomEvent('close-all-popups'))
+        rightPanelActiveKey = key
+        rightPanelEl?.classList.add('open')
+        Object.entries(rightPanelSections).forEach(([k, el]) => el?.classList.toggle('active', k === key))
+        Object.entries(rightPanelButtons).forEach(([k, btn]) => btn?.classList.toggle('active', k === key))
+        document.dispatchEvent(new CustomEvent('popup-opened'))
+    }
+
+    function toggleRightPanel(key) {
+        if (rightPanelActiveKey === key) closeRightPanel()
+        else openRightPanel(key)
+    }
+
+    // Намеренно НЕ слушаем 'close-all-popups' здесь: это общее событие,
+    // которым пользуется весь остальной интерфейс (контекстные меню,
+    // сплит-пикеры, VPN-панель и т.д.) для закрытия СВОИХ всплывающих
+    // окон при разных действиях — если бы правая панель тоже закрывалась
+    // по нему, она бы схлопывалась от совершенно не связанных с ней
+    // кликов где угодно в приложении. Закрытие правой панели — только
+    // через повторный клик по той же иконке (toggleRightPanel выше).
+    // Свой close-all-popups она по-прежнему ШЛЁТ при открытии (в
+    // openRightPanel), чтобы закрыть чужие попапы — просто не подписана
+    // на встречные.
+
     const appNotifApi = bindAppNotifUi({
         cloudStore,
         invokeIpc,
@@ -2334,11 +2536,27 @@ function applyTabZoom(level) {
         tGet,
         state,
         toggleMuteAll,
-        switchTab
+        switchTab,
+        openRightPanel: () => toggleRightPanel('notifications'),
+        closeRightPanel
     })
     if (appNotifApi?.addMessengerNotification) {
         addMessengerNotifRef = appNotifApi.addMessengerNotification
     }
+
+    bindTodosUi({
+        store,
+        tGet,
+        openRightPanel: () => toggleRightPanel('todos'),
+        closeRightPanel
+    })
+
+    // Ассистент — пока заглушка (иконка есть, ИИ подключим позже, как во
+    // FRANZ) — просто раскрывает свою секцию с "Скоро".
+    rightPanelButtons.assistant?.addEventListener('click', (e) => {
+        e.stopPropagation()
+        toggleRightPanel('assistant')
+    })
 
     bindDownloadsUi({
         invokeIpc,
@@ -2383,6 +2601,7 @@ function applyTabZoom(level) {
     // ==============================
     applySavedProxyOnStart()
     applyMenuCollapsed()
+    applySidebarCollapsed()
 
     if (state.appZoomLevel !== 0) {
         if (window.electronAPI?.setAppZoom) {
@@ -2457,7 +2676,7 @@ function applyTabZoom(level) {
         // пользователь оплатил Pro на сайте, а приложение уже было запущено (или
         // было закрыто и открыто заново без повторного логина), Pro-статус в UI
         // мог оставаться устаревшим сколь угодно долго.
-        cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn() })
+        cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar() })
     }
 
     // ...и повторяем при каждом возврате фокуса на окно — типичный сценарий:
@@ -2466,7 +2685,7 @@ function applyTabZoom(level) {
     // Тот же паттерн already используется для уведомлений в app-notif-bind.js.
     window.addEventListener('focus', () => {
         if (cloudStore.isLoggedIn()) {
-            cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn() })
+            cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar() })
         }
     })
 

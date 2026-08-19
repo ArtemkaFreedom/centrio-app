@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
-import { MAIN_NAV } from '@/lib/site-nav'
+import { MAIN_NAV, LOCALIZED_ROUTES, canonicalPath, localizedHref } from '@/lib/site-nav'
 
 const WIN_DOWNLOAD = 'https://download.centrio.me/Centrio%20Setup%202.1.0.exe'
 
@@ -33,11 +34,22 @@ const IcoDownload = () => (
 function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const pathname = usePathname()
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
+  const chooseLang = (l: Lang) => {
+    setOpen(false)
+    const canonical = canonicalPath(pathname || '/')
+    if (LOCALIZED_ROUTES.has(canonical)) {
+      router.push(localizedHref(canonical, l))
+    } else {
+      setLang(l)
+    }
+  }
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button onClick={() => setOpen(!open)} className="nav-lang-btn" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '7px 12px', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
@@ -48,7 +60,7 @@ function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => voi
       {open && (
         <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, background: '#060a14', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, overflow: 'hidden', zIndex: 200, minWidth: 120, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
           {LANGS.map(l => (
-            <button key={l} onClick={() => { setLang(l); setOpen(false) }} style={{ display: 'block', width: '100%', padding: '9px 16px', background: l === lang ? 'rgba(59,130,246,0.15)' : 'transparent', border: 'none', color: l === lang ? '#60a5fa' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: l === lang ? 600 : 400, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+            <button key={l} onClick={() => chooseLang(l)} style={{ display: 'block', width: '100%', padding: '9px 16px', background: l === lang ? 'rgba(59,130,246,0.15)' : 'transparent', border: 'none', color: l === lang ? '#60a5fa' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: l === lang ? 600 : 400, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
               {LANG_LABELS[l]}
             </button>
           ))}

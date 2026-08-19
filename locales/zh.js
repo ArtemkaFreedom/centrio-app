@@ -104,6 +104,7 @@ module.exports = {
         themeMidnight:    '午夜',
         themeGlass:       '玻璃',
         themeAdaptive:    '自适应',
+        themeEmbedded:    '嵌入式',
         themeDock:        'Dock',
         accentColor:      '强调色',
         fontSize:         '字体大小',
@@ -543,6 +544,62 @@ module.exports = {
         promoError:           '兑换码激活失败',
     },
 
+    onb: {
+        headline1: '所有聊天软件。',
+        headline2: '一个窗口。',
+        f1t: '所有服务集于一处',
+        f1d: 'Telegram、WhatsApp、Discord、VK 等 100 多个服务 — 无需浏览器标签页。',
+        f2t: '不错过任何消息',
+        f2d: '每个服务的原生通知，互不干扰。',
+        f3t: '设置随处同步',
+        f3d: '账户可在多设备间同步服务和设置。',
+        cardTitle: '免费开始使用',
+        cardSub: '账户会在各处保持你的服务和设置同步。',
+        skip: '暂时跳过，无账户使用 — 不启用云同步 →',
+        continue: '继续',
+        svcTitle: '连接你的服务',
+        svcSub: '选择要加入统一窗口的服务，之后还可以继续添加。',
+        svcShowAll: '查看全部服务 →',
+        svcSkip: '跳过',
+        trialTitle1: '全部解锁。',
+        trialTitle2: '为期 14 天。',
+        trialSub: '我们已为该账户开通 Pro — 以下是具体内容。',
+        trialBadge: 'PRO · 已包含 14 天',
+        trialF1: '服务数量不限',
+        trialF2: '每个聊天软件均内置 VPN',
+        trialF3: '分屏与扩展程序',
+        trialF4: '无需绑卡 — 直接使用',
+        readyTitle: 'Centrio 已就绪',
+        readySub: '一切设置完毕 — 可以开始了。',
+        launch: '启动 Centrio'
+    },
+
+    sidebar: {
+        collapse: '收起侧边栏',
+        expand: '展开侧边栏',
+        trialDaysLeft: '免费试用',
+        proDaysLeft: 'Pro 订阅',
+        daysShort: '天'
+    },
+
+    rightbar: {
+        assistant: 'Centrio 助手',
+        assistantSoon: '即将推出',
+        todos: '任务'
+    },
+
+    todos: {
+        title: '任务',
+        all: '全部',
+        starred: '已标记',
+        addPlaceholder: '添加任务…',
+        listNamePlaceholder: '列表名称…',
+        addList: '新建列表',
+        empty: '暂无任务',
+        star: '标记',
+        delete: '删除'
+    },
+
     pro: {
         messengerLimitTitle:  '需要 Pro',
         messengerLimitDesc:   '免费计划最多支持 {n} 个应用。升级到 Pro 可无限添加。',
@@ -561,14 +618,16 @@ module.exports = {
         extensionsTitle: '扩展功能 — 仅限 Pro',
         extensionsDesc: '内置工具在 Pro 计划中可用。',
         featuresLabel: 'Pro 解锁：',
-        benefit1: '无限应用',
-        benefit2: '最多 5 台设备同时使用',
-        benefit3: '设置云端同步',
+        benefit1: '不限数量的聊天软件 — 免费版仅限 3 个',
+        benefit2: '每个服务均内置 VPN',
+        benefit3: '多设备云端同步',
         benefit4: '文件夹与分组',
         benefit5: '所有主题和强调色',
         benefit6: '扩展：AdBlock、翻译器等',
         benefit7: '每个应用的独立通知音',
-        benefit8: '优先支持'
+        benefit8: '优先支持',
+        benefit9: '最多 5 台设备同时使用',
+        benefit10: '分屏 — 同时使用多个聊天软件'
     },
 
     extensions: {

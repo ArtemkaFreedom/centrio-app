@@ -419,6 +419,54 @@ function DashboardPageInner() {
     if (plan) handleBuyPlan(plan, method)
   }
 
+  // Crypto checkout — separate flow from YooKassa above: this hits a
+  // Next.js API route on our own origin (landing/api/create-crypto-payment/
+  // route.ts, proxying to NOWPayments), not the Express API at api.centrio.me,
+  // so it can't go through the shared `api` axios instance — that instance's
+  // baseURL points at api.centrio.me. The token is attached manually instead.
+  const handleBuyCrypto = async (plan: 'month' | 'year') => {
+    setShowPaymentMethodModal(null)
+    setBuyingPlan(plan)
+    try {
+      const token = useAuthStore.getState().accessToken
+      const res = await fetch('/api/create-crypto-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ plan }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.payment_url) {
+        window.location.href = data.payment_url
+      } else {
+        alert(data?.error || 'Ошибка создания платежа. Попробуйте позже.')
+        setBuyingPlan(null)
+      }
+    } catch (e: any) {
+      alert('Ошибка создания платежа. Попробуйте позже.')
+      setBuyingPlan(null)
+    }
+  }
+
+  // FRIDE checkout ("Карты EU/US") — hits the Express API directly
+  // (landing/payments-server.js's /fride-create), so unlike crypto above it
+  // goes through the normal `api` axios instance like YooKassa does.
+  const handleBuyFride = async (plan: 'month' | 'year') => {
+    setShowPaymentMethodModal(null)
+    setBuyingPlan(plan)
+    try {
+      const { data } = await api.post('/api/payments/fride-create', { plan })
+      if (data?.success && data?.data?.paymentUrl) {
+        window.location.href = data.data.paymentUrl
+      } else {
+        alert(data?.error || 'Ошибка создания платежа. Попробуйте позже.')
+        setBuyingPlan(null)
+      }
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Ошибка создания платежа. Попробуйте позже.')
+      setBuyingPlan(null)
+    }
+  }
+
   const loadPayments = useCallback(() => {
     setLoadingPayments(true)
     api.get('/api/payments/my')
@@ -1732,8 +1780,8 @@ function DashboardPageInner() {
               <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
                 {[
                   { label:'ЮKassa', sub:'Карты РФ, СБП, ЮMoney', active:true },
-                  { label:'Криптовалюта', sub:'BTC, ETH, USDT', active:false },
-                  { label:'Карты EU/US', sub:'Скоро', active:false },
+                  { label:'Криптовалюта', sub:'BTC, ETH, USDT', active:true },
+                  { label:'Карты EU/US', sub:'Visa, Mastercard', active:true },
                 ].map(m => (
                   <div key={m.label} style={{ background: m.active ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.04)', border: m.active ? '1px solid rgba(59,130,246,0.3)' : '1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:'12px 18px' }}>
                     <div style={{ fontSize:13.5, fontWeight:700, marginBottom:2 }}>{m.label}</div>
@@ -2110,6 +2158,40 @@ function DashboardPageInner() {
                 </button>
               ))}
             </div>
+
+            <div style={{ display:'flex', alignItems:'center', gap:10, margin:'18px 0' }}>
+              <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.08)' }} />
+              <span style={{ fontSize:11, color:'rgba(255,255,255,0.3)' }}>или</span>
+              <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.08)' }} />
+            </div>
+
+            <button
+              onClick={() => showPaymentMethodModal && handleBuyCrypto(showPaymentMethodModal)}
+              disabled={buyingPlan !== null}
+              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', textAlign:'left', background:'rgba(251,191,36,0.06)', border:'1px solid rgba(251,191,36,0.25)', borderRadius:12, padding:'14px 16px', cursor: buyingPlan !== null ? 'default' : 'pointer', fontFamily:'inherit', opacity: buyingPlan !== null ? 0.6 : 1, transition:'all 0.15s' }}
+              onMouseEnter={(e) => { if (buyingPlan === null) e.currentTarget.style.borderColor = 'rgba(251,191,36,0.45)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(251,191,36,0.25)' }}
+            >
+              <div>
+                <div style={{ fontSize:14, fontWeight:700, color:'#fff' }}>Криптовалюта</div>
+                <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.35)', marginTop:2 }}>BTC, ETH, USDT, TON и другие</div>
+              </div>
+              <IcoArrow />
+            </button>
+
+            <button
+              onClick={() => showPaymentMethodModal && handleBuyFride(showPaymentMethodModal)}
+              disabled={buyingPlan !== null}
+              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', textAlign:'left', background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.25)', borderRadius:12, padding:'14px 16px', marginTop:10, cursor: buyingPlan !== null ? 'default' : 'pointer', fontFamily:'inherit', opacity: buyingPlan !== null ? 0.6 : 1, transition:'all 0.15s' }}
+              onMouseEnter={(e) => { if (buyingPlan === null) e.currentTarget.style.borderColor = 'rgba(59,130,246,0.45)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.25)' }}
+            >
+              <div>
+                <div style={{ fontSize:14, fontWeight:700, color:'#fff' }}>Карты EU/US</div>
+                <div style={{ fontSize:11.5, color:'rgba(255,255,255,0.35)', marginTop:2 }}>Иностранные карты, Visa/Mastercard</div>
+              </div>
+              <IcoArrow />
+            </button>
 
             {buyingPlan !== null && (
               <div style={{ marginTop:16, fontSize:12.5, color:'rgba(255,255,255,0.4)', textAlign:'center' }}>Переходим к оплате…</div>

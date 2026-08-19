@@ -42,3 +42,37 @@ export const COMPARE_LINKS: CompareLink[] = [
   { label: 'vs Wavebox', href: '/blog/vs-wavebox' },
   { label: 'vs Ferdium', href: '/blog/vs-ferdium' },
 ]
+
+// ── Multi-language routing ──────────────────────────────────────────────
+// Russian is the default locale and stays unprefixed at its existing paths
+// (never change these — they're already indexed). Other locales live at
+// `/{lang}{canonicalPath}`. Only pages actually translated in i18n.ts's
+// dictionary get a real route here — everywhere else, LangSwitcher falls
+// back to its old client-side-only text swap instead of navigating to a
+// URL that doesn't exist.
+export const NON_DEFAULT_LANGS = ['en', 'zh', 'fr', 'it'] as const
+export type NonDefaultLang = typeof NON_DEFAULT_LANGS[number]
+
+export const LOCALIZED_ROUTES: ReadonlySet<string> = new Set([
+  '/',
+  '/download',
+  '/blog/vs-franz',
+  '/blog/vs-rambox',
+  '/blog/vs-wavebox',
+])
+
+const LANG_PREFIX_RE = new RegExp(`^/(${NON_DEFAULT_LANGS.join('|')})(?=/|$)`)
+
+// Strips a locale prefix (if any) back down to the canonical ru path —
+// e.g. '/en/download' -> '/download', '/en' -> '/', '/pricing' -> '/pricing'.
+export function canonicalPath(pathname: string): string {
+  const stripped = pathname.replace(LANG_PREFIX_RE, '')
+  return stripped === '' ? '/' : stripped
+}
+
+// Builds the URL for `targetLang` given the current canonical path — only
+// meaningful when LOCALIZED_ROUTES.has(canonical) is true.
+export function localizedHref(canonical: string, targetLang: string): string {
+  if (targetLang === 'ru') return canonical
+  return canonical === '/' ? `/${targetLang}` : `/${targetLang}${canonical}`
+}

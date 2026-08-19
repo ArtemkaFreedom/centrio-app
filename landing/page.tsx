@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useLang, LANGS, LANG_LABELS, type Lang } from '@/lib/i18n'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { GlassPricingSection, type PricingCardProps } from '@/components/ui/animated-glassy-pricing'
-import { COMPARE_LINKS } from '@/lib/site-nav'
+import { COMPARE_LINKS, LOCALIZED_ROUTES, canonicalPath, localizedHref } from '@/lib/site-nav'
+import { useRouter, usePathname } from 'next/navigation'
 
 const VERSION = '2.1.0'
 const WIN_DOWNLOAD = `https://download.centrio.me/Centrio%20Setup%20${VERSION}.exe`
@@ -204,10 +205,26 @@ function PromoPopup({ t, onClose }: { t: any; onClose: () => void }) {
 function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const pathname = usePathname()
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
   }, [])
+  // If this page has a real localized route for the target language, go
+  // there (so search engines and the URL bar both reflect the language).
+  // Otherwise fall back to the old behavior — swap the text in place,
+  // since most pages (pricing, faq, features, most blog posts) don't have
+  // translated routes yet.
+  const chooseLang = (l: Lang) => {
+    setOpen(false)
+    const canonical = canonicalPath(pathname || '/')
+    if (LOCALIZED_ROUTES.has(canonical)) {
+      router.push(localizedHref(canonical, l))
+    } else {
+      setLang(l)
+    }
+  }
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button onClick={() => setOpen(!open)} className="lang-btn" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, padding: '6px 11px', color: 'rgba(245,241,232,.45)', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -218,7 +235,7 @@ function LangSwitcher({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => voi
       {open && (
         <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#111113', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', zIndex: 50, minWidth: 120, boxShadow: '0 16px 48px rgba(0,0,0,.8)' }}>
           {LANGS.map(l => (
-            <button key={l} onClick={() => { setLang(l); setOpen(false) }} style={{ display: 'block', width: '100%', padding: '8px 14px', background: l === lang ? 'rgba(47,111,237,.12)' : 'transparent', border: 'none', color: l === lang ? '#93C5FF' : 'rgba(245,241,232,.45)', fontSize: 13, fontWeight: l === lang ? 600 : 400, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+            <button key={l} onClick={() => chooseLang(l)} style={{ display: 'block', width: '100%', padding: '8px 14px', background: l === lang ? 'rgba(47,111,237,.12)' : 'transparent', border: 'none', color: l === lang ? '#93C5FF' : 'rgba(245,241,232,.45)', fontSize: 13, fontWeight: l === lang ? 600 : 400, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
               {LANG_LABELS[l]}
             </button>
           ))}
@@ -734,6 +751,14 @@ export default function LandingPage() {
           box-shadow: 0 30px 70px rgba(0,0,0,.45);
         }
         .card-elevated:hover { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.16); }
+        /* L3 (.card-highlight) — reserved for exactly one tile: a Pro-gated
+           feature that deserves the same accent-blue treatment as the flagship
+           icon, without competing with it for "the main thing" attention. */
+        .card-highlight {
+          background: linear-gradient(155deg, rgba(90,169,255,.09), rgba(255,255,255,.03));
+          border: 1px solid rgba(90,169,255,.22);
+        }
+        .card-highlight:hover { background: linear-gradient(155deg, rgba(90,169,255,.13), rgba(255,255,255,.05)); border-color: rgba(90,169,255,.34); }
 
         /* Section label — small-caps sans eyebrow, wide tracking carries the
            "label" read instead of leaning on a monospace face for it. */
@@ -799,14 +824,19 @@ export default function LandingPage() {
         .fl:hover { color: ${C}.7); }
         .flh { font-family: var(--font-geist); font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: ${C}.22); margin-bottom: 14px; display: block; }
 
-        /* Features bento — flagship tile spans 2 rows, two small squares beside it, three across the bottom */
+        /* Features bento — flagship tile spans 2 rows on the left; two stacked
+           full-content cards balance it on the right (was two icon-only
+           squares with no description — looked broken, half-empty); the
+           remaining three features share an even row underneath, all four
+           non-flagship tiers now carry the same icon+title+desc content so
+           nothing in the grid reads as a placeholder. */
         .feat-grid { display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: minmax(140px, auto); gap: 12px; }
         .feat-0 { grid-column: 1 / 5; grid-row: 1 / 3; }
         .feat-1 { grid-column: 5 / 7; grid-row: 1 / 2; }
-        .feat-2 { grid-column: 5 / 6; grid-row: 2 / 3; }
-        .feat-3 { grid-column: 6 / 7; grid-row: 2 / 3; }
-        .feat-4 { grid-column: 1 / 4; grid-row: 3 / 4; }
-        .feat-5 { grid-column: 4 / 7; grid-row: 3 / 4; }
+        .feat-2 { grid-column: 5 / 7; grid-row: 2 / 3; }
+        .feat-3 { grid-column: 1 / 3; grid-row: 3 / 4; }
+        .feat-4 { grid-column: 3 / 5; grid-row: 3 / 4; }
+        .feat-5 { grid-column: 5 / 7; grid-row: 3 / 4; }
 
         /* All-capabilities grid */
         .cap-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -1155,10 +1185,11 @@ export default function LandingPage() {
             <div className="feat-grid">
               {features.map((f, i) => {
                 const flagship = i === 0
-                const square = i === 2 || i === 3
+                const highlight = i === 5
+                const tier = flagship ? '-elevated' : highlight ? '-highlight' : ''
                 return (
                   <Reveal key={i} delay={i * 0.06} y={16}>
-                    <div className={`card${flagship ? '-elevated' : ''} feat-${i}`} style={{ padding: flagship ? '32px 28px' : square ? '18px' : '22px 20px', height: '100%', borderRadius: flagship ? 20 : 14, display: 'flex', flexDirection: 'column', justifyContent: flagship ? 'flex-end' : square ? 'center' : 'flex-start', alignItems: square ? 'center' : 'stretch', textAlign: square ? 'center' : 'left', position: 'relative', overflow: 'hidden' }}>
+                    <div className={`card${tier} feat-${i}`} style={{ padding: flagship ? '32px 28px' : '24px 22px', height: '100%', borderRadius: flagship ? 20 : 16, display: 'flex', flexDirection: 'column', justifyContent: flagship ? 'flex-end' : 'flex-start', position: 'relative', overflow: 'hidden' }}>
                       {flagship && (
                         <img src="/logo.png" alt="" style={{ position: 'absolute', top: 20, left: 20, width: 20, height: 20, objectFit: 'contain', opacity: .8, zIndex: 1 }} />
                       )}
@@ -1178,13 +1209,14 @@ export default function LandingPage() {
                           ))}
                         </div>
                       )}
-                      <div style={{ width: flagship ? 48 : square ? 40 : 38, height: flagship ? 48 : square ? 40 : 38, borderRadius: flagship ? 13 : 10, background: flagship ? 'rgba(90,169,255,.1)' : 'rgba(255,255,255,.05)', border: flagship ? '1px solid rgba(90,169,255,.22)' : '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: flagship ? 22 : square ? 10 : 14, position: 'relative', zIndex: 1 }}>
-                        <FIcon name={f.icon} color={flagship ? '#5AA9FF' : undefined} />
-                      </div>
-                      <h3 style={{ fontSize: flagship ? 20 : square ? 13.5 : 15, fontWeight: 650, color: '#F5F1E8', marginBottom: square ? 0 : 8, letterSpacing: '-.02em', lineHeight: 1.3, position: 'relative', zIndex: 1 }}>{f.title}</h3>
-                      {!square && (
-                        <p style={{ fontSize: flagship ? 14.5 : 13.5, color: 'rgba(245,241,232,.35)', lineHeight: 1.7, maxWidth: flagship ? 360 : 'none', position: 'relative', zIndex: 1 }}>{f.desc}</p>
+                      {highlight && (
+                        <span style={{ position: 'absolute', top: 20, right: 20, fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#93C5FF', background: 'rgba(90,169,255,.12)', border: '1px solid rgba(90,169,255,.28)', borderRadius: 100, padding: '4px 9px' }}>Pro</span>
                       )}
+                      <div style={{ width: flagship ? 48 : 40, height: flagship ? 48 : 40, borderRadius: flagship ? 13 : 11, background: (flagship || highlight) ? 'rgba(90,169,255,.1)' : 'rgba(255,255,255,.05)', border: (flagship || highlight) ? '1px solid rgba(90,169,255,.22)' : '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: flagship ? 22 : 16, position: 'relative', zIndex: 1 }}>
+                        <FIcon name={f.icon} color={(flagship || highlight) ? '#5AA9FF' : undefined} />
+                      </div>
+                      <h3 style={{ fontSize: flagship ? 20 : 16, fontWeight: 650, color: '#F5F1E8', marginBottom: 8, letterSpacing: '-.02em', lineHeight: 1.3, position: 'relative', zIndex: 1 }}>{f.title}</h3>
+                      <p style={{ fontSize: flagship ? 14.5 : 13.5, color: 'rgba(245,241,232,.4)', lineHeight: 1.65, maxWidth: flagship ? 360 : 'none', position: 'relative', zIndex: 1 }}>{f.desc}</p>
                     </div>
                   </Reveal>
                 )
