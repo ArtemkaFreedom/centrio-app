@@ -36,6 +36,59 @@ const REMOTE_I18N       = '/var/www/centrio-web/src/lib/i18n.ts'
 const REMOTE_SITE_SHELL = '/var/www/centrio-web/src/components/ui/site-shell.tsx'
 const REMOTE_WEB        = '/var/www/centrio-web'
 
+// 2026-08-26: audit found 24 more files hardcoding the version/download-link
+// as a bare literal (e.g. `const WIN_DOWNLOAD = '...Setup%202.1.0.exe'`),
+// none of which this script touched — every release since they were added
+// (blog pages didn't exist yet when this script was first written) shipped
+// with a stale version number on all of them. Every file below was
+// hand-verified this session to contain semver-triplet numbers ONLY as a
+// "current app version" reference (no unrelated third-party version
+// strings) — see Obsidian Centrio/Деплой.md for the audit note. If a new
+// file is added later that mentions the version, add it here too, or the
+// same drift bug (already documented once in SiteFooter.tsx's own comment)
+// will just happen again.
+const VERSION_LITERAL_FILES = [
+    // [local landing/ filename, remote path(s)]
+    ['SiteHeader.tsx',                        ['/var/www/centrio-web/src/components/SiteHeader.tsx']],
+    ['SiteFooter.tsx',                        ['/var/www/centrio-web/src/components/SiteFooter.tsx']],
+    ['SeoFooter.tsx',                         ['/var/www/centrio-web/src/components/SeoFooter.tsx']],
+    ['features.tsx',                          ['/var/www/centrio-web/src/app/features/page.tsx']],
+    ['download-layout.tsx',                   ['/var/www/centrio-web/src/app/download/layout.tsx']],
+    ['layout.tsx',                            ['/var/www/centrio-web/src/app/layout.tsx']],
+    ['page.tsx',                              ['/var/www/centrio-web/src/app/page.tsx']],
+    ['blog-best-aggregators.tsx',              ['/var/www/centrio-web/src/app/blog/best-messenger-aggregators/page.tsx']],
+    ['blog-how-to-combine-messengers.tsx',     ['/var/www/centrio-web/src/app/blog/how-to-combine-messengers/page.tsx']],
+    ['blog-is-it-safe.tsx',                    ['/var/www/centrio-web/src/app/blog/is-it-safe/page.tsx']],
+    ['blog-max-transition.tsx',                ['/var/www/centrio-web/src/app/blog/max-transition/page.tsx']],
+    ['blog-messenger-vpn-guide.tsx',           ['/var/www/centrio-web/src/app/blog/messenger-vpn-guide/page.tsx']],
+    ['blog-multiple-accounts.tsx',             ['/var/www/centrio-web/src/app/blog/multiple-accounts/page.tsx']],
+    ['blog-remote-team-messengers.tsx',        ['/var/www/centrio-web/src/app/blog/remote-team-messengers/page.tsx']],
+    ['blog-social-media-one-place.tsx',        ['/var/www/centrio-web/src/app/blog/all-social-media-one-place/page.tsx']],
+    ['blog-stop-switching-tabs.tsx',           ['/var/www/centrio-web/src/app/blog/stop-switching-tabs/page.tsx']],
+    ['blog-telegram-vpn-block.tsx',            ['/var/www/centrio-web/src/app/blog/telegram-vpn-block/page.tsx']],
+    ['blog-top-apps.tsx',                      ['/var/www/centrio-web/src/app/blog/top-apps/page.tsx']],
+    ['blog-vs-ferdium.tsx',                    ['/var/www/centrio-web/src/app/blog/vs-ferdium/page.tsx']],
+    ['blog-vs-franz.tsx',                      ['/var/www/centrio-web/src/app/blog/vs-franz/page.tsx']],
+    ['blog-vs-rambox.tsx',                     ['/var/www/centrio-web/src/app/blog/vs-rambox/page.tsx']],
+    ['blog-vs-shift.tsx',                      ['/var/www/centrio-web/src/app/blog/vs-shift/page.tsx']],
+    ['blog-vs-station.tsx',                    ['/var/www/centrio-web/src/app/blog/vs-station/page.tsx']],
+    ['blog-vs-wavebox.tsx',                    ['/var/www/centrio-web/src/app/blog/vs-wavebox/page.tsx']],
+    ['blog-whatsapp-telegram-ban-risk.tsx',    ['/var/www/centrio-web/src/app/blog/whatsapp-telegram-ban-risk/page.tsx']],
+    ['blog-who-needs-it.tsx',                  ['/var/www/centrio-web/src/app/blog/who-needs-it/page.tsx']],
+]
+
+// changelog-data.ts is NOT a simple literal — it's a historical array
+// (source of truth is CHANGELOG.md, regenerated via scripts/gen-changelog-data.js).
+// This script only uploads whatever's already committed in landing/changelog-data.ts
+// as-is; adding the new version's entry is a separate, deliberate step
+// (run gen-changelog-data.js, merge the new entries in by hand at the top
+// of the array — don't overwrite older history).
+const CHANGELOG_DATA_TS = path.join(ROOT, 'landing', 'changelog-data.ts')
+const CHANGELOG_DATA_REMOTES = [
+    '/var/www/centrio-web/src/app/download/changelog-data.ts',
+    '/var/www/centrio-web/src/app/pricing/changelog-data.ts',
+]
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 function readFile(p)           { return fs.readFileSync(p, 'utf8') }
 function writeFile(p, content) { fs.writeFileSync(p, content, 'utf8') }
@@ -53,6 +106,7 @@ function updateDownloadTsx(version) {
     content = content.replace(/const VERSION = '[^']+'/, `const VERSION = '${version}'`)
     writeFile(DOWNLOAD_TSX, content)
     console.log(`  ✓ download.tsx: ${before} → ${version}`)
+    return before
 }
 
 function updateI18n(version) {
@@ -90,6 +144,32 @@ function updateI18n(version) {
     console.log(`  ✓ i18n.ts: updated dl_win_sub in ${winMatches} locales + dl_hero_date`)
 }
 
+// Replaces every literal occurrence of the OLD version string (e.g. "2.1.0")
+// with the new version. Deliberately NOT a generic /\d+\.\d+\.\d+/ scan.
+//
+// 2026-08-26 bug (found + fixed same day): a blind digit-triplet regex is
+// greedy and does not know where a version number actually starts — in a
+// string like `Setup%202.1.0.exe` it happily matches "202.1.0" (swallowing
+// the "20" that's actually part of the "%20" space-encoding right before the
+// real version, since '%' isn't a digit either, so a not-preceded-by-digit
+// lookbehind doesn't help). Replacing that whole match with "2.4.0" corrupted
+// the URL into `Setup%2.4.0.exe`. The only reliable fix is to search for the
+// EXACT previous version string (oldVersion, sourced from download.tsx's own
+// anchored `const VERSION = '...'` match, the one place we know for certain)
+// and replace just that literal substring — same technique as the manual
+// `sed 's/2\.1\.0/2.4.0/g'` fix applied earlier the same day, which worked
+// precisely because it searched for a known literal, not an open-ended
+// digit pattern.
+function updateVersionLiteralFile(filename, oldVersion, newVersion) {
+    const localPath = path.join(ROOT, 'landing', filename)
+    let content = readFile(localPath)
+    const escaped = oldVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const found = new RegExp(escaped, 'g').test(content)
+    content = content.split(oldVersion).join(newVersion)
+    writeFile(localPath, content)
+    return found
+}
+
 async function runCommand(sftp, cmd) {
     return new Promise((resolve, reject) => {
         sftp.client.exec(cmd, (err, stream) => {
@@ -109,8 +189,16 @@ async function main() {
 
     // 1. Update local files
     console.log('📝 Updating local files...')
-    updateDownloadTsx(version)
+    const oldVersion = updateDownloadTsx(version)
     updateI18n(version)
+    for (const [filename] of VERSION_LITERAL_FILES) {
+        if (!oldVersion) {
+            console.log(`  ⚠ ${filename}: skipped — could not detect old version from download.tsx`)
+            continue
+        }
+        const found = updateVersionLiteralFile(filename, oldVersion, version)
+        console.log(`  ✓ ${filename}: ${found ? oldVersion : '(no match found)'} → ${version}`)
+    }
 
     // 2. Connect SFTP
     console.log('\n🔌 Connecting to server...')
@@ -125,6 +213,20 @@ async function main() {
     console.log(`  ✓ i18n.ts → ${REMOTE_I18N}`)
     await sftp.put(SITE_SHELL_TSX, REMOTE_SITE_SHELL)
     console.log(`  ✓ site-shell.tsx → ${REMOTE_SITE_SHELL}`)
+
+    for (const [filename, remotePaths] of VERSION_LITERAL_FILES) {
+        const localPath = path.join(ROOT, 'landing', filename)
+        for (const remotePath of remotePaths) {
+            await sftp.put(localPath, remotePath)
+        }
+        console.log(`  ✓ ${filename} → ${remotePaths.join(', ')}`)
+    }
+
+    console.log(`  ↷ changelog-data.ts: uploading as-is (not auto-regenerated — see comment above)`)
+    for (const remotePath of CHANGELOG_DATA_REMOTES) {
+        await sftp.put(CHANGELOG_DATA_TS, remotePath)
+    }
+    console.log(`  ✓ changelog-data.ts → ${CHANGELOG_DATA_REMOTES.join(', ')}`)
 
     // 5. Clear Next.js cache & rebuild
     console.log('\n🗑  Clearing Next.js cache...')
