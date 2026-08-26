@@ -236,8 +236,16 @@ async function main() {
     await runCommand(sftp, `cd ${REMOTE_WEB} && npm run build 2>&1 | tail -20`)
 
     // 6. Restart pm2
-    console.log('♻️  Restarting pm2...')
-    await runCommand(sftp, 'pm2 restart centrio-web 2>&1 | tail -5')
+    // 2026-08-26: `pm2 restart centrio-web` as root is a SILENT NO-OP — the
+    // process is actually managed by a pm2 daemon running under the
+    // `webapps` user (PM2_HOME=/home/webapps/.pm2), not root's own
+    // /root/.pm2. Root's pm2 has zero processes registered at all (its own
+    // dump.pm2 is `[]`). Discovered because the site kept serving a build
+    // from before the rebuild despite this line reporting no error — pm2 as
+    // root happily "succeeds" at restarting nothing. Always target the
+    // webapps daemon explicitly.
+    console.log('♻️  Restarting pm2 (webapps daemon)...')
+    await runCommand(sftp, 'sudo -u webapps PM2_HOME=/home/webapps/.pm2 pm2 restart centrio-web 2>&1 | tail -5')
 
     await sftp.end()
 
