@@ -76,9 +76,16 @@ function downloadSingbox (onProgress) {
 
     const dlFile = fs.createWriteStream(tmpFile)
 
+    // Без таймаута зависший/недоступный GitHub (частый случай именно в тех
+    // сетях, где VPN и нужен) вешал скачивание навсегда — ни ошибки, ни
+    // прогресса, пользователь видел просто "VPN не включился" без объяснений.
+    // setTimeout здесь — таймаут простоя сокета (сбрасывается любой активностью),
+    // а не общий лимit на всё скачивание, поэтому медленный, но живой канал не обрывается.
+    const DOWNLOAD_IDLE_TIMEOUT_MS = 20000
+
     function doGet (urlStr) {
       const mod = urlStr.startsWith('https') ? https : http
-      mod.get(urlStr, (res) => {
+      const req = mod.get(urlStr, (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
           doGet(res.headers.location)
           return
@@ -114,7 +121,11 @@ function downloadSingbox (onProgress) {
           })
         })
         res.on('error', reject)
-      }).on('error', reject)
+      })
+      req.on('error', reject)
+      req.setTimeout(DOWNLOAD_IDLE_TIMEOUT_MS, () => {
+        req.destroy(new Error('Таймаут скачивания sing-box — сервер не отвечает'))
+      })
     }
 
     doGet(url)

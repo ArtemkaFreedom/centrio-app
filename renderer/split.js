@@ -327,7 +327,7 @@ function createSplitApi ({
         _positionGridHandles()
     }
 
-    window.addEventListener('resize', () => {
+    function _repositionOverlays () {
         if (!state.splitMode) return
         if (state.splitLayout === '2col') {
             _positionHandle()
@@ -336,7 +336,24 @@ function createSplitApi ({
             renderGridZones()
             _positionGridHandles()
         }
-    })
+    }
+
+    window.addEventListener('resize', _repositionOverlays)
+
+    // BUGFIX ("всё уезжает, если выдвигается любой из сайдбаров"): открытие/
+    // закрытие левого сайдбара, правой панели (#rightPanel) или папок-панели
+    // меняет ширину #contentArea через CSS-transition, а не через window
+    // resize — так что divider/picker/grid-хендлы (все hoisted на body,
+    // см. ARCHITECTURE NOTE в шапке файла) не пересчитывались и застывали
+    // на координатах ДО анимации. ResizeObserver ловит именно изменение
+    // фактического бокса #contentArea, независимо от того, что его вызвало
+    // (сайдбар, правая панель, ресайз окна) — тот же путь пересчёта, что и
+    // window 'resize' выше, просто с правильным триггером. Слушатель на
+    // время transition сработает несколько раз подряд — это дёшево
+    // (переприсвоение inline-стилей), поэтому троттлинг не нужен.
+    if (typeof ResizeObserver === 'function' && contentArea) {
+        new ResizeObserver(_repositionOverlays).observe(contentArea)
+    }
 
     // ── Сетка-раскладки: helpers ────────────────────────────────────────────────
 
@@ -716,9 +733,38 @@ function createSplitApi ({
         })
     }
 
+    // BUGFIX ("постоянная активность первого мессенджера в сплит скрине"):
+    // switchSplitTab() only ever repositioned the secondary webview — it never
+    // touched the sidebar/tab-bar '.active' highlight, which is set solely by
+    // the top-level switchTab() in renderer.js for the PRIMARY pane. So the
+    // sidebar kept showing the first/primary messenger as active forever,
+    // even after the user focused the secondary pane. setSplitFocus() is the
+    // single choke point every focus transition already runs through (direct
+    // webview click via onWebviewFocus, switchSplitTab picking a secondary,
+    // enterSplitMode) — move the highlight there so it always matches which
+    // pane is actually focused, for the 2col layout (grid layouts use their
+    // own '.split-zone-tile.focused' frame instead of the sidebar highlight).
+    function _syncActiveIndicatorFor2col (side) {
+        const id = side === 'right' ? state.splitTabId : state.activeTabId
+        if (!id) return
+
+        document.querySelectorAll('.messenger-item').forEach(item => item.classList.remove('active'))
+        const sidebarItem = document.getElementById(`sidebar-${id}`)
+        if (sidebarItem) {
+            sidebarItem.classList.add('active')
+            const folderChildren = sidebarItem.closest('.folder-children')
+            if (folderChildren) folderChildren.closest('.folder-item')?.classList.add('open')
+        }
+
+        document.querySelectorAll('.tab').forEach(tabEl => tabEl.classList.remove('active'))
+        const tab = document.getElementById(`tab-${id}`)
+        if (tab) tab.classList.add('active')
+    }
+
     function setSplitFocus (side) {
         state.splitFocus = side
         contentArea.dataset.splitFocus = side
+        if (state.splitLayout === '2col') _syncActiveIndicatorFor2col(side)
     }
 
     // ── Picker ────────────────────────────────────────────────────────────────
@@ -843,6 +889,12 @@ function createSplitApi ({
 
     function exitSplitMode () {
         _cleanupCurrentLayoutDom()
+
+        // Restore the sidebar/tab highlight to the primary pane in case focus
+        // was left on the secondary one — see _syncActiveIndicatorFor2col.
+        if (state.splitLayout === '2col' && state.splitFocus === 'right') {
+            _syncActiveIndicatorFor2col('left')
+        }
 
         state.splitMode       = false
         state.splitTabId      = null

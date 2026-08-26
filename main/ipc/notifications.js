@@ -33,11 +33,16 @@ function registerNotificationsIpc({ getMainWindow, showMainWindow }) {
             const https = require('https')
             const http = require('http')
 
+            // BUGFIX ("подвисания на 10-15 сек когда приходит сообщение"): без
+            // таймаута медленный/недоступный CDN иконки (например через VPN/прокси)
+            // держит этот await открытым неограниченно долго на КАЖДОЕ входящее
+            // сообщение — request.setTimeout() обрывает зависшую загрузку.
+            const ICON_FETCH_TIMEOUT_MS = 4000
             async function downloadImageAsNativeImage(url) {
                 return new Promise((resolve) => {
                     try {
                         const client = url.startsWith('https') ? https : http
-                        client.get(url, (res) => {
+                        const req = client.get(url, (res) => {
                             const chunks = []
                             res.on('data', chunk => chunks.push(chunk))
                             res.on('end', () => {
@@ -51,7 +56,12 @@ function registerNotificationsIpc({ getMainWindow, showMainWindow }) {
                                 }
                             })
                             res.on('error', () => resolve(null))
-                        }).on('error', () => resolve(null))
+                        })
+                        req.on('error', () => resolve(null))
+                        req.setTimeout(ICON_FETCH_TIMEOUT_MS, () => {
+                            req.destroy()
+                            resolve(null)
+                        })
                     } catch {
                         resolve(null)
                     }

@@ -20,6 +20,13 @@ module.exports = {
     SUPPORTED_PROTOCOLS: ['centrio', 'tg', 'max'],
 
     API_URL: 'https://api.centrio.me',
+    // AI-ассистент, режим "наша нейросеть" (PRO-прокси) — см.
+    // main/services/aiProviders/centrioProxy.js и .claude/plans/ai-assistant.plan.md §4.3.
+    // Бэкенд-эндпоинт живёт вне этого репозитория (см. server:
+    // /var/www/centrio-api/src/routes/assistant.js), все маршруты там
+    // смонтированы под префиксом /api/* (см. src/index.js), как и
+    // остальные OAUTH.*.EXCHANGE_URL ниже.
+    AI_PROXY_PATH: '/api/assistant/chat',
 
     WINDOW: {
         width: 1200,

@@ -239,18 +239,21 @@ function bindOnboardingScreen({
             if (cloudStore.isLoggedIn()) {
                 await cloudApi.redeemPromo('PRO14')
             } else if (window.electronAPI?.invoke) {
-                const result = await window.electronAPI.invoke('api-device-trial-redeem')
-                // No account to attach the grant to server-side — persist the
-                // expiry locally so requirePro()/addMessenger() in renderer.js
-                // can treat this device as Pro until it passes. A device only
-                // ever gets one successful grant (server enforces uniqueness
-                // by hardwareId), so a repeat onboarding run just fails softly
-                // here and the existing expiry (if any) is left untouched.
-                if (result?.success && result?.data?.expiresAt) {
-                    const value = result.data.expiresAt
-                    if (store.setAsync) await store.setAsync('localProTrialExpiresAt', value)
-                    else store.set('localProTrialExpiresAt', value)
-                }
+                // No account to attach the grant to server-side. The expiry is
+                // persisted by main itself — see main/ipc/api.js's
+                // api-device-trial-redeem handler + main/services/entitlement.js
+                // — NOT by the renderer: `localProTrialExpiresAt` is a
+                // main-process-owned key (SECURITY, see PROTECTED_SET_KEYS in
+                // main.js) precisely so a compromised/DevTools'd renderer can't
+                // grant itself an unlimited "trial" by writing an arbitrary
+                // future date to it directly. By the time this call resolves,
+                // main has already written it if the server granted the trial —
+                // requirePro()/addMessenger() in renderer.js will see it on
+                // their next store.get('localProTrialExpiresAt') read. A device
+                // only ever gets one successful grant (server enforces
+                // uniqueness by hardwareId), so a repeat onboarding run just
+                // fails softly here and any existing expiry is left untouched.
+                await window.electronAPI.invoke('api-device-trial-redeem')
             }
         } catch (e) {
             console.error('onboarding trial grant failed:', e)

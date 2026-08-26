@@ -18,12 +18,31 @@ const validReceiveChannels = new Set([
     'show-lock-screen',
     'deep-link-route',
     'oauth-popup-done',
+    // FEATURE (2026-08-24) — заглушка "Авторизация происходит в отдельном
+    // окне" на время жизни OAuth-попапа, см. wireOAuthPopup() в
+    // main/ipc/window.js и обработчики в renderer/webview-tabs-bind.js
+    'oauth-popup-started',
+    'oauth-popup-closed',
+    // FEATURE (2026-08-26, Franz-style OAuth popup chrome, "Добавить как
+    // сервис" button): BUGFIX — this channel was wired end-to-end (main/
+    // ipc/window.js sends it, renderer/webview-tabs-bind.js listens for it)
+    // but never added here, so preload.js's electronAPI.on() silently
+    // blocked every delivery (see the console.warn a few lines down) —
+    // the button looked wired but did nothing. Same class of bug as the
+    // api-redeem-promo miss documented below for validInvokeChannels.
+    'oauth-add-as-service',
     'downloads:item-update',
     'auto-launch-result',
     'messenger-unread-count',
     'messenger-site-notification',
     'app-notifs:item-update',
-    'app-quitting'
+    'app-quitting',
+    // main/ipc/assistant.js — стриминг ответа модели, запросы на исполнение
+    // инструмента, завершение/ошибка запроса (см. renderer/assistant-bind.js)
+    'assistant:stream-chunk',
+    'assistant:tool-call',
+    'assistant:done',
+    'assistant:error'
 ])
 
 const invokeChannelMap = {
@@ -52,6 +71,7 @@ const validInvokeChannels = new Set([
     'get-webview-preload-path', 'api-login', 'api-register', 'api-me', 'api-refresh',
     'api-sync-push', 'api-sync-pull', 'api-update-profile', 'api-get-stats', 'api-logout',
     'api-get-notifications', 'api-read-all-notifications', 'api-yandex-desktop', 'api-vk-desktop',
+    'api-assistant-usage',
     // BUGFIX: 'api-redeem-promo' was implemented end-to-end (main/ipc/api.js,
     // renderer/cloud.js, cloud-bind.js UI) but never added to this allowlist —
     // every call was silently blocked here before ever reaching main, so the
@@ -92,7 +112,9 @@ const validInvokeChannels = new Set([
     // main/ipc/extensions.js
     'ext:list', 'ext:install', 'ext:uninstall', 'ext:toggle', 'ext:apply-to-session',
     // main/ipc/lockBackground.js
-    'lock-bg:get', 'lock-bg:set-preset', 'lock-bg:clear', 'lock-bg:choose-custom'
+    'lock-bg:get', 'lock-bg:set-preset', 'lock-bg:clear', 'lock-bg:choose-custom',
+    // main/ipc/assistant.js
+    'assistant:get-status', 'assistant:chat', 'assistant:tool-result', 'assistant:ollama-test'
 ])
 
 const validSendChannels = new Set([
@@ -121,7 +143,9 @@ const validSendChannels = new Set([
     'lock:set-state',
     // main/bootstrap/registerAppEvents.js — ack that lets before-quit stop
     // waiting on the renderer's quit-time cloud sync flush (see app-quitting)
-    'app-quitting-flushed'
+    'app-quitting-flushed',
+    // main/ipc/assistant.js — отмена активного запроса к модели
+    'assistant:cancel'
 ])
 
 function mapInvokeChannel(channel) {

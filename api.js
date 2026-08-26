@@ -183,6 +183,10 @@ module.exports = {
         return request('GET', '/api/user/devices', null, token)
     },
 
+    getAssistantUsage(token) {
+        return request('GET', '/api/assistant/usage', null, token)
+    },
+
     revokeDevice(token, deviceId) {
         return request('DELETE', `/api/user/devices/${deviceId}`, null, token)
     },

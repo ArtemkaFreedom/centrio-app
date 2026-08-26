@@ -4,6 +4,7 @@
 
 const { ipcMain } = require('electron')
 const ext = require('../services/extensions')
+const entitlement = require('../services/entitlement')
 
 let log
 try { log = require('electron-log') } catch { log = console }
@@ -18,15 +19,14 @@ function safeHandle(channel, handler) {
 // Реальные расширения — платная Pro-фича. Проверка на клиенте (renderer/extensions-ui.js)
 // защищает только UI; сама установка/включение идёт через IPC, вызываемый из webview-контента
 // в devtools можно дёрнуть window.electronAPI.extInstall/extToggle напрямую — так что источник
-// правды (store.cloud.user.plan) проверяется здесь же, в main, а не только в renderer.
+// правды (entitlement.isEffectivePro(), main/services/entitlement.js) проверяется здесь же,
+// в main, а не только в renderer. Раньше эта функция читала store.cloud.user.plan напрямую —
+// с тем же успехом, что и renderer, потому что тот же ключ был доступен на запись через общий
+// store:set IPC-канал (см. PROTECTED_SET_KEYS в main.js для разбора и фикса), и не учитывала
+// локальный 14-дневный триал вовсе (см. hasEffectivePro() в renderer.js) — оба недостатка
+// закрыты общим entitlement-модулем.
 function isProUser() {
-    try {
-        const store = require('../services/store')
-        const plan = String(store.get('cloud.user', null)?.plan || 'FREE').toUpperCase()
-        return plan !== 'FREE'
-    } catch {
-        return false
-    }
+    return entitlement.isEffectivePro()
 }
 
 function registerExtensionsIpc() {

@@ -366,6 +366,69 @@ function createLockApi({
         }, 400)
     }
 
+    // ── Автомасштабирование экрана блокировки под размер окна ──────────────
+    // BUGFIX (2026-08-24, "на всех экранах на экране блокировки всё должно
+    // масштабироваться под размер экрана. А то половина не видна" — live
+    // user report): подробности архитектуры — в комментарии у #lockStack в
+    // index.html. scrollWidth/scrollHeight ниже — это layout-размер БЕЗ
+    // учёта CSS-transform (transform не меняет layout-box), так что их можно
+    // мерить, не сбрасывая уже применённый масштаб перед пересчётом.
+    const LOCK_STACK_MIN_SCALE = 0.55
+    let lockStackResizeObserver = null
+    let lockStackFitRaf = null
+
+    function fitLockStack() {
+        const lockScreen = document.getElementById('lockScreen')
+        const stack = document.getElementById('lockStack')
+        if (!lockScreen || !stack) return
+        if (lockScreen.style.display === 'none') return
+
+        const cs = getComputedStyle(lockScreen)
+        const padX = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0')
+        const padY = parseFloat(cs.paddingTop || '0') + parseFloat(cs.paddingBottom || '0')
+        const availableW = lockScreen.clientWidth - padX
+        const availableH = lockScreen.clientHeight - padY
+        const naturalW = stack.scrollWidth
+        const naturalH = stack.scrollHeight
+        if (naturalW <= 0 || naturalH <= 0 || availableW <= 0 || availableH <= 0) return
+
+        const rawScale = Math.min(1, availableW / naturalW, availableH / naturalH)
+        // Ниже этого порога контент стал бы нечитаемым — дальше остаток
+        // отдаём уже существующему overflow-y:auto на .lock-screen вместо
+        // сжатия до нечитаемости.
+        const scale = Math.max(LOCK_STACK_MIN_SCALE, rawScale)
+
+        stack.style.transform = scale < 0.999 ? `scale(${scale})` : ''
+    }
+
+    function scheduleFitLockStack() {
+        if (lockStackFitRaf) return
+        lockStackFitRaf = requestAnimationFrame(() => {
+            lockStackFitRaf = null
+            fitLockStack()
+        })
+    }
+
+    // Реагирует и на изменение размера ОКНА (viewport), и на изменение
+    // естественного размера самого контента (виджеты погоды/активности
+    // подгружаются асинхронно и переключают display:none → flex уже ПОСЛЕ
+    // первого showLockScreen() — без ResizeObserver масштаб не пересчитался
+    // бы под их появление).
+    function bindLockStackAutoFit() {
+        const stack = document.getElementById('lockStack')
+        if (!stack) return
+
+        if (!lockStackResizeObserver && typeof ResizeObserver !== 'undefined') {
+            lockStackResizeObserver = new ResizeObserver(scheduleFitLockStack)
+            lockStackResizeObserver.observe(stack)
+        }
+
+        if (!bindLockStackAutoFit._windowBound) {
+            bindLockStackAutoFit._windowBound = true
+            window.addEventListener('resize', scheduleFitLockStack)
+        }
+    }
+
     function showLockScreen() {
         const lockScreen = document.getElementById('lockScreen')
         const lockInput = document.getElementById('lockInput')
@@ -383,6 +446,8 @@ function createLockApi({
         // attaches the picker's listeners — bindLockBgPicker() is idempotent
         // (dataset.bound guards), so it's safe to call on every show.
         bindLockBgPicker()
+        bindLockStackAutoFit()
+        scheduleFitLockStack()
         startClock()
         startWidgetRefresh()
         setTimeout(() => lockInput.focus(), 150)

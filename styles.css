@@ -784,6 +784,13 @@ body.platform-darwin .titlebar-left  { padding-left: 78px; } /* отступ п�
     border-left: none;
 }
 
+/* DOM-порядок в index.html: .right-panel (чат/уведомления/задачи) идёт
+   ПЕРЕД .right-activity-bar (колонка иконок, самая правая) — визуально
+   слева направо: [контент] [.right-panel 380px] [.right-activity-bar 48px].
+   Линию между контентом и .right-panel убрали (см. .right-panel.open
+   ниже) — это та, что пользователь просил убрать изначально. А эту, между
+   .right-panel и .right-activity-bar (ровно там, где скролл списка
+   сообщений ассистента), пользователь просил вернуть. */
 .main-container:has(.right-panel.open) .right-activity-bar {
     border-left: 1px solid var(--border);
 }
@@ -807,20 +814,17 @@ body.platform-darwin .titlebar-left  { padding-left: 78px; } /* отступ п�
     flex-shrink: 0;
     overflow: hidden;
     background: var(--sidebar-bg);
-    /* border-left НЕ ставим здесь на постоянку: даже при width:0 бордер
-       всё равно рисуется (box-sizing:border-box не убирает его, а просто
-       не даёт контенту вылезти за пределы) — получалась вторая, лишняя
-       "рамка" перед иконками правого сайдбара, даже когда панель закрыта.
-       Бордер появляется только вместе с .open, когда панель реально видна. */
     position: relative;
     /* cubic-bezier вместо ease — резкое ускорение в начале/конце на
-       0→320px ощущалось как рывок ("лагает"), а не плавное движение. */
+       0→380px ощущалось как рывок ("лагает"), а не плавное движение. */
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .right-panel.open {
-    width: 320px;
-    border-left: 1px solid var(--border);
+    width: 380px;
+    /* border-left (граница между основным контентом и панелью) убран по
+       просьбе пользователя — панель сливается с фоном окна. Граница с
+       .right-activity-bar с ДРУГОЙ стороны панели восстановлена выше. */
 }
 
 [data-theme="embedded"] .right-panel {
@@ -836,7 +840,7 @@ body.platform-darwin .titlebar-left  { padding-left: 78px; } /* отступ п�
     inset: 0;
     display: flex;
     flex-direction: column;
-    width: 320px;
+    width: 380px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease;
@@ -1899,11 +1903,20 @@ body.platform-darwin .titlebar-left  { padding-left: 78px; } /* отступ п�
 }
 
 /* Скругление именно самой активной вкладки — обязательно для темы
-   "Встроенная", это её характерная фишка. Отступ только сверху (не с
-   боков — там будет угол виден без рамки на боках/снизу, которая раньше
-   и создавала проблему с шириной сайдбаров). */
+   "Встроенная", это её характерная фишка. Раньше отступ был только сверху
+   (не с боков — там будет угол виден без рамки на боках/снизу, которая
+   раньше и создавала проблему с шириной сайдбаров), но снизу от вкладки
+   до статус-бара получалось 0px — а сам статус-бар ещё и высотой 26px,
+   так что визуально расстояние "мессенджер → низ окна" выходило заметно
+   больше, чем "мессенджер → верх окна" (8px). Добавили симметричный
+   margin-bottom, чтобы отступ до статус-бара совпадал с отступом сверху —
+   футер визуально "поднимается" ближе к вкладке вместо того, чтобы липнуть
+   к ней вплотную. Боковые отступы сознательно не трогаем — см. комментарий
+   выше про ширину сайдбаров.
+*/
 [data-theme="embedded"] .content-area {
     margin-top: 8px;
+    margin-bottom: 8px;
 }
 
 [data-theme="embedded"] .content-area webview {
@@ -2038,6 +2051,75 @@ webview {
 }
 
 webview.active { display: flex; }
+
+/* FEATURE (2026-08-24, "заглушка на основном окне ... авторизация через
+   окно отдельное" — live user request): пока OAuth (Google/Яндекс и т.д.)
+   идёт в отдельном BrowserWindow-попапе (см. wireOAuthPopup() в
+   main/ipc/window.js, 'oauth-popup-started'/'oauth-popup-closed' в
+   renderer/webview-tabs-bind.js), вкладка мессенджера под попапом выглядит
+   как будто просто ничего не происходит. Перекрываем ТОЛЬКО ту вкладку, для
+   которой сейчас идёт авторизация (не всё окно целиком — остальные вкладки
+   остаются кликабельными), с понятным объяснением, куда смотреть.
+   BUGFIX (2026-08-25, live user report AFTER the 60s safety-net timer was
+   already shipped: "после авторизации окно всё также недоступно. Зачем мы
+   вообще его блокируем?"): pointer-events: auto here means EVERY remaining
+   edge case in the 'oauth-popup-started'/'oauth-popup-closed'/'oauth-popup-done'
+   IPC chain (main process never sending the done/closed event for some
+   provider path we haven't hit yet, a message arriving before the listener
+   is bound, etc.) turns into "the user's tab is literally unclickable until
+   a 60-second timer fires or they restart the app". That's a worse failure
+   mode than the thing this overlay was built to prevent (an OAuth tab that
+   merely LOOKS idle for a few seconds). Dropping this to pointer-events:
+   none makes the overlay purely informational — it can visually indicate
+   "signing in via a separate window" but can never again be the reason a
+   tab stops responding to clicks, regardless of any IPC-timing bug we
+   haven't found yet. The 60s safety net above stays as a second layer that
+   still auto-clears + reloads the tab either way. */
+.oauth-popup-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 250;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+    padding: 32px;
+    background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    pointer-events: none;
+}
+
+.oauth-popup-overlay.show { display: flex; }
+
+.oauth-popup-overlay__spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    border-top-color: var(--accent);
+    animation: oauthOverlaySpin 0.9s linear infinite;
+}
+
+@keyframes oauthOverlaySpin {
+    to { transform: rotate(360deg); }
+}
+
+.oauth-popup-overlay__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    max-width: 360px;
+}
+
+.oauth-popup-overlay__hint {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    max-width: 320px;
+    line-height: 1.5;
+}
 
 /* Ловит клики/правые клики над webview, пока открыт любой попап — см.
    renderer/popup-backdrop-bind.js (position/left/top/width/height задаёт JS,
@@ -5656,55 +5738,59 @@ body:has(.modal.show) .split-handle { display: none !important; }
     color: var(--accent);
 }
 
-/* ОСНОВНОЕ ТЕЛО — скролл + навигация сбоку */
+/* ===== ПИКЕР МЕССЕНДЖЕРОВ — РЕДИЗАЙН (2026-08-24) =====
+   "Полностью переработай окно выбора нового мессенджера с плюсика ...
+   Новый дизайн, больше значков, другая анимация, другая прокрутка" —
+   живой запрос пользователя, явное недовольство прежним видом (сетка 4×2,
+   постраничное листание колесом мыши, точки-пагинатор сбоку). Ниже —
+   непрерывный нативный скролл по секциям-категориям вместо страниц. */
+
+/* Немного шире и выше обычной модалки — теперь тут одновременно видно
+   заметно больше сервисов, чем в старых 8-плиточных страницах. */
+.modal-add.modal-content {
+    width: 560px;
+    max-height: min(680px, 85vh);
+}
+
+/* Тонкая шкала прогресса прокрутки под поиском — сигнатурный элемент вместо
+   точек-пагинатора: показывает, сколько сервисов ещё ниже, не прерывая
+   нативный скролл колесом мыши. */
+.modal-scroll-progress {
+    margin: 12px 24px 0;
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.05);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.modal-scroll-progress-bar {
+    height: 100%;
+    width: 6%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover, var(--accent)));
+    transition: width 0.15s ease-out;
+}
+
 .modal-main {
     display: flex;
     flex: 1;
     overflow: hidden;
-    margin-top: 12px;
+    margin-top: 10px;
     padding: 0 0 8px;
     min-height: 0;
 }
 
-/* БОКОВАЯ НАВИГАЦИЯ СТРАНИЦ */
-.modal-pages-nav {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 0 10px 0 16px;
-    min-width: 32px;
-}
-
-.modal-page-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.12);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-}
-
-.modal-page-dot.active {
-    background: var(--accent);
-    width: 6px;
-    height: 20px;
-    border-radius: 3px;
-}
-
-.modal-page-dot:hover:not(.active) {
-    background: rgba(255,255,255,0.3);
-    transform: scale(1.3);
-}
-
-/* КОНТЕНТ СЕТКИ */
+/* КОНТЕНТ СЕТКИ — обычный нативный overflow-y:auto, никакого перехвата
+   колеса мыши. Мягкое затухание сверху/снизу (mask-image) намекает, что
+   список длиннее, чем видно на экране — без отдельного элемента-подсказки. */
 .modal-grid-wrap {
     flex: 1;
     overflow-y: auto;
-    padding: 0 24px 0 0;
+    padding: 0 24px 0 24px;
     scroll-behavior: smooth;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
 
 .modal-grid-wrap::-webkit-scrollbar {
@@ -5720,65 +5806,116 @@ body:has(.modal.show) .split-handle { display: none !important; }
     border-radius: 2px;
 }
 
-/* СЕТКА МЕССЕНДЖЕРОВ */
+.messenger-grid-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.modal-category + .modal-category {
+    margin-top: 6px;
+}
+
+/* Заголовок секции "прилипает" к верху при прокрутке — ориентир, в какой
+   категории сейчас находится взгляд, без вмешательства в сам скролл. */
+.modal-category-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding: 10px 2px 8px;
+    background: color-mix(in srgb, #111214 88%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.modal-category-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.modal-category-count {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.05);
+    border-radius: 20px;
+    padding: 1px 6px;
+}
+
+/* СЕТКА МЕССЕНДЖЕРОВ — 5 колонок вместо 4: больше значков видно одновременно,
+   без постраничного деления. */
 .messenger-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 6px;
-    padding: 4px 0 8px;
+    padding: 2px 0 10px;
+}
+
+@keyframes messengerTileReveal {
+    from { opacity: 0; transform: translateY(10px) scale(0.92); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
 .messenger-grid-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 16px 8px 14px;
+    gap: 7px;
+    padding: 14px 6px 12px;
     border-radius: 14px;
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
     background: rgba(255,255,255,0.02);
     border: 1px solid transparent;
     position: relative;
     overflow: hidden;
-}
-
-.messenger-grid-item::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(99,60,180,0.08), rgba(34,197,94,0.05));
     opacity: 0;
-    transition: opacity 0.2s;
+    animation: messengerTileReveal 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.messenger-grid-item:hover {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.08);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-}
-
-.messenger-grid-item:hover::before {
+.messenger-grid-item.no-stagger {
     opacity: 1;
+    animation: none;
+}
+
+/* Подсветка при наведении берёт РЕАЛЬНЫЙ фирменный цвет сервиса
+   (--tile-glow, проставляется из messenger.color в JS) — плитка Telegram
+   светится телеграмовским синим, WhatsApp — зелёным, и т.д., а не одним
+   общим акцентом на всё подряд. */
+.messenger-grid-item:hover {
+    background: color-mix(in srgb, var(--tile-glow, var(--accent)) 10%, rgba(255,255,255,0.04));
+    border-color: color-mix(in srgb, var(--tile-glow, var(--accent)) 45%, transparent);
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 10px 26px -8px color-mix(in srgb, var(--tile-glow, var(--accent)) 55%, transparent);
 }
 
 .messenger-grid-item:active {
-    transform: translateY(0) scale(0.96);
+    transform: translateY(-1px) scale(0.97);
 }
 
 .messenger-grid-item img {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
     object-fit: contain;
     position: relative;
     z-index: 1;
     filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    transition: transform 0.18s ease;
+}
+
+.messenger-grid-item:hover img {
+    transform: scale(1.08) rotate(-2deg);
 }
 
 .messenger-grid-item span {
-    font-size: 11.5px;
+    font-size: 11px;
     color: var(--text-secondary);
     text-align: center;
     white-space: nowrap;
@@ -5792,6 +5929,29 @@ body:has(.modal.show) .split-handle { display: none !important; }
 
 .messenger-grid-item:hover span {
     color: var(--text-primary);
+}
+
+/* Пустое состояние поиска — без плиток, но с понятным ориентиром */
+.modal-grid-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 48px 16px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.modal-grid-empty span {
+    font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .messenger-grid-item {
+        opacity: 1;
+        animation: none;
+    }
 }
 
 /* ДОБАВИТЬ СВОЙ — выпадающий */
@@ -6218,6 +6378,21 @@ body:has(.modal.show) .split-handle { display: none !important; }
 }
 
 /* ── Часы (macOS/iOS-style, крупные и лёгкие) ──────────────────────────── */
+/* BUGFIX (2026-08-24) — обёртка часов+PIN-карты+виджетов, которую
+   fitLockStack() в renderer/lock.js масштабирует под реальный размер окна
+   (transform: scale()). max-width/max-height подстраховывают на случай,
+   если JS ещё не успел отработать (первый кадр до requestAnimationFrame) —
+   оставшийся overflow-y:auto на .lock-screen ловит любой остаток. */
+.lock-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+    max-width: 100%;
+    transform-origin: center center;
+    transition: transform 0.15s ease;
+}
+
 .lock-clock-wrap {
     position: relative;
     display: flex;
@@ -12475,4 +12650,505 @@ body.onb-active #titlebarMenu {
 .titlebar {
     background: var(--bg-primary) !important;
     border-bottom: none !important;
+}
+
+/* ===== AI-АССИСТЕНТ (правая панель + вкладка настроек) ===== */
+
+.assistant-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.assistant-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.assistant-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.assistant-messages::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.assistant-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Лимит сообщений PRO-тарифа — кольцевой индикатор в духе Claude Code
+   (кружок, который заполняется по остатку лимита) в шапке панели вместо
+   текстовой полосы. Те же данные (used/limit), что и в Настройки →
+   AI-ассистент (см. assistant-settings-bind.js: refreshProUsage), просто
+   компактнее и по клику — во всплывающем окне. Скрыт для BYOK/локальных
+   моделей — там квоты нет. */
+.assistant-quota-wrap {
+    position: relative;
+    display: flex;
+}
+
+.assistant-quota-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.assistant-quota-btn:hover {
+    background: var(--bg-active);
+}
+
+.assistant-quota-ring-track {
+    stroke: var(--border);
+}
+
+.assistant-quota-ring-fill {
+    stroke: var(--accent);
+    stroke-dasharray: 50.27;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 0.3s ease, stroke 0.15s ease;
+}
+
+/* Мало сообщений осталось — кольцо предупреждает цветом до открытия попапа. */
+.assistant-quota-btn.assistant-quota-low .assistant-quota-ring-fill {
+    stroke: var(--danger, #e74c3c);
+}
+
+.assistant-quota-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    /* BUGFIX ("не видно что написано"): the quota button sits near the
+       right edge of the 380px-wide right panel (.right-panel has
+       overflow:hidden for its slide-in animation) — anchoring the 220px
+       popover with left:0 pushed most of its width past the panel's right
+       edge, where it got silently clipped. Anchor to the button's right
+       edge instead so the popover opens leftward, staying inside the panel. */
+    right: 0;
+    z-index: 20;
+    width: 220px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.assistant-quota-popover-bar {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--bg-active);
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.assistant-quota-popover-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s ease, background 0.15s ease;
+}
+
+.assistant-quota-popover-text {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+}
+
+.assistant-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+    height: 100%;
+}
+
+.assistant-empty-examples {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.assistant-example-chip {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 9px 13px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.assistant-example-chip:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+    background: var(--accent-dim);
+}
+
+.assistant-msg {
+    display: flex;
+    max-width: 88%;
+}
+
+.assistant-msg-user {
+    align-self: flex-end;
+}
+
+.assistant-msg-bot {
+    align-self: flex-start;
+}
+
+.assistant-msg-content {
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.assistant-msg-user .assistant-msg-content {
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+.assistant-msg-bot .assistant-msg-content {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+}
+
+/* Чип "инструмент выполняется" — показывается между сообщениями, пока
+   assistant-bind.js исполняет tool-call через assistant-tools.js. */
+.assistant-tool-chip {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Индикатор "Centrio думает" — крутящийся логотип, показывается сразу
+   после отправки сообщения и убирается, как только приходит первый токен
+   текста или tool-чип (см. assistant-bind.js: startThinkingIndicator/
+   stopThinkingIndicator). Раньше вместо этого до первого токена был виден
+   пустой пузырь ответа — эта индикация как раз закрывает тот разрыв. */
+.assistant-thinking {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 13px 6px 6px;
+    border-radius: 20px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+}
+
+.assistant-thinking-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    animation: spin 1.1s linear infinite;
+}
+
+.assistant-thinking-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Прыгающие точки рядом с "Centrio думает…" — тот же классический
+   typing-indicator паттерн, что у большинства чат-ассистентов. Три точки
+   с одинаковой анимацией, но со сдвигом по времени (animation-delay),
+   из-за чего они "бегут" по очереди, а не мигают синхронно. */
+.assistant-thinking-dots {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.assistant-thinking-dots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    animation: assistantDotBounce 1.1s ease-in-out infinite;
+}
+
+.assistant-thinking-dots span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.assistant-thinking-dots span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes assistantDotBounce {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+    30% {
+        transform: translateY(-4px);
+        opacity: 1;
+    }
+}
+
+/* Приветствие по времени суток в пустом состоянии чата (renderEmptyState в
+   assistant-bind.js) — крупнее и заметнее описания под ним, как в
+   welcome-экранах у Copilot/Notion AI и т.п. */
+.assistant-empty-greeting {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.assistant-empty-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: -6px;
+}
+
+.assistant-status {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--danger, #e74c3c);
+    background: var(--danger-dim, rgba(231,76,60,0.1));
+    border-top: 1px solid var(--border);
+}
+
+.assistant-status:not(.assistant-status-error) {
+    color: var(--text-secondary);
+    background: transparent;
+}
+
+/* Форма — единая капсула (как поле ввода Claude Code): textarea растёт
+   внутри неё, стрелочка отправки лежит внутри поля, в правом нижнем углу,
+   а не отдельной кнопкой рядом — по сути "Enter", но кликабельный. */
+.assistant-input-form {
+    flex-shrink: 0;
+    position: relative;
+    margin: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--bg-tertiary);
+    transition: border-color 0.15s;
+}
+
+.assistant-input-form:focus-within {
+    border-color: var(--accent);
+}
+
+.assistant-input {
+    display: block;
+    width: 100%;
+    resize: none;
+    /* Высота растёт вместе с текстом (см. assistant-bind.js: autoGrowInput),
+       max-height — потолок роста, дальше появляется собственный скролл. */
+    max-height: 160px;
+    overflow-y: auto;
+    /* Скролл нужен только функционально (при длинном тексте), сама полоса
+       не нужна — пользователь просил убрать видимую прокрутку в поле
+       ввода. */
+    scrollbar-width: none;
+    background: transparent;
+    border: none;
+    /* Правый паддинг освобождает место под встроенную кнопку отправки. */
+    padding: 10px 42px 10px 14px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+}
+
+.assistant-input::-webkit-scrollbar {
+    display: none;
+}
+
+.assistant-input::placeholder {
+    color: var(--text-muted);
+}
+
+.assistant-send-btn {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+}
+
+.assistant-send-btn:hover {
+    opacity: 0.9;
+}
+
+.assistant-send-btn:active {
+    transform: scale(0.94);
+}
+
+.assistant-send-btn:disabled,
+.assistant-panel.assistant-sending .assistant-send-btn {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* ── Настройки → AI-ассистент ───────────────────────────────────────── */
+
+.assistant-mode-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.assistant-mode-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.assistant-mode-card:hover {
+    border-color: var(--accent);
+}
+
+.assistant-mode-card.active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.assistant-mode-card-title {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.assistant-mode-card-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.assistant-mode-card-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.assistant-byok-keys {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.assistant-byok-key-row {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.assistant-byok-key-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.assistant-byok-key-status {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.assistant-byok-key-status.is-configured {
+    color: var(--accent);
+}
+
+.assistant-byok-key-row-fields {
+    display: flex;
+    gap: 8px;
+}
+
+.assistant-byok-key-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.assistant-settings-status {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.assistant-settings-status-ok {
+    color: var(--accent);
+}
+
+.assistant-settings-status-error {
+    color: var(--danger, #e74c3c);
+    background: var(--danger-dim, rgba(231,76,60,0.1));
+}
+
+@media (max-width: 720px) {
+    .assistant-mode-grid {
+        grid-template-columns: 1fr;
+    }
+    .assistant-byok-key-row-fields {
+        flex-wrap: wrap;
+    }
 }

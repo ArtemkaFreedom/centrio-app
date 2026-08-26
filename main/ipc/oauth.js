@@ -1,6 +1,7 @@
 const { ipcMain, shell } = require('electron')
 const crypto = require('crypto')
 const store = require('../services/store')
+const entitlement = require('../services/entitlement')
 const { OAUTH } = require('../config/constants')
 const { createModalWindow } = require('../factory/modalWindow')
 const { t } = require('../services/i18n')
@@ -104,6 +105,12 @@ function registerOAuthIpc({ getMainWindow }) {
             const user = result?.data?.user
             if (!user) throw new Error('Failed to get user data')
 
+            // SECURITY: persist here, in main, from the object main itself just
+            // fetched over TLS from /api/auth/me — never trust a `plan` field
+            // the renderer could hand back after the fact. See PROTECTED_SET_KEYS
+            // in main.js.
+            entitlement.persistCloudUser(user)
+
             return { user, accessToken, refreshToken }
         })
     })
@@ -119,6 +126,8 @@ function registerOAuthIpc({ getMainWindow }) {
             const result = await apiSvc.me(accessToken)
             const user = result?.data?.user
             if (!user) throw new Error('Failed to get user data')
+
+            entitlement.persistCloudUser(user)
 
             return { user, accessToken, refreshToken }
         })

@@ -4,6 +4,7 @@ const { pathToFileURL } = require('url')
 const { ipcMain, app } = require('electron')
 const api = require('../services/api')
 const tracker = require('../services/tracker')
+const entitlement = require('../services/entitlement')
 
 function normalizeError(error) {
     const status = error?.response?.status
@@ -42,6 +43,20 @@ async function wrapApi(call) {
     } catch (error) {
         return normalizeError(error)
     }
+}
+
+// SECURITY: called after every auth-ish endpoint that returns a fresh `user`
+// object, so main.js persists `cloud.user` itself — the ONLY code path
+// allowed to, since the generic store:set IPC channel now blocks that key
+// (see PROTECTED_SET_KEYS in main.js). The renderer never gets a chance to
+// substitute its own `plan` field: this only ever runs with data this
+// process itself just received over TLS from the real backend.
+async function wrapApiAndPersistUser(call) {
+    const result = await wrapApi(call)
+    if (result.success && result.data?.user) {
+        entitlement.persistCloudUser(result.data.user)
+    }
+    return result
 }
 
 function getWebviewPreloadPath() {
@@ -88,19 +103,19 @@ function registerApiIpc() {
     })
 
     ipcMain.handle('api-login', async (event, email, password) => {
-        return wrapApi(() => api.login(email, password))
+        return wrapApiAndPersistUser(() => api.login(email, password))
     })
 
     ipcMain.handle('api-register', async (event, email, password, name) => {
-        return wrapApi(() => api.register(email, password, name))
+        return wrapApiAndPersistUser(() => api.register(email, password, name))
     })
 
     ipcMain.handle('api-me', async (event, token) => {
-        return wrapApi(() => api.me(token))
+        return wrapApiAndPersistUser(() => api.me(token))
     })
 
     ipcMain.handle('api-refresh', async (event, refreshToken) => {
-        return wrapApi(() => api.refresh(refreshToken))
+        return wrapApiAndPersistUser(() => api.refresh(refreshToken))
     })
 
     ipcMain.handle('api-sync-push', async (event, token, arg1, arg2, arg3) => {
@@ -129,11 +144,15 @@ function registerApiIpc() {
     })
 
     ipcMain.handle('api-update-profile', async (event, token, data) => {
-        return wrapApi(() => api.updateProfile(token, data))
+        return wrapApiAndPersistUser(() => api.updateProfile(token, data))
     })
 
     ipcMain.handle('api-get-stats', async (event, token) => {
         return wrapApi(() => api.getStats(token))
+    })
+
+    ipcMain.handle('api-assistant-usage', async (event, token) => {
+        return wrapApi(() => api.getAssistantUsage(token))
     })
 
     ipcMain.handle('api-logout', async (event, token) => {
@@ -161,18 +180,25 @@ function registerApiIpc() {
         try {
             const { machineIdSync } = require('node-machine-id')
             const hardwareId = machineIdSync()
-            return wrapApi(() => api.deviceTrialRedeem(hardwareId))
+            const result = await wrapApi(() => api.deviceTrialRedeem(hardwareId))
+            // SECURITY: main persists the trial expiry itself (same rationale as
+            // wrapApiAndPersistUser above) — localProTrialExpiresAt is blocked
+            // on the generic store:set channel, see PROTECTED_SET_KEYS in main.js.
+            if (result.success && typeof result.data?.expiresAt === 'string') {
+                entitlement.persistTrialExpiry(result.data.expiresAt)
+            }
+            return result
         } catch (error) {
             return normalizeError(error)
         }
     })
 
     ipcMain.handle('api-yandex-desktop', async (event, accessToken) => {
-        return wrapApi(() => api.yandexDesktop(accessToken))
+        return wrapApiAndPersistUser(() => api.yandexDesktop(accessToken))
     })
 
     ipcMain.handle('api-vk-desktop', async (event, accessToken, userId) => {
-        return wrapApi(() => api.vkDesktop(accessToken, userId))
+        return wrapApiAndPersistUser(() => api.vkDesktop(accessToken, userId))
     })
 
     // ── Tracker IPC ──────────────────────────────────────────────

@@ -11,6 +11,7 @@ function bindSettingsUi({
     updateLockBtn,
     requirePro,
     openExtensionsSection,
+    openAssistantSection,
     replayOnboardingTour
 }) {
     const settingsBtn = document.getElementById('settingsBtn')
@@ -67,6 +68,9 @@ function bindSettingsUi({
 
             if (item.dataset.section === 'extensions' && typeof openExtensionsSection === 'function') {
                 openExtensionsSection()
+            }
+            if (item.dataset.section === 'assistant' && typeof openAssistantSection === 'function') {
+                openAssistantSection()
             }
         })
     })

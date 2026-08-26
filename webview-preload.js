@@ -68,6 +68,99 @@ window.addEventListener('__centrio_badge', (e) => {
 
 injectBadgeApiHook()
 
+// BUGFIX (2026-08-26): this file used to also inject a script that hid
+// navigator.userAgentData and overrode navigator.userAgent/appVersion to
+// Firefox on accounts.google.* pages, mirroring the network-level Firefox
+// UA spoof in ensureGoogleAccountsUaOverride() (main/ipc/window.js). Live
+// A/B testing (scripts/ua-matrix.js, run against the user's real Gmail
+// session) proved that whole UA-spoofing approach was the CAUSE of
+// Google's rejection, not a fix for it — see the BUGFIX comment above
+// isGoogleAccountsUrl() in main/ipc/window.js for the evidence. The
+// spoofing has been removed from every wiring point instead of patched
+// further; this preload now only guards WebAuthn conditional UI below.
+
+// BUGFIX (2026-08-25, "Гугл выдает про ключ на любой авторизации ...
+// постоянно сначала стандартное окно винды для входа через ключ" —
+// live-reported на трёх разных машинах, не специфично для одного
+// мессенджера): нативный диалог Windows Hello/"ключ безопасности"
+// появляется САМ, ещё до какого-либо действия пользователя — это не
+// объяснить UA/userAgentData-хуками выше (они лишь меняют то, что Google
+// ЧИТАЕТ, а не реальные возможности движка). Причина — WebAuthn
+// "conditional UI" (автозаполнение пасскеев): страница вызывает
+// navigator.credentials.get({ mediation: 'conditional', publicKey: {...} })
+// молча при загрузке формы логина, а Chromium в ответ САМ поднимает
+// нативный OS-диалог выбора ключа/Windows Hello — независимо от того, что
+// говорит navigator.userAgent (спуфинг строки не меняет реальные
+// возможности WebAuthn-движка). PublicKeyCredential.isConditionalMediationAvailable()
+// — это не UA-сниффинг, а прямая проверка возможностей движка, так что
+// даже прикинувшись Firefox, страница всё равно получит true.
+// Исправление в две линии обороны: (1) заставляем
+// isConditionalMediationAvailable() вернуть false — корректные сайты сами
+// не станут звать conditional-get(), если он "недоступен" (то же самое,
+// что видели бы в браузере без поддержки этой фичи); (2) на случай сайта,
+// который всё равно вызовет conditional-get() без проверки — сам вызов
+// возвращает вечно висящий Promise вместо реального обращения к
+// нативному API, так что OS-диалог просто не появляется (то же поведение,
+// что у пользователя, который ничего не выбрал из автозаполнения).
+// Обычный (не-conditional) navigator.credentials.get() — например, явный
+// клик по "войти через ключ безопасности" — не трогаем, чтобы не сломать
+// осознанный 2FA-вход тем, кому он реально нужен.
+//
+// BUGFIX (2026-08-25, "открываю окно авторизации через Google — Centrio
+// целиком перестаёт реагировать на клики, закрытие попапа не помогает" —
+// live-reproduced и root-caused через computer-use: Диспетчер задач не
+// показывает ни одного процесса Centrio.exe как "Не отвечает" и CPU не
+// зашкаливает — то есть окно не в deadlock'е, а физически заблокировано
+// снаружи; клик по кастомной кнопке "свернуть" не долетает вообще никуда.
+// То, что закрытие попапа НЕ снимает блокировку, исключает всё, что
+// завязано на жизненный цикл самого попап-окна (focus/alwaysOnTop-фиксы
+// из 2.3.22/2.3.23) — блокирующий объект переживает закрытие попапа,
+// значит это осиротевший нативный OS-диалог (тот же WebAuthn conditional
+// UI broker, что и выше), а не что-то внутри Electron): этот хук раньше
+// был ограничен GOOGLE_ACCOUNTS_HOST_RE и не покрывал произвольные сайты
+// мессенджеров (напр. grok.com), которые тоже могут молча звать
+// conditional-mediation WebAuthn на своей форме логина — на них нативный
+// диалог поднимался вообще без всякой защиты. Вынесена в отдельную,
+// НИЧЕМ не ограниченную по хосту функцию и вызывается на КАЖДОЙ странице
+// внутри вкладки мессенджера, а не только на accounts.google.*. Второй,
+// независимый от гонки со скриптами барьер — Permissions-Policy заголовок
+// на HTTP-уровне — добавлен в main/ipc/window.js (onHeadersReceived) и
+// main/bootstrap/registerAppEvents.js.
+function injectWebAuthnConditionalUiGuard() {
+    const target = document.head || document.documentElement
+    if (!target) {
+        setTimeout(injectWebAuthnConditionalUiGuard, 10)
+        return
+    }
+    try {
+        const script = document.createElement('script')
+        script.textContent = `(() => {
+            try {
+                if (window.PublicKeyCredential && typeof window.PublicKeyCredential.isConditionalMediationAvailable === 'function') {
+                    window.PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(false);
+                }
+            } catch {}
+            try {
+                if (navigator.credentials && typeof navigator.credentials.get === 'function') {
+                    const originalCredentialsGet = navigator.credentials.get.bind(navigator.credentials);
+                    navigator.credentials.get = function (options) {
+                        if (options && options.mediation === 'conditional') {
+                            return new Promise(() => {});
+                        }
+                        return originalCredentialsGet(options);
+                    };
+                }
+            } catch {}
+        })();`
+        target.appendChild(script)
+        script.remove()
+    } catch {
+        // ignore — страница просто увидит настоящий WebAuthn conditional UI
+    }
+}
+
+injectWebAuthnConditionalUiGuard()
+
 function getHostname() {
     try {
         return window.location.hostname || ''
@@ -794,10 +887,33 @@ function bindDropFileHandler() {
 // ссылки уходят через sendToHost() к host-документу (renderer/messengers.js
 // слушает 'ipc-message' на самом <webview>), а не напрямую в main процесс —
 // именно renderer решает, переключить вкладку или откатиться на open-url.
+// Дублирует OAUTH_PROVIDER_HOST_RE из shared/oauthProviders.js — этот
+// preload не бандлится esbuild'ом (грузится Electron'ом напрямую как
+// файл, в отличие от renderer/webview-tabs-bind.js), require() локального
+// модуля здесь не гарантированно резолвится (тот же повод, по которому
+// shared/oauthProviders.js уже объясняет дублирование для main/renderer).
+const OAUTH_PROVIDER_HOST_RE = /(^|\.)accounts\.google\.com$|(^|\.)appleid\.apple\.com$|(^|\.)login\.live\.com$|(^|\.)login\.microsoftonline\.com$|(^|\.)oauth\.yandex\.(ru|com)$|(^|\.)passport\.yandex\.(ru|com)$|(^|\.)id\.vk\.com$/i
+function isOAuthProviderHost(href) {
+    try {
+        return OAUTH_PROVIDER_HOST_RE.test(new URL(href, window.location.href).hostname)
+    } catch {
+        return false
+    }
+}
+
 function classifyDeepLink(href) {
     if (!href) return null
-    // tg://resolve?domain=username — Telegram custom-protocol ссылки
-    if (/^tg:\/\//i.test(href)) return { service: 'telegram', href }
+    // tg://resolve?domain=username или tg://join?invite=<hash> — единственные
+    // два tg://-паттерна, которые translateDeepLinkUrl() (renderer/
+    // webview-tabs-bind.js) реально умеет превращать в t.me-ссылку. Раньше
+    // здесь стоял общий /^tg:\/\//i, ловивший ЛЮБОЙ tg:// (например
+    // официальный tg://msg_url?... виджет "поделиться в Telegram") — клик по
+    // такой ссылке доходил до e.preventDefault()/stopPropagation() ниже, но
+    // translateDeepLinkUrl() возвращал null и открыть её было уже нечем: клик
+    // полностью проглатывался без какого-либо фолбэка. Сузили классификацию
+    // до тех же двух форм, что и на translate-стороне — нераспознанные формы
+    // теперь просто не перехватываются здесь и идут обычным путём страницы.
+    if (/^tg:\/\/(resolve(\?|$)|join\?invite=)/i.test(href)) return { service: 'telegram', href }
     // https://max.ru/join/<token> — инвайт-ссылки мессенджера MAX
     if (/^https:\/\/max\.ru\/join\//i.test(href)) return { service: 'max', href }
     // https://t.me/<username> или https://t.me/+<hash> — это то, чем реально
@@ -858,6 +974,21 @@ function bindLinkInterception() {
         if (link.hasAttribute('download')) return
 
         if (link.target === '_blank') {
+            // BUGFIX ("нажимаю Войти — сразу идёт в браузер" — live user
+            // report): OAuth-провайдеры (Google и т.д.) нередко рендерят
+            // саму кнопку входа как обычную <a href="…" target="_blank">
+            // (без window.open() из JS) — она никогда не доходит до
+            // 'new-window' DOM-события на host-стороне
+            // (renderer/webview-tabs-bind.js), потому что этот обработчик
+            // клика вызывает preventDefault() раньше, чем Chromium вообще
+            // успевает решить, что это "открыть в новом окне". Раньше это
+            // безусловно уходило в open-url → внешний системный браузер,
+            // минуя весь OAuth-брокер (createPopupWindow/wireOAuthPopup) —
+            // сессию мессенджера оттуда вернуть нечем. Распознанные
+            // OAuth-хосты пропускаем не трогая (без preventDefault) — тогда
+            // клик идёт естественным путём и всё-таки доходит до
+            // 'new-window' на host-стороне, где уже есть верная обработка.
+            if (isOAuthProviderHost(href)) return
             e.preventDefault()
             e.stopPropagation()
             ipcRenderer.send('open-url', href)

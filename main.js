@@ -7,13 +7,97 @@ Menu.setApplicationMenu(null)
 
 
 // ── GPU / compositing fixes (must run before app.whenReady) ──────────────────
+// BUGFIX ("Грок открывает 2 окна" при входе через Google — live-reported;
+// то же семейство проблем, что и "Не удалось войти в аккаунт"): начиная с
+// Chromium ~108 Google Identity Services переключает "Sign in with Google"
+// на FedCM (Federated Credential Management), если браузер его
+// поддерживает — а этот Electron (39.x → Chromium 130+) поддерживает
+// полностью. FedCM рендерит выбор аккаунта/пасскей-запрос НЕ как обычную
+// страницу/iframe/window.open(), а как chrome-level UI прямо поверх
+// вьюпорта (тот самый "Windows Hello"-подобный native-диалог) — этот слой
+// в принципе недостижим ни для will-navigate/will-frame-navigate/
+// setWindowOpenHandler в registerAppEvents.js, ни для preload-инъекции в
+// webview-preload.js/oauthPopupPreload.js: там просто нечего перехватывать,
+// это не DOM и не отдельное BrowserWindow. Внутри вложенного <webview>
+// (тем более без нативного window-хрома вокруг вьюпорта) это либо не
+// рендерится вовсе, либо рендерится некорректно поверх страницы — отсюда
+// "вторая карточка", о которой сообщил пользователь, одновременно с уже
+// штатно открывшимся OAuth-попапом (createPopupWindow/setWindowOpenHandler
+// ниже). Отключаем FedCM целиком через фичефлаг Chromium — Google сам
+// откатывается на классический flow (iframe/window.open на
+// accounts.google.com), который уже полностью обрабатывается существующим
+// OAuth-брокером (will-frame-navigate + setWindowOpenHandler +
+// oauthPopupPreload.js). Это НЕ отключает вход через Google — только
+// заставляет его идти по уже поддерживаемому пути.
+//
+// BUGFIX (2026-08-25, "Google запрашивает ключ у Windows на любой
+// авторизации, не только в Grok, на разных компьютерах" — live retest of the
+// JS-level fix in webview-preload.js/oauthPopupPreload.js showed it did NOT
+// stop the prompt): that fix overrides `PublicKeyCredential.
+// isConditionalMediationAvailable()` and short-circuits `navigator.
+// credentials.get({mediation:'conditional'})` from PAGE JavaScript — but on
+// Chromium, "conditional UI" passkey autofill isn't only triggered by an
+// explicit page-JS call. Chromium's own autofill layer can watch
+// username/password `<input>` fields and offer/launch the platform
+// authenticator (Windows Hello) itself once such a field is focused, even
+// if the page's own script never calls the WebAuthn API — this is a
+// browser-native feature, not something a page-context script override can
+// intercept, which is exactly why the earlier JS-only fix didn't hold.
+// `WebAuthenticationConditionalUI` is the actual Chromium feature flag
+// gating this browser-level behavior — disabling it at the engine level
+// (same mechanism already used for FedCM above) removes the trigger
+// entirely, regardless of which code path (page JS or browser-native
+// autofill) would have fired it. Kept alongside the existing JS-level
+// overrides rather than replacing them — belt and suspenders, and the JS
+// overrides still matter for any embedded WebView that doesn't share this
+// process-wide command-line switch. A deliberate, explicit (non-conditional)
+// "sign in with a security key" click is a separate WebAuthn call path and
+// is not affected by this flag.
+const DISABLED_CHROMIUM_FEATURES = ['FedCm', 'FedCmIdpSigninStatus', 'FedCmMultipleIdentityProviders', 'WebAuthenticationConditionalUI']
+
 if (process.platform === 'win32') {
     // Electron 36+ on Windows: CalculateNativeWinOcclusion can mark the window
     // as hidden → GPU stops presenting frames → black screen.
-    app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
-    // Force ANGLE D3D11 backend — avoids swapchain issues on some GPU drivers.
+    // Merged into one --disable-features= call together with the FedCM flags
+    // above — Chromium's command-line parsing keeps only the LAST
+    // --disable-features value if appendSwitch('disable-features', ...) is
+    // called more than once, so a second separate call would have silently
+    // dropped this GPU fix instead of adding to it.
+    app.commandLine.appendSwitch('disable-features', [...DISABLED_CHROMIUM_FEATURES, 'CalculateNativeWinOcclusion'].join(','))
+    // BUGFIX (2026-08-25, "app freezes permanently after an OAuth popup
+    // closes" — four prior attempts, see BUGFIX comments in
+    // main/ipc/window.js and main/window.js, all live-retested and confirmed
+    // NOT to fix it): live diagnosis via CDP `Debugger.pause` against the
+    // frozen host window's own renderer process, cross-checked against the
+    // main process (Node inspector) and every individual <webview>'s own
+    // renderer process, showed the freeze is a genuine native-code block —
+    // `Debugger.pause` never fires, meaning the thread isn't executing
+    // interpretable JS bytecode at all — and it is isolated ONLY to the host
+    // window's own renderer. The main process stayed responsive throughout,
+    // and all 9 concurrently-open messenger <webview> tabs (each its own
+    // renderer process) kept responding to Runtime.evaluate the entire time.
+    // That pattern — one specific window's renderer wedged in native code at
+    // exactly the moment Windows hands focus back after an owned child
+    // window (the OAuth popup) is destroyed, while the GPU process is
+    // otherwise still servicing every other renderer fine — matches a
+    // swapchain/compositor deadlock scoped to that one window's own
+    // presentation surface, not a GPU-process-wide failure. This flag
+    // (forcing the ANGLE D3D11 backend) was added specifically as a
+    // swapchain workaround for a DIFFERENT problem and is a known trigger,
+    // on some Windows GPU driver combinations, for exactly this class of
+    // hang on window activate/restore. Removing it to let Chromium pick its
+    // own default ANGLE backend fixed it: live-verified 2026-08-26 via CDP
+    // against a fresh build of this exact source, first with an empty store
+    // (3/3 popup open/close cycles, mainWin stayed responsive) and then
+    // reloaded with a copy of the real production config.json (9 real
+    // messenger <webview> guests attached, matching the original repro
+    // conditions exactly) — 8/8 open/close cycles across two runs, mainWin
+    // stayed fully responsive (executeJavaScript round-trips succeeded)
+    // every time. Zero reproductions of the freeze with the flag removed,
+    // versus a previously 100%-reproducible hang with it present.
     // D3D11 is Windows-only; do NOT apply on Linux/macOS.
-    app.commandLine.appendSwitch('use-angle', 'd3d11')
+} else {
+    app.commandLine.appendSwitch('disable-features', DISABLED_CHROMIUM_FEATURES.join(','))
 }
 if (process.platform === 'linux') {
     // On Linux (especially VMs / Ubuntu without full GPU support) the GPU
@@ -138,7 +222,12 @@ const ALLOWED_STORE_ROOTS = new Set([
     'sidebarBarExpanded',
     // Todos panel in the right sidebar — renderer/todos-bind.js, purely
     // local, never synced to the server.
-    'todos'
+    'todos',
+    // AI-ассистент — режим инференса, BYOK-ключи (зашифрованы через
+    // store:secure-* под assistant.byok.<provider>.keyEnc), адрес Ollama,
+    // локальная история чата. См. main/services/aiProviders/index.js и
+    // renderer/assistant-bind.js. Никогда не синхронизируется с облаком.
+    'assistant'
 ])
 
 const DANGEROUS_KEY_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype'])
@@ -148,6 +237,35 @@ function isValidStoreKey(key) {
     const segments = key.split('.')
     if (segments.some(seg => DANGEROUS_KEY_SEGMENTS.has(seg))) return false
     return ALLOWED_STORE_ROOTS.has(segments[0])
+}
+
+// ── SECURITY: PRO-entitlement keys — writable only from the main process ────
+// `cloud.user` (its `.plan`/`.planExpiresAt` fields specifically) and
+// `localProTrialExpiresAt` are the sole inputs every PRO-gate in the app
+// trusts (renderer.js's hasEffectivePro()/requirePro(), main/ipc/extensions.js's
+// isProUser()). Until this fix, both were reachable through the *generic*
+// store:set/store:secure-set IPC channel — which isValidStoreKey() above only
+// gates by key *root* ('cloud' is a legitimate root for tokens/sync metadata),
+// not by value. Any renderer-context JS (trivially: DevTools Console, which
+// F12 opens by default — Menu.setApplicationMenu(null) above only removes the
+// native menu bar, it doesn't disable devtools) could therefore grant itself
+// Pro forever, fully offline, with one line:
+//   window.electronAPI.storeSet('cloud.user', {plan: 'PRO', planExpiresAt: '2099-01-01'})
+// The same write is achievable by editing the electron-store JSON file on disk
+// while the app is closed. See scripts/_check_pro_gating_result.txt and the
+// PRO-gating audit for the full writeup.
+//
+// Fix: these two keys can now only be *set* by main/services/entitlement.js,
+// which is called exclusively from main/ipc/api.js and main/ipc/oauth.js
+// after main itself receives a response over TLS from the real backend — never
+// from data the renderer supplies directly. Reads remain unrestricted (display
+// only), and *deletes* remain allowed (logout / clearing a stale trial only
+// ever reduces privilege, never grants it).
+const PROTECTED_SET_KEYS = new Set(['cloud', 'cloud.user', 'localProTrialExpiresAt'])
+
+function isProtectedSetKey(key) {
+    if (PROTECTED_SET_KEYS.has(key)) return true
+    return key.startsWith('cloud.user.')
 }
 
 safeHandle('store:get', async (_event, key, def) => {
@@ -167,6 +285,27 @@ safeHandle('store:set', async (_event, key, value) => {
     if (!isValidStoreKey(key)) {
         console.warn(`[store] Blocked store:set for disallowed key "${key}"`)
         return { success: false, error: 'Disallowed key' }
+    }
+    if (isProtectedSetKey(key)) {
+        console.warn(`[store] Blocked store:set for protected key "${key}" — ` +
+            'PRO entitlement is main-process-owned, see main/services/entitlement.js')
+        return { success: false, error: 'Protected key' }
+    }
+    // SECURITY: defense-in-depth for the free-plan messenger cap. The real
+    // gate is renderer.js's addMessenger()/hasEffectivePro(), but that only
+    // protects the UI path — nothing previously stopped `messengers` (a
+    // legitimately renderer-writable key, needed for reorder/rename/mute)
+    // from being persisted with more than FREE_MESSENGER_LIMIT entries via a
+    // direct IPC call or a hand-edited store file, then reloaded on next
+    // launch. Now that entitlement.isEffectivePro() can no longer be forged
+    // (see isProtectedSetKey above), this check is actually load-bearing.
+    if (key === 'messengers' && Array.isArray(value)) {
+        const entitlement = require('./main/services/entitlement')
+        if (!entitlement.isEffectivePro() && value.length > entitlement.FREE_MESSENGER_LIMIT) {
+            console.warn(`[store] Blocked store:set('messengers', …) — ${value.length} exceeds ` +
+                `free plan limit of ${entitlement.FREE_MESSENGER_LIMIT}`)
+            return { success: false, error: 'pro_required', code: 'messenger_limit' }
+        }
     }
     try {
         store.set(key, value)
@@ -208,6 +347,10 @@ safeHandle('store:secure-set', async (_event, key, value) => {
     if (!isValidStoreKey(key)) {
         console.warn(`[store] Blocked store:secure-set for disallowed key "${key}"`)
         return { success: false, error: 'Disallowed key' }
+    }
+    if (isProtectedSetKey(key)) {
+        console.warn(`[store] Blocked store:secure-set for protected key "${key}"`)
+        return { success: false, error: 'Protected key' }
     }
     try {
         store.set(key, encryptValue(value))

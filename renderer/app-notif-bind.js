@@ -427,7 +427,22 @@ function bindAppNotifUi({
         fetchNotifications()
     })
 
-    return { fetchNotifications, addMessengerNotification }
+    // Экспортируется для renderer/assistant-tools.js (инструмент
+    // get_recent_notifications) — единственная санкционированная лазейка в
+    // "не читать контент мессенджеров": превью из колокольчика уведомлений,
+    // не полные диалоги. См. заголовочный комментарий assistant-tools.js.
+    function getRecentNotifications() {
+        return getVisible().map(n => ({
+            id: n.id,
+            title: n.title || '',
+            body: n.body || '',
+            isRead: !!n.isRead,
+            createdAt: n.createdAt || null,
+            messengerId: n.messengerId || null
+        }))
+    }
+
+    return { fetchNotifications, addMessengerNotification, getRecentNotifications }
 }
 
 module.exports = { bindAppNotifUi }

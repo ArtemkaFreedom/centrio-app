@@ -119,11 +119,20 @@ function createExtensionsUiApi({
     }
 
     function getUserIsPro() {
-        // Check plan stored in cloud state without triggering modal
+        // Check plan stored in cloud state without triggering modal. Mirrors
+        // hasEffectivePro() in renderer.js — account plan OR a still-active
+        // local 14-day trial — so trial users see extensions unlocked in the
+        // UI consistently with what main/ipc/extensions.js's isProUser()
+        // (main/services/entitlement.js) actually allows them to install.
         try {
             const cloudUser = store.get('cloud.user', null)
             const plan = (cloudUser?.plan || 'FREE').toUpperCase()
-            return plan !== 'FREE'
+            if (plan !== 'FREE') return true
+
+            const trialExpiresAt = store.get('localProTrialExpiresAt', null)
+            if (trialExpiresAt && new Date(trialExpiresAt) > new Date()) return true
+
+            return false
         } catch {
             return false
         }

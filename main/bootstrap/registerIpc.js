@@ -15,6 +15,7 @@ const registerScreenshotIpc = require('../ipc/screenshot')
 const { registerSettingsPortabilityIpc } = require('../ipc/settingsPortability')
 const registerExtensionsIpc = require('../ipc/extensions')
 const { registerLockBackgroundIpc } = require('../ipc/lockBackground')
+const { registerAssistantIpc } = require('../ipc/assistant')
 
 function registerIpc({ getMainWindow, showMainWindow, updateTrayMenu, isQuittingRef }) {
     registerWindowIpc({ getMainWindow, isQuittingRef })
@@ -34,6 +35,7 @@ function registerIpc({ getMainWindow, showMainWindow, updateTrayMenu, isQuitting
     registerSettingsPortabilityIpc({ getMainWindow })
     registerExtensionsIpc()
     registerLockBackgroundIpc({ getMainWindow })
+    registerAssistantIpc({ getMainWindow })
 }
 
 module.exports = registerIpc

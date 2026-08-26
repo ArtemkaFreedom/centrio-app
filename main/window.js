@@ -2,7 +2,7 @@ const fs   = require('fs')
 const path = require('path')
 const store = require('./services/store')
 const { clearBadges } = require('./services/badge')
-const { PATHS, IPC_CHANNELS } = require('./config/constants')
+const { PATHS, IPC_CHANNELS, API_URL } = require('./config/constants')
 const { isWindowAlive, safeSendToWindow } = require('./utils/window')
 const { createMainBrowserWindow } = require('./factory/browserWindow')
 
@@ -41,6 +41,31 @@ async function _tryRestoreVpn(win) {
         const proxyOn = { enabled: true, type: 'socks5', host: '127.0.0.1', port: vpnMgr.PROXY_PORT }
 
         await applyProxyToSession(session.defaultSession, proxyOn)
+
+        // sing-box поднимает ЛОКАЛЬНЫЙ SOCKS5-listener (порт 7890) почти
+        // мгновенно, даже если сам VPN-сервер из сохранённой ссылки мёртв,
+        // просрочен или недоступен — vpn-manager.js's checkPortListening()
+        // проверяет только локальный bind, а не сквозной туннель. Без этой
+        // проверки session.defaultSession молча получает рабочий на вид, но
+        // фактически дохлый прокси, и весь трафик через electron.net.fetch()
+        // (AI-ассистент, погода, тест Ollama) начинает падать сырыми сетевыми
+        // ошибками, которые даже не доходят до сервера — а UI показывает
+        // только общее "Что-то пошло не так", потому что raw-сообщение об
+        // ошибке не совпадает ни с одним известным кодом.
+        const { net } = require('electron')
+        const tunnelWorks = await Promise.race([
+            net.fetch(`${API_URL}/health`).then(r => r.ok).catch(() => false),
+            new Promise(resolve => setTimeout(() => resolve(false), 6000))
+        ])
+
+        if (!tunnelWorks) {
+            console.warn('[VPN] auto-restore: local proxy port is up but tunnel is dead — reverting to direct')
+            await applyProxyToSession(session.defaultSession, { enabled: false })
+            await vpnMgr.stopProxy()
+            if (win && !win.isDestroyed()) win.webContents.send('vpn-restore-failed')
+            return
+        }
+
         for (const m of messengers) {
             if (!m || !m.id) continue
             try {
@@ -245,15 +270,22 @@ function bindWindowEvents(win) {
     // that can occur when Windows marks the window as occluded).
     try { win.webContents.setBackgroundThrottling(false) } catch {}
 
+    // BUGFIX (2026-08-25): win.webContents.invalidate() used to be called here
+    // on every 'focus'/'show' event, as a workaround for the
+    // CalculateNativeWinOcclusion stale-frame bug. That Chromium feature is
+    // already disabled globally via app.commandLine.appendSwitch('disable-features', ...)
+    // in main.js, so this call was dead weight. Removed because it is also the
+    // leading suspect for the "app freezes permanently after an OAuth popup
+    // closes" bug: 'focus' fires on mainWin the instant Windows hands focus
+    // back after the popup (an owned child window, with its own GPU/compositor
+    // surface) is destroyed, and invalidate() forces a synchronous round-trip
+    // to the GPU process to present a new frame — exactly the moment/pattern
+    // every repro of the freeze has hit. Three prior fix attempts (see the
+    // BUGFIX comment in main/ipc/window.js) touched unrelated code in
+    // wireOAuthPopup and all failed live retest, which is what led to
+    // examining this separate, previously-unexamined handler.
     win.on('focus', () => {
         clearBadges(getMainWindow)
-        // Force GPU compositor to present frames immediately on focus —
-        // guards against the CalculateNativeWinOcclusion stale-frame bug.
-        try { win.webContents.invalidate() } catch {}
-    })
-
-    win.on('show', () => {
-        try { win.webContents.invalidate() } catch {}
     })
 
     win.on('close', (e) => {

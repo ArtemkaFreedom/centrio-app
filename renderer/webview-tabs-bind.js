@@ -238,15 +238,14 @@ function navigateMaxWebview(webview, token) {
 // main/ipc/window.js open-popup-window → isOAuthBroker): такое окно
 // проходит проверку провайдера, а полученные cookies/сессия остаются в
 // той же партиции, что и у уже открытого webview мессенджера.
-const OAUTH_PROVIDER_HOST_RE = /(^|\.)accounts\.google\.com$|(^|\.)appleid\.apple\.com$|(^|\.)login\.live\.com$|(^|\.)login\.microsoftonline\.com$|(^|\.)oauth\.yandex\.(ru|com)$|(^|\.)id\.vk\.com$/i
-
-function isOAuthProviderUrl(url) {
-    try {
-        return OAUTH_PROVIDER_HOST_RE.test(new URL(url).hostname)
-    } catch {
-        return false
-    }
-}
+// BUGFIX ("Яндекс открыл браузер для авторизации и умерла сессия там" —
+// live-reproduced): этот файл раньше держал свою отдельную копию списка без
+// passport.yandex.ru (Яндекс.Почта логинит именно через него, не через
+// oauth.yandex.ru), а main/services/oauthProviders.js держал ЕЩЁ одну
+// отдельную копию с тем же пробелом. Обе рассинхронизировались с
+// shared/oauthProviders.js, который уже содержал верный список. Импортируем
+// вместо повторного дублирования.
+const { OAUTH_PROVIDER_HOST_RE, isOAuthProviderUrl } = require('../shared/oauthProviders')
 
 // BUGFIX ("клик по другому сервису в шапке Яндекс.Почты открывал внешний
 // браузер"): 'will-navigate' ниже сравнивал ТОЧНЫЙ hostname навигации с
@@ -263,6 +262,40 @@ function isOAuthProviderUrl(url) {
 function baseDomain(hostname) {
     const parts = String(hostname || '').split('.').filter(Boolean)
     return parts.length <= 2 ? parts.join('.') : parts.slice(-2).join('.')
+}
+
+// BUGFIX ("Google/Yandex OAuth внутри webview — постоянный отказ входа"):
+// addWebview() ниже раньше прибивал 'useragent' гвоздём к литералу
+// "...Chrome/120.0.0.0..." (заморожен на момент первого коммита проекта).
+// Electron 39.8.10 несёт куда более новый Chromium, но UA-строка на
+// <webview> НЕ трогает Sec-CH-UA / Sec-CH-UA-Full-Version-List Client Hints
+// и navigator.userAgentData — Chromium формирует их из своей РЕАЛЬНОЙ
+// версии независимо от атрибута useragent. Получается UA-строка, кричащая
+// "Chrome 120", рядом с Client Hints, доказывающими совсем другой (намного
+// новее) настоящий Chromium — комбинация, которую живые браузеры никогда не
+// производят и которую как раз ищут анти-embedded-browser проверки
+// OAuth-провайдеров (в первую очередь у Google — см. OAUTH_PROVIDER_HOST_RE
+// выше) и антибот-системы отдельных сайтов (Яндекс это уже подтверждённо
+// делал точечно на alice.yandex.ru). Раньше эта же починка (через
+// electronAPI.chromeVersion, см. preload.js) была реализована только в
+// renderer/messengers.js — но addWebview именно оттуда нигде не
+// используется (см. соответствующий комментарий там), так что реальные
+// вкладки мессенджеров всё это время продолжали получать рассинхронизированный
+// UA. Кэшируем один раз — chromeVersion не меняется в течение жизни процесса.
+let cachedWebviewUserAgent = null
+function buildWebviewUserAgent() {
+    if (cachedWebviewUserAgent) return cachedWebviewUserAgent
+
+    const chromeVersion = window.electronAPI?.chromeVersion
+    const versionToken = chromeVersion ? `${chromeVersion}.0.0.0`.split('.').slice(0, 4).join('.') : null
+
+    cachedWebviewUserAgent = versionToken
+        ? `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${versionToken} Safari/537.36`
+        // Фолбэк на старый литерал только если реальную версию прочитать не
+        // удалось — лучше потенциально устаревший UA, чем вообще никакого.
+        : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+    return cachedWebviewUserAgent
 }
 
 function createWebviewTabsApi({
@@ -295,24 +328,40 @@ function createWebviewTabsApi({
         max: /(^|\.)max\.ru$/i
     }
 
-    function findMessengerForDeepLinkService(service) {
+    // BUGFIX ("при 2 вкладках одного сервиса клик во второй открывает
+    // ссылку в первой"): раньше здесь был просто .find() — первый попавшийся
+    // мессенджер нужного сервиса, независимо от того, из какой именно
+    // вкладки пришёл клик. С двумя Telegram-вкладками ссылка, кликнутая во
+    // второй, всегда уводила в первую. preferredId — id вкладки-источника
+    // клика (если она сама подходит под нужный сервис — остаёмся в ней).
+    function findMessengerForDeepLinkService(service, preferredId) {
         const re = DEEP_LINK_HOST_MATCHERS[service]
         if (!re) return null
 
-        return state.activeMessengers.find((m) => {
+        const matches = (m) => {
             try { return re.test(new URL(m.url).hostname) } catch { return false }
-        })
+        }
+
+        if (preferredId) {
+            const preferred = state.activeMessengers.find((m) => m.id === preferredId)
+            if (preferred && matches(preferred)) return preferred
+        }
+
+        return state.activeMessengers.find(matches)
     }
 
     // Пытается открыть распознанный диплинк в уже существующей вкладке нужного
     // сервиса. Возвращает true, если получилось (вкладка переключена и
     // загружена) — false означает "подходящей вкладки нет", и вызывающий код
     // должен откатиться на прежнее поведение (open-url → внешний браузер/ОС).
-    function routeDeepLink(special) {
+    // sourceId — id вкладки, в которой произошёл клик (см. BUGFIX выше);
+    // не передаётся для диплинков, пришедших из ОС (routeDeepLinkFromMain),
+    // там источника-вкладки нет.
+    function routeDeepLink(special, sourceId) {
         const url = translateDeepLinkUrl(special)
         if (!url) return false
 
-        const target = findMessengerForDeepLinkService(special.service)
+        const target = findMessengerForDeepLinkService(special.service, sourceId)
         if (!target) return false
 
         switchTab(target.id)
@@ -375,11 +424,232 @@ function createWebviewTabsApi({
         const partition = payload && payload.partition
         if (typeof partition !== 'string' || !partition.startsWith('persist:')) return
         const messengerId = partition.slice('persist:'.length)
+        // BUGFIX (2026-08-25, regression: overlay stayed up after a
+        // successful login because this handler never touched the overlay
+        // state at all — it only relied on the SEPARATE 'oauth-popup-closed'
+        // message (sent from popup.once('closed') in wireOAuthPopup(), see
+        // main/ipc/window.js) to clear it. That's normally a moment later,
+        // but nothing guaranteed it would ever arrive (see the safety-net
+        // timer below) — clearing it right here too, the instant we know the
+        // flow succeeded, removes one avoidable window for the stuck-overlay
+        // symptom instead of only patching it via the generic timeout.
+        clearOAuthOverlayTimer(messengerId)
+        oauthPendingMessengerIds.delete(messengerId)
+        updateOAuthOverlay()
         const webview = document.getElementById(`webview-${messengerId}`)
-        if (webview) {
-            try { webview.reload() } catch {}
+        if (!webview) return
+
+        // BUGFIX (2026-08-26, live user report: "Гугл - проходит авторизацию
+        // в окне, закрывает окно и показывает Centrio с чёрным окном Gmail"):
+        // a blind reload() re-fetches whatever URL the guest webview happened
+        // to be sitting on BEFORE the popup opened — usually the pre-auth
+        // login prompt/blank state, not where the popup actually finished.
+        // main/ipc/window.js now forwards the popup's own final settled URL
+        // (finalUrl) alongside the partition; navigate there directly so the
+        // now-authenticated cookies (shared via the same persist:<id>
+        // partition) actually render something instead of a stale pre-login
+        // page. Re-validated here (defense-in-depth, same rationale as
+        // translateDeepLinkUrl above) rather than trusted verbatim — only a
+        // plain http(s) URL is ever passed to loadURL().
+        let finalUrl = null
+        if (typeof payload.finalUrl === 'string') {
+            try {
+                const parsed = new URL(payload.finalUrl)
+                if (parsed.protocol === 'http:' || parsed.protocol === 'https:') finalUrl = parsed.href
+            } catch {}
+        }
+        try {
+            if (finalUrl) {
+                webview.loadURL(finalUrl)
+            } else {
+                webview.reload()
+            }
+        } catch {}
+    })
+
+    // FEATURE (2026-08-24, "всплывающее окно всё-равно открывается ...
+    // нужно заглушку на основном окне ставить - типа авторизация через окно
+    // отдельное" — live user request): попап — ожидаемое поведение (Google/
+    // Яндекс сами блокируют вход внутри embedded-браузера), но вкладка под
+    // ним выглядит так, будто просто ничего не происходит. main-процесс
+    // шлёт 'oauth-popup-started'/'oauth-popup-closed' из общего choke-point
+    // wireOAuthPopup() (main/ipc/window.js) — здесь просто перекрываем ТУ
+    // вкладку, для мессенджера которой сейчас идёт OAuth, понятным
+    // объяснением (остальные вкладки остаются рабочими).
+    //
+    // Видимость завязана не на switchTab() — эта функция определена
+    // снаружи (renderer.js) и переключает класс webview.active в местах,
+    // которые не всегда идут через локальную ссылку на неё в этом модуле
+    // (например прямые клики по вкладке). Вместо перехвата каждого места
+    // вызова — MutationObserver за атрибутом class внутри tabsContent:
+    // устойчиво к ЛЮБОМУ способу переключения активной вкладки.
+    const oauthPendingMessengerIds = new Set()
+    let oauthOverlayEl = null
+
+    // BUGFIX (2026-08-25, live regression: "И ГРОК И ЯНДЕКС ТЕПЕРЬ ЗАВИСАЕТ
+    // ПОСЛЕ АВТОРИЗАЦИИ И НИЧЕГО БОЛЬШЕ НЕ НАЖИМАЕТСЯ" — reported right
+    // after this overlay feature shipped): the overlay's ONLY way to hide
+    // itself was the main process actually sending 'oauth-popup-closed',
+    // which only happens if the popup BrowserWindow fires its native
+    // 'closed' event (see wireOAuthPopup() in main/ipc/window.js). Several
+    // real OAuth flows never do that on their own:
+    //   - Providers (Yandex's passport.yandex.ru in particular) that finish
+    //     a popup-based login by relying on `window.opener.postMessage(...)`
+    //     and expecting the OPENER page's own script to close the popup —
+    //     but our popup is a plain `new BrowserWindow()` on the manual
+    //     (will-navigate) broker path with no real opener wired to relay
+    //     that message, so the popup is left sitting on a "you're signed
+    //     in now" screen forever, never closing itself.
+    //   - The already-known deliberate "leave popup open" cases
+    //     (did-fail-load exhausted retries, Google's embedded-browser
+    //     rejection page) — intentional so the user can see what happened,
+    //     but they ALSO never fire 'closed' by design.
+    // In both cases oauthPendingMessengerIds keeps the messenger id forever,
+    // .oauth-popup-overlay stays "show" (it's pointer-events: auto — see
+    // styles.css — specifically so users can't fat-finger the frozen-looking
+    // tab underneath mid-auth), and the tab is permanently unclickable —
+    // exactly the reported symptom. This is a client-side backstop
+    // independent of ever root-causing every provider's popup-close
+    // behavior: whatever the main process does or doesn't send, the overlay
+    // for a given messenger is now hard-capped at this many ms before we
+    // force-clear it ourselves and reload the tab so it can pick up
+    // whatever session state the popup actually left behind (mirrors the
+    // legitimate 'oauth-popup-done' reload path above).
+    const OAUTH_OVERLAY_MAX_MS = 60000
+    const oauthOverlayTimers = new Map()
+
+    function clearOAuthOverlayTimer(messengerId) {
+        const timer = oauthOverlayTimers.get(messengerId)
+        if (timer) {
+            clearTimeout(timer)
+            oauthOverlayTimers.delete(messengerId)
+        }
+    }
+
+    function ensureOAuthOverlay() {
+        if (oauthOverlayEl && oauthOverlayEl.isConnected) return oauthOverlayEl
+        oauthOverlayEl = document.createElement('div')
+        oauthOverlayEl.className = 'oauth-popup-overlay'
+        oauthOverlayEl.innerHTML =
+            '<div class="oauth-popup-overlay__spinner"></div>' +
+            '<div class="oauth-popup-overlay__title" data-role="title"></div>' +
+            '<div class="oauth-popup-overlay__hint" data-role="hint"></div>'
+        tabsContent.appendChild(oauthOverlayEl)
+        return oauthOverlayEl
+    }
+
+    function updateOAuthOverlay() {
+        const activeWebview = tabsContent.querySelector('webview.active')
+        const activeId = activeWebview && activeWebview.id.startsWith('webview-')
+            ? activeWebview.id.slice('webview-'.length)
+            : null
+
+        if (!activeId || !oauthPendingMessengerIds.has(activeId)) {
+            if (oauthOverlayEl) oauthOverlayEl.classList.remove('show')
+            return
+        }
+
+        const overlay = ensureOAuthOverlay()
+        const messenger = state.activeMessengers.find((m) => m.id === activeId)
+        // BUGFIX (2026-08-26, "в момент открытия окна с гугл авторизацией
+        // Centrio намертво зависает, в диспетчере никаких зависаний нет" —
+        // live-reproduced: renderer главного окна крутил 100% одного ядра).
+        // Присваивание textContent удаляет старый текстовый узел и вставляет
+        // новый, т.е. это childList-мутация. Наблюдатель ниже слушает
+        // tabsContent с { childList: true, subtree: true }, а оверлей лежит
+        // внутри tabsContent — так что каждый проход этой функции порождал
+        // мутации, которые снова будили наблюдателя. Колбэки MutationObserver
+        // выполняются как микрозадачи, а очередь микрозадач вычерпывается
+        // целиком до возврата в event loop, поэтому это был не «лишний
+        // перерендер», а бесконечный цикл: поток renderer'а никогда не
+        // возвращался в цикл событий — ни отрисовки, ни обработки кликов, ни
+        // ответа на 'oauth-popup-closed' (оттого и «закрытие попапа не
+        // помогает»). Главный процесс при этом жив и исправно качает
+        // сообщения Windows, поэтому диспетчер задач и показывал «Отвечает».
+        // Пишем только при реальном изменении — второй проход не порождает
+        // мутаций, и цепочка обрывается.
+        setTextIfChanged(
+            overlay.querySelector('[data-role="title"]'),
+            tGet('webview.oauthOverlayTitle', { name: messenger ? messenger.name : '' })
+        )
+        setTextIfChanged(overlay.querySelector('[data-role="hint"]'), tGet('webview.oauthOverlayHint'))
+        overlay.classList.add('show')
+    }
+
+    function setTextIfChanged(el, text) {
+        if (el && el.textContent !== text) el.textContent = text
+    }
+
+    function messengerIdFromOAuthPayload(payload) {
+        const partition = payload && payload.partition
+        if (typeof partition !== 'string' || !partition.startsWith('persist:')) return null
+        return partition.slice('persist:'.length)
+    }
+
+    ipcRenderer.on('oauth-popup-started', (payload) => {
+        const messengerId = messengerIdFromOAuthPayload(payload)
+        if (!messengerId) return
+        oauthPendingMessengerIds.add(messengerId)
+        updateOAuthOverlay()
+
+        clearOAuthOverlayTimer(messengerId)
+        const timer = setTimeout(() => {
+            oauthOverlayTimers.delete(messengerId)
+            if (!oauthPendingMessengerIds.has(messengerId)) return
+            console.warn(`[oauth-overlay] safety-net timeout hit for messengerId=${messengerId} — main process never sent oauth-popup-closed, force-clearing overlay`)
+            oauthPendingMessengerIds.delete(messengerId)
+            updateOAuthOverlay()
+            const webview = document.getElementById(`webview-${messengerId}`)
+            if (webview) {
+                try { webview.reload() } catch {}
+            }
+        }, OAUTH_OVERLAY_MAX_MS)
+        oauthOverlayTimers.set(messengerId, timer)
+    })
+
+    ipcRenderer.on('oauth-popup-closed', (payload) => {
+        const messengerId = messengerIdFromOAuthPayload(payload)
+        if (!messengerId) return
+        clearOAuthOverlayTimer(messengerId)
+        oauthPendingMessengerIds.delete(messengerId)
+        updateOAuthOverlay()
+    })
+
+    // FEATURE (2026-08-26, "Добавить как сервис" button in the Franz-style
+    // OAuth popup chrome — see attachOAuthPopupChrome() in main/ipc/window.js):
+    // addMessenger() (renderer/messengers.js) already does the full job of
+    // adding a new tab from a bare {name, url, icon} — reused as-is rather
+    // than duplicating its tab/webview/save logic here. No icon is passed;
+    // createMessengerItem()'s own iconSources fallback (Google favicon
+    // service) already handles a missing icon.
+    ipcRenderer.on('oauth-add-as-service', (payload) => {
+        const url = payload && payload.url
+        if (typeof url !== 'string' || !url) return
+        let name = url
+        try { name = new URL(url).hostname.replace(/^www\./, '') } catch {}
+        if (typeof addMessenger === 'function') {
+            addMessenger({ name, url, icon: '' })
         }
     })
+
+    if (tabsContent && typeof MutationObserver !== 'undefined') {
+        // classList.add/remove — идемпотентны (DOMTokenList не создаёт новую
+        // мутацию, если токен уже присутствует/отсутствует), так что
+        // собственные show/hide-переключения оверлея ниже не зацикливают
+        // этот же observer сами на себя.
+        const oauthOverlayObserver = new MutationObserver(() => {
+            updateOAuthOverlay()
+            // Страховка второго уровня к BUGFIX в updateOAuthOverlay выше:
+            // сбрасываем записи, порождённые её собственными правками DOM, до
+            // того как они успеют разбудить этот же колбэк. Даже если сюда
+            // когда-нибудь вернут неидемпотентную запись в DOM, зациклиться
+            // уже не получится. Состояние оверлея на момент вызова
+            // takeRecords() актуально — updateOAuthOverlay() отработала строкой
+            // выше по текущему DOM.
+            oauthOverlayObserver.takeRecords()
+        })
+        oauthOverlayObserver.observe(tabsContent, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true })
+    }
 
     function hideWebviewContextMenu() {
         if (!webviewContextMenu) return
@@ -782,10 +1052,7 @@ function createWebviewTabsApi({
         webview.src = messenger.url
         webview.setAttribute('allowpopups', 'true')
         webview.setAttribute('partition', `persist:${messenger.id}`)
-        webview.setAttribute(
-            'useragent',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        )
+        webview.setAttribute('useragent', buildWebviewUserAgent())
         webview.setAttribute('preload', preloadPath)
 
         const extState = store.get('extensionsState', {})
@@ -895,31 +1162,46 @@ function createWebviewTabsApi({
             const url = e.url
             if (!url) return
             try {
+                // BUGFIX (2026-08-24): this OAuth-provider check used to live
+                // INSIDE the baseDomain() mismatch branch below, so it only
+                // ever ran when the navigation target's base domain differed
+                // from the messenger's own. That's wrong for the most common
+                // real-world case — Google's sign-in page (accounts.google.com)
+                // shares the "google.com" base domain with Gmail itself
+                // (mail.google.com), and Yandex's (passport.yandex.ru /
+                // oauth.yandex.ru) shares "yandex.ru" with Yandex Mail
+                // (mail.yandex.ru). Because baseDomain() only compares the
+                // last two hostname segments, those pairs looked "same site"
+                // and the whole block — including the popup-broker hand-off —
+                // was skipped, so the sign-in page loaded directly inline in
+                // the webview with no UA spoofing and Google's "This browser
+                // or app may not be secure" embedded-webview block fired
+                // (confirmed live: user saw that exact page after 2.3.12,
+                // even with the bscframe/RotateCookiesPage popup-leak fixed).
+                // Checking isOAuthProviderUrl() first, independent of
+                // baseDomain(), ensures known OAuth-provider hosts always go
+                // through the UA-spoofed popup broker regardless of whether
+                // they happen to share a base domain with the messenger.
+                // BUGFIX (2026-08-26): раньше здесь стоял
+                // e.preventDefault() + open-popup-window. У тега <webview>
+                // событие 'will-navigate' НЕ отменяемое (в отличие от
+                // одноимённого события webContents), поэтому preventDefault()
+                // не останавливал навигацию — вкладка всё равно уходила на
+                // страницу входа, параллельно с уже открытым попапом, и
+                // навигацию приходилось обрывать на лету в will-redirect.
+                // Именно эта пара "открываем окно + обрываем кросс-origin
+                // навигацию гостя" и вешала рендерер главного окна.
+                // Перехват перенесён в main-процесс, на webContents гостя
+                // ('will-navigate' в main/bootstrap/registerAppEvents.js),
+                // где отмена действительно работает. Здесь просто уходим,
+                // чтобы OAuth-URL не провалился в ветку "чужой домен →
+                // открыть во внешнем браузере" ниже.
+                if (isOAuthProviderUrl(url)) return
+
                 const messengerHost = new URL(messenger.url).hostname
                 const navHost = new URL(url).hostname
                 if (baseDomain(navHost) !== baseDomain(messengerHost) && !url.startsWith('file://')) {
                     e.preventDefault()
-
-                    // Item #6: some providers run OAuth as a full top-level
-                    // redirect (not a window.open() popup) straight out of
-                    // the messenger webview itself. Same in-app broker
-                    // hand-off as the 'new-window' branch above instead of
-                    // sending it to the external browser.
-                    if (isOAuthProviderUrl(url) && messenger?.id) {
-                        let returnHost = ''
-                        try { returnHost = new URL(messenger.url).hostname } catch {}
-                        if (returnHost) {
-                            invokeIpc('open-popup-window', url, {
-                                width: 500,
-                                height: 650,
-                                name: messenger.name || 'Centrio',
-                                partition: `persist:${messenger.id}`,
-                                returnHost
-                            }).catch(() => {})
-                            return
-                        }
-                    }
-
                     ipcRenderer.send('open-url', url)
                 }
             } catch {}
@@ -933,7 +1215,7 @@ function createWebviewTabsApi({
         webview.addEventListener('ipc-message', (e) => {
             if (e.channel !== 'deep-link') return
             const special = e.args[0]
-            if (special && routeDeepLink(special)) return
+            if (special && routeDeepLink(special, messenger.id)) return
 
             // SECURITY: fallback must use the TRANSLATED URL (e.g.
             // https://t.me/<domain>), never the raw special.href. tg: is

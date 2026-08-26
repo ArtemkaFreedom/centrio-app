@@ -56,6 +56,9 @@ const { bindAppNotifUi } = require('./renderer/app-notif-bind')
 const { bindTodosUi } = require('./renderer/todos-bind')
 const { bindDownloadsUi } = require('./renderer/downloads-bind')
 const { bindVpnUi, bindVpnSettings } = require('./renderer/vpn-bind')
+const { bindAssistantTools } = require('./renderer/assistant-tools')
+const { bindAssistantUi } = require('./renderer/assistant-bind')
+const { bindAssistantSettingsUi } = require('./renderer/assistant-settings-bind')
 
 // ==============================
 // SHIM ДЛЯ STORE
@@ -177,6 +180,20 @@ const store = {
         }
 
         return undefined
+    },
+
+    // SECURITY: for keys main.js treats as protected/main-process-owned
+    // (currently 'cloud.user' and 'localProTrialExpiresAt' — see
+    // PROTECTED_SET_KEYS in main.js). Real persistence for those already
+    // happens inside main itself (main/ipc/api.js, main/ipc/oauth.js,
+    // main/services/entitlement.js) right after a genuine server response —
+    // calling the regular store:set IPC channel for them would just be
+    // rejected (by design) and log a "protected key" warning. This updates
+    // only the renderer's own optimistic read-cache so UI (hasEffectivePro(),
+    // cloudStore.getUser(), etc.) reflects the change immediately without
+    // trying — and failing — to re-persist data main already wrote to disk.
+    setLocal(key, value) {
+        storeCache.set(key, value)
     },
 
     // ── Encrypted secure storage (OS safeStorage: DPAPI / Keychain / libsecret) ──
@@ -1564,11 +1581,13 @@ function applyTabZoom(level) {
         PAGE_SIZE,
         addModal,
         messengerGrid,
-        addMessenger
+        addMessenger,
+        tGet
     })
 
     const {
         fillMessengerGrid,
+        updateScrollProgress,
         openModal,
         closeModal
     } = addModalUiApi
@@ -1757,6 +1776,19 @@ function applyTabZoom(level) {
 
         addWebview(newMessenger)
         switchTab(id)
+
+        // VPN LEAK FIX: a brand-new partition (persist:${id}) has never had
+        // session.setProxy() called on it, so by default it falls back to
+        // the OS system proxy — i.e. this messenger would silently bypass
+        // an already-active VPN entirely (not just WebRTC — ALL of its
+        // traffic), even though its sidebar badge would show the VPN as on
+        // for every other tab. main/ipc/vpn.js's 'vpn-set-app-vpn' handler
+        // already does exactly what's needed here: records the per-app mode
+        // (default is enabled, matching getAppModes()'s `!== false` check
+        // elsewhere) and — critically — applies the real proxy immediately
+        // if VPN is currently connected. When VPN isn't active this is a
+        // harmless no-op that just persists the default mode.
+        invokeIpc('vpn-set-app-vpn', id, true).catch(() => {})
 
         welcomeScreen.style.display = 'none'
         tabsContent.style.pointerEvents = 'auto'
@@ -2176,6 +2208,14 @@ function applyTabZoom(level) {
     onboardingTourApi.bind()
     bindWebviewContextMenuActions()
 
+    const { openAssistantSection } = bindAssistantSettingsUi({
+        store,
+        invokeIpc,
+        tGet,
+        requirePro,
+        hasEffectivePro
+    })
+
     bindSettingsUi({
         store,
         ipcRenderer,
@@ -2189,6 +2229,7 @@ function applyTabZoom(level) {
         updateLockBtn,
         requirePro,
         openExtensionsSection,
+        openAssistantSection,
         replayOnboardingTour: () => onboardingTourApi.start(true)
     })
 
@@ -2321,6 +2362,7 @@ function applyTabZoom(level) {
         closeModal,
         openModal,
         fillMessengerGrid,
+        updateScrollProgress,
         addMessenger,
         requirePro,
         tGet,
@@ -2551,11 +2593,32 @@ function applyTabZoom(level) {
         closeRightPanel
     })
 
-    // Ассистент — пока заглушка (иконка есть, ИИ подключим позже, как во
-    // FRANZ) — просто раскрывает свою секцию с "Скоро".
-    rightPanelButtons.assistant?.addEventListener('click', (e) => {
-        e.stopPropagation()
-        toggleRightPanel('assistant')
+    // Ассистент — реальный чат с tool-calling (см. .claude/plans/ai-assistant.plan.md).
+    // assistant-tools.js собирает allowlist инструментов (переключение
+    // вкладок/задачи/настройки — то, что знает только renderer), а
+    // assistant-bind.js рисует чат и гоняет пинг-понг tool-call/tool-result
+    // с main/ipc/assistant.js. Сам клик по кнопке #assistantBtn вешает
+    // bindAssistantUi() изнутри себя (см. её btn.addEventListener) — здесь
+    // отдельный обработчик больше не нужен, в отличие от прежней заглушки.
+    const assistantToolsApi = bindAssistantTools({
+        state,
+        store,
+        tGet,
+        switchTab,
+        openSettings,
+        invokeIpc,
+        getRecentNotifications: appNotifApi?.getRecentNotifications,
+        applySettings
+    })
+
+    bindAssistantUi({
+        store,
+        ipcRenderer,
+        invokeIpc,
+        tGet,
+        toolsApi: assistantToolsApi,
+        openRightPanel: () => toggleRightPanel('assistant'),
+        hasEffectivePro
     })
 
     bindDownloadsUi({
@@ -2688,6 +2751,24 @@ function applyTabZoom(level) {
             cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar() })
         }
     })
+
+    // SECURITY / BUGFIX (PRO-gating audit): the two refreshUser() calls above
+    // only fire on startup and on window focus. An app left open and focused
+    // for a long stretch (or simply never refocused) never re-validates the
+    // cached plan against the server — if a subscription lapses (payment
+    // failure on auto-renew, manual cancellation, chargeback) while the
+    // window stays in front, the locally cached `plan: 'PRO'` from the last
+    // successful refreshUser() would otherwise keep unlocking Pro features
+    // indefinitely. Revalidate periodically regardless of focus so a lapsed
+    // plan gets caught within a bounded window; harmless no-op while offline
+    // (refreshUser() swallows network errors and just leaves the last-known
+    // cache in place, same as before).
+    const PRO_REVALIDATE_INTERVAL_MS = 30 * 60 * 1000
+    setInterval(() => {
+        if (cloudStore.isLoggedIn()) {
+            cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar() })
+        }
+    }, PRO_REVALIDATE_INTERVAL_MS)
 
     await advanceStartup('security', 94, { minStepTime: 260 })
 

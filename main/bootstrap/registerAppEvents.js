@@ -6,6 +6,45 @@ const store = require('../services/store')
 const { getWebviewPreloadPath, waitForPendingSyncPush } = require('../ipc/api')
 const { wireSessionDownloads } = require('../ipc/downloads')
 const { attachServiceWorkerNotifBridge } = require('../services/swNotifPatcher')
+const {
+    createPopupWindow, wireOAuthPopup,
+    ensureGoogleAccountsWebAuthnBlock, isGoogleAccountsUrl,
+    isOAuthBrokerActive, markOAuthBrokerActive, clearOAuthBrokerActive
+} = require('../ipc/window')
+const { isOAuthProviderUrl, isYandexInternalSsoHost } = require('../services/oauthProviders')
+
+// BUGFIX ("Google: бесконечный повторяющийся [popup] loadURL failed
+// ERR_FAILED loading 'https://accounts.google.com/_/bscframe'" —
+// live-reproduced): once the will-frame-navigate handler below started
+// catching sub-frame OAuth navigations, it turned out Google's own
+// accounts.google.com sign-in page repeatedly re-navigates an internal
+// cross-origin sync iframe to .../_/bscframe (not a real sign-in page —
+// it's never meant to be loaded top-level) roughly every 1-1.5s for as
+// long as that page is open. Every one of those sub-frame navigations
+// also matches isOAuthProviderUrl (hostname-only check), so each one
+// used to spawn its OWN new createPopupWindow() — a fresh popup that
+// immediately fails to load bscframe standalone, retries once, fails
+// again, and falls back to shell.openExternal(), forever, once per
+// interception. Tracked per messengerId (not per contents/session
+// object, which would be a new instance on every webview reattach):
+// once a broker popup is already open for a given messenger, any further
+// OAuth-host sub-frame navigation from that same messenger's webview is
+// swallowed (still preventDefault()-ed so the guest iframe doesn't churn
+// either) instead of opening a second popup, until the existing popup
+// closes.
+//
+// BUGFIX (Gmail "лишнее пустое окно" / 2FA дублирующийся флоу → Google
+// "error 400"; Grok "2 окна" — live-reproduced): this used to be a LOCAL
+// `new Set()` right here, shared only between this file's own two entry
+// points (setWindowOpenHandler below and openOAuthBroker/will-frame-navigate
+// below). But renderer/webview-tabs-bind.js's top-level 'will-navigate'
+// listener creates OAuth broker popups too, via a direct 'open-popup-window'
+// IPC call into createPopupWindow() — completely invisible to a Set living
+// in this file's closure. Moved the actual Set (and the guard enforcement
+// for the createPopupWindow() path) into main/ipc/window.js itself, since
+// that's the one function every manual-BrowserWindow broker path funnels
+// through; this file now just reads/writes the same shared state via the
+// exported helpers above for its own two entry points.
 
 // Normalizes a preload value (file:// URL or plain path, as seen in either
 // webPreferences.preload or our own getWebviewPreloadPath() output) down to a
@@ -25,6 +64,11 @@ function normalizePreloadPath(value) {
 
 let log
 try { log = require('electron-log') } catch { log = console }
+
+// Партиции, которым уже назначен permission-хендлер (см. BUGFIX про буфер
+// обмена в will-attach-webview ниже) — ставим один раз на сессию, а не на
+// каждый attach webview.
+const clipboardPermissionPartitions = new Set()
 
 // ── Детект непрочитанных ────────────────────────────────────────────────────
 // BUGFIX ("бейджи непрочитанных не появляются"): изначально это делалось из
@@ -232,6 +276,169 @@ const MEDIA_DIAG_PATCH_SCRIPT = `(function() {
         if (isMedia(e.target)) report('stalled', e.target)
     }, true)
 
+    // BUGFIX (2026-08-25, "в Яндекс Мессенджере не воспроизводятся
+    // аудиосообщения совсем — никакие, на трёх компьютерах" — stronger,
+    // categorical signal than the intermittent WhatsApp/Yandex report this
+    // diagnostic hook was originally built for): 'error'/'stalled' only
+    // fire for network/decode failures on the <audio>/<video> element
+    // itself — they say nothing about the OTHER common silent-failure
+    // path, HTMLMediaElement.play() returning a REJECTED promise (e.g.
+    // NotAllowedError from an autoplay/gesture check, NotSupportedError
+    // from a codec Chromium's build doesn't ship). A caller that doesn't
+    // explicitly .catch() that rejection fails completely silently: no
+    // 'error' event, no console output visible outside the guest page, no
+    // audio — which matches "doesn't play at all" far better than a
+    // network hiccup would. Wrapping play() itself, rather than only
+    // listening for element events, closes that blind spot without
+    // guessing at which of the two failure modes is actually happening —
+    // the next live repro will tell us definitively via err.name/message.
+    try {
+        var origPlay = HTMLMediaElement.prototype.play
+        HTMLMediaElement.prototype.play = function () {
+            var el = this
+            var result = origPlay.apply(el, arguments)
+            if (result && typeof result.catch === 'function') {
+                result.catch(function (err) {
+                    try {
+                        var isNotSupported = err && err.name === 'NotSupportedError'
+
+                        // BUGFIX (2026-08-25 v2.3.25 → v2.3.26 → v2.3.27, three
+                        // live retests, each one disproving the previous fix:
+                        // v2.3.25 tried location.reload() to force the SPA to
+                        // re-render and mint a fresh signed media URL — user
+                        // retested, audio still silent, ZERO reload logs at all
+                        // (sessionStorage threw inside the <webview> guest
+                        // partition, swallowed by a shared catch). v2.3.26
+                        // replaced sessionStorage with a timestamp stashed in
+                        // location.hash via history.replaceState (survives
+                        // location.reload() by definition, needs no storage
+                        // permission) — user retested and reported the page
+                        // "reloads continuously and it doesn't help", i.e. an
+                        // actual infinite loop, WORSE than silence. Root cause:
+                        // Yandex Messenger is itself a client-side-routed SPA
+                        // that rewrites location.hash to its own route as part
+                        // of ITS OWN startup, wiping our marker before the next
+                        // rejection could read it back — and when the marker
+                        // parse failed, the cooldown check's fallback
+                        // (lastTs = 0) meant "Date.now() - 0 > 60000" was
+                        // ALWAYS true, so the throttle silently degraded to
+                        // "reload immediately, every single time" instead of
+                        // failing safe. Any state stashed INSIDE the guest page
+                        // is fragile against whatever that page's own JS does
+                        // (proven twice now, two different mechanisms). Fix:
+                        // stop deciding anything in-page. Just report the raw
+                        // condition (shouldReload) up to the main process —
+                        // startMediaDiagPolling() below owns the actual
+                        // cooldown + hard attempt cap in a plain JS Map keyed
+                        // by contents.id, which is main-process memory and is
+                        // NOT touched by the guest page reloading, because it
+                        // lives in a different OS process entirely. That also
+                        // gives us a real, unconditional ceiling (2 reloads per
+                        // 10-minute window) so even if this hypothesis is
+                        // somehow still wrong, the failure mode is "gives up
+                        // after 2 tries", never "reloads forever again".
+                        window.__centrioPendingMediaErrors.push({
+                            type: 'play-rejected',
+                            src: String(el.currentSrc || el.src || ''),
+                            code: null,
+                            message: (err && (err.name || '')) + ': ' + (err && err.message ? String(err.message) : ''),
+                            networkState: el.networkState,
+                            readyState: el.readyState,
+                            shouldReload: !!(isNotSupported && el.networkState === 3)
+                        })
+                        if (window.__centrioPendingMediaErrors.length > 20) {
+                            window.__centrioPendingMediaErrors.splice(0, window.__centrioPendingMediaErrors.length - 20)
+                        }
+                    } catch (e) {
+                        try {
+                            window.__centrioPendingMediaErrors.push({
+                                type: 'play-rejected-outer-error',
+                                src: '',
+                                code: null,
+                                message: 'EXCEPTION in play-rejected handler: ' + String((e && e.message) || e),
+                                networkState: -1,
+                                readyState: -1
+                            })
+                        } catch (e2) {}
+                    }
+                })
+            }
+            return result
+        }
+    } catch (e) {}
+
+    // BUGFIX (2026-08-25, live retest AFTER the play()-rejection hook above
+    // shipped in 2.3.22: "аудио так и не воспроизводится", and — critically —
+    // still ZERO [media-diag] log lines for it, unlike the freeze/WebAuthn
+    // issues where at least the old behavior was confirmed unchanged): a
+    // 100%-reproducible failure that produces neither an 'error'/'stalled'
+    // event NOR a rejected play() promise most likely means there is no
+    // HTMLMediaElement involved in the first place. Custom voice-message
+    // players with a waveform visualization and scrub/speed control (which
+    // is what Yandex Messenger's voice messages look like) are a classic
+    // case for the Web Audio API (AudioContext + decodeAudioData +
+    // AudioBufferSourceNode) instead of a plain <audio> tag — none of the
+    // hooks above would ever fire for that, silently explaining the total
+    // lack of log output. Instrumenting the two places that fail silently in
+    // that API: decodeAudioData() rejecting (bad/blocked network response,
+    // unsupported codec) and AudioContext.resume() rejecting (context stuck
+    // 'suspended', e.g. an autoplay-policy gesture check that doesn't
+    // recognize this embedded environment's click as a user gesture).
+    try {
+        var AC = window.AudioContext || window.webkitAudioContext
+        if (AC && AC.prototype) {
+            var origDecodeAudioData = AC.prototype.decodeAudioData
+            if (origDecodeAudioData) {
+                AC.prototype.decodeAudioData = function () {
+                    var result = origDecodeAudioData.apply(this, arguments)
+                    if (result && typeof result.catch === 'function') {
+                        result.catch(function (err) {
+                            try {
+                                window.__centrioPendingMediaErrors.push({
+                                    type: 'decodeAudioData-rejected',
+                                    src: '',
+                                    code: null,
+                                    message: (err && (err.name || '')) + ': ' + (err && err.message ? String(err.message) : ''),
+                                    networkState: null,
+                                    readyState: null
+                                })
+                                if (window.__centrioPendingMediaErrors.length > 20) {
+                                    window.__centrioPendingMediaErrors.splice(0, window.__centrioPendingMediaErrors.length - 20)
+                                }
+                            } catch (e) {}
+                        })
+                    }
+                    return result
+                }
+            }
+            var origResume = AC.prototype.resume
+            if (origResume) {
+                AC.prototype.resume = function () {
+                    var ctx = this
+                    var result = origResume.apply(ctx, arguments)
+                    if (result && typeof result.catch === 'function') {
+                        result.catch(function (err) {
+                            try {
+                                window.__centrioPendingMediaErrors.push({
+                                    type: 'audiocontext-resume-rejected',
+                                    src: '',
+                                    code: null,
+                                    message: (err && (err.name || '')) + ': ' + (err && err.message ? String(err.message) : ''),
+                                    networkState: null,
+                                    readyState: ctx.state
+                                })
+                                if (window.__centrioPendingMediaErrors.length > 20) {
+                                    window.__centrioPendingMediaErrors.splice(0, window.__centrioPendingMediaErrors.length - 20)
+                                }
+                            } catch (e) {}
+                        })
+                    }
+                    return result
+                }
+            }
+        }
+    } catch (e) {}
+
     return 'patched'
 })()`
 
@@ -242,33 +449,89 @@ const MEDIA_DIAG_DRAIN_SCRIPT = `(function() {
 
 const MEDIA_DIAG_POLL_MS = 3000
 
+// BUGFIX (2026-08-27 v2.3.27, see the long comment above HTMLMediaElement.
+// prototype.play in MEDIA_DIAG_PATCH_SCRIPT for the full history): the
+// cooldown/attempt-cap state for the "reload the guest page to refresh an
+// expired signed media URL" workaround now lives HERE, in main-process
+// memory, instead of inside the guest page (sessionStorage → threw;
+// location.hash → silently wiped by the SPA's own router). A WebContents'
+// `.id` is stable across that same page reloading, so this Map survives
+// exactly the event that kept destroying every previous persistence
+// attempt. MEDIA_RELOAD_MAX_ATTEMPTS is a hard, unconditional ceiling: even
+// if some other cause turns out to be re-triggering 'play-rejected' rapidly
+// (e.g. an unrelated notification-sound element, not just the voice
+// message), this guarantees "gives up after 2 tries" instead of "reloads
+// forever" — which is what the user actually hit on v2.3.26.
+const MEDIA_RELOAD_COOLDOWN_MS = 60000
+const MEDIA_RELOAD_MAX_ATTEMPTS = 2
+const MEDIA_RELOAD_ATTEMPT_WINDOW_MS = 600000
+const mediaReloadState = new Map() // contents.id -> { lastTs, count }
+
+// BUGFIX ("подвисания на 10-15 сек когда приходит сообщение в Яндекс-мессенджере"):
+// три независимых опроса (unread/notif/media-diag) каждый ставят свой
+// executeJavaScript() на фиксированном таймере, не дожидаясь, пока
+// предыдущий вызов для ТОЙ ЖЕ гостевой страницы завершится. Тяжёлый ре-рендер
+// Яндекса на входящее сообщение и так ненадолго блокирует JS-стек этой
+// страницы — если за это время накопится очередь из нескольких неразрешённых
+// executeJavaScript() (interval не ждёт предыдущий вызов), они все разом
+// исполнятся при разблокировке, продлевая ощущаемое зависание. Пропускаем
+// тик, если предыдущий запрос к этой же contents ещё не вернулся.
 function startMediaDiagPolling(contents, getMainWindow) {
     const messengerId = findMessengerIdForSession(contents.session)
+    let inFlight = false
 
     const poll = () => {
-        if (contents.isDestroyed()) return
+        if (contents.isDestroyed() || inFlight) return
+        inFlight = true
         contents.executeJavaScript(MEDIA_DIAG_DRAIN_SCRIPT).then((items) => {
             if (!Array.isArray(items) || !items.length) return
+            let reloadRequested = false
             items.forEach((item) => {
                 log.warn(
                     `[media-diag] messenger=${messengerId || '?'} ${item.type} ` +
                     `src=${item.src} code=${item.code} message="${item.message}" ` +
                     `networkState=${item.networkState} readyState=${item.readyState}`
                 )
+                if (item && item.shouldReload) reloadRequested = true
             })
-        }).catch(() => {})
+
+            if (!reloadRequested || contents.isDestroyed()) return
+
+            const now = Date.now()
+            const prev = mediaReloadState.get(contents.id) || { lastTs: 0, count: 0 }
+            const withinAttemptWindow = (now - prev.lastTs) <= MEDIA_RELOAD_ATTEMPT_WINDOW_MS
+            const count = withinAttemptWindow ? prev.count : 0
+
+            if (count >= MEDIA_RELOAD_MAX_ATTEMPTS) {
+                log.warn(`[media-diag] messenger=${messengerId || '?'} play-rejected-auto-reload-capped: ${MEDIA_RELOAD_MAX_ATTEMPTS} auto-reload attempts already used in this window, giving up (no more reloads for ~${Math.round(MEDIA_RELOAD_ATTEMPT_WINDOW_MS / 60000)} min)`)
+                return
+            }
+            if ((now - prev.lastTs) <= MEDIA_RELOAD_COOLDOWN_MS) {
+                log.warn(`[media-diag] messenger=${messengerId || '?'} play-rejected-auto-reload-throttled: cooldown active, ${MEDIA_RELOAD_COOLDOWN_MS - (now - prev.lastTs)}ms remaining`)
+                return
+            }
+
+            mediaReloadState.set(contents.id, { lastTs: now, count: count + 1 })
+            log.warn(`[media-diag] messenger=${messengerId || '?'} play-rejected-auto-reload: reloading guest page to refresh an expired signed media URL (attempt ${count + 1}/${MEDIA_RELOAD_MAX_ATTEMPTS})`)
+            contents.reload()
+        }).catch(() => {}).finally(() => { inFlight = false })
     }
 
     const timer = setInterval(poll, MEDIA_DIAG_POLL_MS)
-    contents.once('destroyed', () => clearInterval(timer))
+    contents.once('destroyed', () => {
+        clearInterval(timer)
+        mediaReloadState.delete(contents.id)
+    })
 }
 
 function startNotifPolling(contents, getMainWindow) {
     const messengerId = findMessengerIdForSession(contents.session)
     if (!messengerId) return
+    let inFlight = false
 
     const poll = () => {
-        if (contents.isDestroyed()) return
+        if (contents.isDestroyed() || inFlight) return
+        inFlight = true
         contents.executeJavaScript(NOTIF_DRAIN_SCRIPT).then((items) => {
             if (!Array.isArray(items) || !items.length) return
             const win = getMainWindow()
@@ -276,7 +539,7 @@ function startNotifPolling(contents, getMainWindow) {
             items.forEach((payload) => {
                 win.webContents.send('messenger-site-notification', messengerId, payload)
             })
-        }).catch(() => {})
+        }).catch(() => {}).finally(() => { inFlight = false })
     }
 
     const timer = setInterval(poll, NOTIF_POLL_MS)
@@ -298,6 +561,7 @@ function startUnreadPolling(contents, getMainWindow) {
     if (!messengerId) return
 
     let lastSent = -1
+    let inFlight = false
     const sendIfChanged = (count) => {
         const n = Number.isFinite(count) && count >= 0 ? count : 0
         if (n === lastSent) return
@@ -306,8 +570,9 @@ function startUnreadPolling(contents, getMainWindow) {
         if (win && !win.isDestroyed()) win.webContents.send('messenger-unread-count', messengerId, n)
     }
     const poll = () => {
-        if (contents.isDestroyed()) return
-        contents.executeJavaScript(UNREAD_DETECT_SCRIPT).then(sendIfChanged).catch(() => {})
+        if (contents.isDestroyed() || inFlight) return
+        inFlight = true
+        contents.executeJavaScript(UNREAD_DETECT_SCRIPT).then(sendIfChanged).catch(() => {}).finally(() => { inFlight = false })
     }
 
     poll()
@@ -367,6 +632,16 @@ function registerAppEvents({
     app.on('browser-window-created', (_e, win) => {
         win.webContents.setWindowOpenHandler(({ url }) => {
             if (url.startsWith('http://') || url.startsWith('https://')) {
+                // DEBUG (2026-08-24, "Яндекс сам открывает браузер" —
+                // shell.openExternal() был молчаливым во всём кодбейзе на
+                // успехе, так что этот конкретный отчёт пользователя
+                // (авторизация в попапе проходит, но потом ещё и открывается
+                // внешний браузер) нельзя было привязать к конкретной точке
+                // вызова без нового живого лога. Этот handler ловит ЛЮБОЙ
+                // window.open() из ЛЮБОГО BrowserWindow (включая сам
+                // OAuth-попап) на http(s)-URL, который не был явно
+                // распознан выше как OAuth-попап — кандидат №1.
+                log.info(`[oauth-broker][DEBUG] browser-window-created setWindowOpenHandler → shell.openExternal url=${url} fromWindowTitle=${(() => { try { return win.getTitle() } catch { return '?' } })()}`)
                 shell.openExternal(url).catch(() => {})
             }
             return { action: 'deny' }
@@ -441,6 +716,61 @@ function registerAppEvents({
         // отдельно к сессии каждого webview — сессия главного окна не видит
         // загрузки, инициированные внутри мессенджеров (файлы из чатов и т.д.)
         if (contents.getType() === 'webview') {
+            // BUGFIX (2026-08-26, Gmail-in-webview-tab Google rejection): the
+            // webview's own base `useragent` attribute
+            // (renderer/webview-tabs-bind.js) explicitly claims Chrome for
+            // every messenger — the exact combination live A/B testing
+            // (scripts/ua-matrix.js, run against the user's real Gmail
+            // session) found Google rejects on its own accounts.* pages. See
+            // the BUGFIX comment above isGoogleAccountsUrl() in
+            // main/ipc/window.js for the evidence. That attribute is still
+            // wanted for every OTHER page (fixes a real, separate stale-UA-
+            // vs-Client-Hints mismatch, e.g. Yandex Alice), so instead of
+            // removing it, reset the UA to the session's untouched default
+            // only while on an accounts.google.* host, and restore the
+            // webview's normal UA the moment it navigates away.
+            // BUGFIX (2026-08-26, segfault during live testing: process crashed
+            // with a native "Segmentation fault" right after
+            // openOAuthBroker() fired for this same webview's own
+            // ServiceLogin navigation): this used to call
+            // contents.setUserAgent() synchronously from inside 'will-navigate'
+            // — the exact same event the OAuth-broker handler further below
+            // also listens on to event.preventDefault() + (deferred, but
+            // still same tick) construct a popup for the SAME navigating
+            // guest. The BUGFIX comment above openOAuthBroker() already
+            // documents that Electron holds the guest's cross-process
+            // navigation swap open, synchronously, for the whole duration of
+            // 'will-navigate' handling — mutating that same guest's UA
+            // in-flight, from a second independent listener on the same
+            // event, is exactly the kind of same-tick collision that comment
+            // warns about (there it caused a hang; here, on this Gmail path,
+            // it segfaulted instead — same race, different native failure
+            // mode). Deferring the actual setUserAgent() call to setImmediate
+            // moves it off this synchronous event-handling stack entirely,
+            // same fix shape as openOAuthBroker()'s own popup construction.
+            let normalWebviewUserAgent = null
+            const syncGoogleAccountsUa = (url) => {
+                let shouldUseSessionUa
+                try {
+                    shouldUseSessionUa = isGoogleAccountsUrl(url)
+                } catch {
+                    return
+                }
+                setImmediate(() => {
+                    try {
+                        if (contents.isDestroyed()) return
+                        if (shouldUseSessionUa) {
+                            if (normalWebviewUserAgent === null) normalWebviewUserAgent = contents.getUserAgent()
+                            contents.setUserAgent(contents.session.getUserAgent())
+                        } else if (normalWebviewUserAgent !== null) {
+                            contents.setUserAgent(normalWebviewUserAgent)
+                        }
+                    } catch {}
+                })
+            }
+            contents.on('will-navigate', (_event, url) => syncGoogleAccountsUa(url))
+            contents.on('did-redirect-navigation', (_event, url) => syncGoogleAccountsUa(url))
+
             try { wireSessionDownloads(contents.session, getMainWindow) } catch (err) {
                 log.error('[downloads] failed to wire webview session:', err.message)
             }
@@ -531,10 +861,552 @@ function registerAppEvents({
             // hide-now/close-later pattern already proven for downloads,
             // just triggered by "this became a real page" instead of "this
             // became a download".
-            contents.setWindowOpenHandler(() => ({ action: 'allow' }))
+            //
+            // BUGFIX ("Google/Yandex sign-in внутри мессенджера виснет и
+            // показывает 'Не удалось войти в аккаунт' прямо в Centrio"):
+            // main/ipc/window.js уже содержит полноценный OAuth-брокер
+            // (createPopupWindow → isOAuthBroker: спуфинг UA обычного
+            // desktop Chrome, ретрай при неудачной загрузке, детект
+            // Google-страницы отказа по содержимому, отслеживание
+            // did-navigate-in-page) — но единственный код-путь, которым он
+            // реально вызывался (webview.addEventListener('new-window', ...)
+            // в renderer/webview-tabs-bind.js → IPC 'open-popup-window'),
+            // мёртв: DOM-событие 'new-window' на этой версии Electron не
+            // исполняется вообще (см. комментарий выше). Реально Chromium
+            // зовёт ТОЛЬКО этот setWindowOpenHandler на гостевом webContents
+            // — а он раньше безусловно возвращал {action:'allow'} и отдавал
+            // окно ниже, в наивный once('did-navigate')-хендлер без спуфинга
+            // UA и без обработки in-page навигации, из-за чего Google видел
+            // в UA буквально "Electron/..." и рендерил отказ ВНУТРИ этого
+            // окна, а once('did-navigate') либо уже сработал на раннем
+            // about:blank, либо просто не ловил дальнейший client-side
+            // рендер отказа (did-navigate-in-page) — окно так и оставалось
+            // висеть открытым у пользователя.
+            //
+            // Чиним, оставляя старое поведение (allow + hide/redirect ниже)
+            // для ВСЕХ остальных window.open() (звонки, "открыть в новой
+            // вкладке", share-диалоги) — трогаем только явно распознанные
+            // OAuth-провайдеры, и для них полностью отдаём управление уже
+            // проверенному createPopupWindow() вместо создания окна по
+            // умолчанию.
+            //
+            // Общий для нескольких хендлеров ниже ('will-frame-navigate' и
+            // 'will-redirect') список служебных путей Google, которые
+            // формально совпадают с isOAuthProviderUrl() по хосту, но
+            // никогда не являются настоящим экраном входа — см. BUGFIX-
+            // комментарий у 'will-frame-navigate' ниже для полной истории.
+            //
+            // BUGFIX (2026-08-26, live-reproduced, Gmail webview tab: "окно
+            // закрылось раньше, чем прошло подтверждение на телефоне"):
+            // '/restart' добавлен отдельно от остальных трёх. Живой лог
+            // (messengerId=1787737455269) показал точную цепочку: сначала
+            // ServiceLogin/v3-signin-identifier ушли в брокер нормально, но
+            // 145мс-2мин спустя тот же гостевой webContents САМ (не попап)
+            // получил ещё одну навигацию на
+            // accounts.google.com/restart?...&dsh=...&flowEntry=ServiceLogin
+            // — одноразовый continuation-хоп с state-токеном (dsh), уже
+            // привязанным к конкретному браузинг-контексту, где реально
+            // прошёл вход. openOAuthBroker() отреагировал на неё как на
+            // новый вход и открыл ВТОРОЕ, не связанное с тем контекстом
+            // popup-окно (та же партиция, но чистый top-level load) — тот
+            // сразу получил loadURL failed: ERR_FAILED (-2) на этом же
+            // /restart URL (одноразовый токен не переживает загрузку в
+            // независимом окне), и 9мс спустя maybeFinishOAuth() увидел
+            // случайный докат на workspace.google.com и закрыл попап,
+            // приняв обрыв за успешное завершение — реальный вход (для
+            // которого пользователю ещё требовалось подтверждение на
+            // телефоне) в этом окне так и не отрендерился. '/restart' —
+            // всегда continuation-хоп, а не экран входа (аналогично
+            // остальным трём путям в этом списке), поэтому его нужно
+            // пропускать не через брокер, а обычной навигацией того
+            // webContents, где он и возник — тот же, уже проверенный,
+            // отказ от UA-спуфинга должен пропустить и его.
+            const GOOGLE_INTERNAL_PATH_PREFIXES = ['/_/', '/RotateCookiesPage', '/ListAccounts', '/CheckCookie', '/restart']
+            const isGoogleInternalPath = (url) => {
+                try {
+                    const path = new URL(url).pathname
+                    return GOOGLE_INTERNAL_PATH_PREFIXES.some((prefix) => path.startsWith(prefix))
+                } catch {
+                    return false
+                }
+            }
 
-            contents.on('did-create-window', (childWindow) => {
+            // BUGFIX (2026-08-24, "Яндекс.Почта — лишний второй попап"):
+            // живой лог показал, что после успешного входа в Яндекс через
+            // первый (легитимный) попап на passport.yandex.ru main-процесс
+            // ~2 секунды спустя открывал ВТОРОЙ попап на
+            // sso.passport.yandex.ru/prepare — и тут же закрывал его через
+            // maybeFinishOAuth (0.2с спустя), т.к. тот успевал уйти на
+            // sso.ya.ru/sync. sso.passport.yandex.ru — это тот же класс
+            // внутренней cross-domain cookie-sync служебной страницы, что и
+            // Google-эндпоинты выше (bscframe/RotateCookiesPage) — она
+            // ПОДСТРОЧНО матчит OAUTH_PROVIDER_HOST_RE (regex завязан на
+            // суффикс "passport.yandex.ru", а не на конкретный хост), но
+            // никогда не является настоящим экраном входа. В отличие от
+            // Google-случая отличать её нужно по ХОСТУ, а не по пути — сам
+            // путь /prepare не уникален для служебных страниц.
+            //
+            // BUGFIX (2026-08-25): список (включая добавленный
+            // cookier.360.yandex.ru) вынесен в shared/oauthProviders.js и
+            // импортирован в начале файла — main/ipc/window.js's
+            // maybeFinishOAuth() теперь читает тот же список, чтобы не
+            // закрывать OAuth-попап преждевременно на этих же хостах (см.
+            // BUGFIX-комментарий в shared/oauthProviders.js для полной
+            // истории "зависает после входа в Яндекс").
+
+            // BUGFIX (2026-08-26, «зависает намертво ровно в момент открытия
+            // окна Google, при этом в диспетчере задач приложение
+            // «Отвечает»»): openOAuthBroker() вызывается из обработчиков
+            // навигации ГОСТЯ (will-navigate / will-redirect /
+            // will-frame-navigate). Эти события Electron эмитит СИНХРОННО и
+            // держит навигацию гостя, пока обработчик не вернёт управление:
+            // рендерер гостя в это время заблокирован в ожидании вердикта.
+            // createPopupWindow() — async-функция, но её тело до первого
+            // await исполняется синхронно, а `new BrowserWindow(...)` там
+            // как раз до него — то есть целое окно со своей сессией
+            // конструировалось прямо внутри этого удержания. Создание окна
+            // на Windows прокачивает вложенный нативный цикл сообщений
+            // (поэтому Windows и считает приложение «Отвечающим»), и он
+            // пересекается с незавершённым межпроцессным переходом гостя —
+            // рендерер главного окна встаёт намертво в нативном коде, тогда
+            // как main-процесс и остальные вкладки живы (ровно то, что
+            // показала прежняя CDP-диагностика).
+            //
+            // Лечится не отменой перехвата, а тем, что решение принимается
+            // синхронно (возвращаем true → вызывающий сразу отменяет
+            // навигацию и разблокирует гостя), а само окно строится уже
+            // ПОСЛЕ выхода из обработчика. Franz по той же причине никогда
+            // не строит BrowserWindow вручную внутри навигационных событий,
+            // а отдаёт создание Electron'у через setWindowOpenHandler.
+            //
+            // brokerDeferredIds закрывает окно между «решили открыть» и
+            // «реально открыли»: до setImmediate() guard в
+            // createPopupWindow() ещё не взведён, и второе навигационное
+            // событие успело бы запросить второй попап.
+            const brokerDeferredIds = new Set()
+
+            const openOAuthBroker = (url) => {
+                const messengerId = findMessengerIdForSession(contents.session)
+                log.info(`[oauth-broker][DEBUG] openOAuthBroker url=${url} messengerId=${messengerId} guardHas=${isOAuthBrokerActive(messengerId)}`)
+                if (!messengerId) return false
+
+                // See BUGFIX comment on the shared guard import above —
+                // swallow (still counts as "handled" so the caller cancels
+                // the guest navigation) rather than opening a second popup
+                // while one is already open for this messenger. This is
+                // just a fast-path short-circuit: createPopupWindow() below
+                // enforces the authoritative version of this same check
+                // (and marks/clears the guard itself) right before actually
+                // constructing a BrowserWindow — do NOT mark the guard here
+                // too, or createPopupWindow() would immediately see it as
+                // already held and swallow its own popup as a false-positive
+                // duplicate.
+                if (isOAuthBrokerActive(messengerId) || brokerDeferredIds.has(messengerId)) return true
+
+                const messengers = store.get('messengers', []) || []
+                const messenger = messengers.find((m) => m && m.id === messengerId)
+
+                // BUGFIX (2026-08-26, live-reproduced: Gmail tab never opens
+                // the broker at all — [oauth-broker][DEBUG] logs showed
+                // openOAuthBroker() called ~350-450ms apart, ~67 times in a
+                // row, for the exact same ServiceLogin URL, and
+                // `contents.getURL()` was empty on every single call. Root
+                // cause: for a messenger whose OWN configured url (e.g.
+                // mail.google.com) immediately redirects to Google's login
+                // before the guest webview ever commits a first page,
+                // `contents.getURL()` genuinely has nothing to report yet —
+                // this used to read as "no return host, bail out" below,
+                // which meant this code path NEVER opened the broker popup
+                // for such a messenger at all. The guest webview was left to
+                // load Google's ServiceLogin directly inside the embedded
+                // <webview>, which Google's own embedded-browser detection
+                // keeps rejecting/redirecting — that bounce IS the repeating
+                // ServiceLogin navigation the user saw, not a bug in the
+                // retry/backoff logic (which was correctly ruled out earlier
+                // by timing). Falling back to the messenger's own configured
+                // url when nothing has committed yet fixes this the same way
+                // `returnHost` already gets used elsewhere: it only needs to
+                // be A hostname to open the broker with, not the exact
+                // currently-loaded one.
+                let returnHost = ''
+                try { returnHost = new URL(contents.getURL()).hostname } catch {}
+                if (!returnHost && messenger?.url) {
+                    try { returnHost = new URL(messenger.url).hostname } catch {}
+                }
+                if (!returnHost) return false
+
+                brokerDeferredIds.add(messengerId)
+                setImmediate(() => {
+                    brokerDeferredIds.delete(messengerId)
+                    log.info(`[oauth-broker][DEBUG] deferred popup creation running for messengerId=${messengerId}`)
+                    createPopupWindow(url, {
+                        width: 500,
+                        height: 650,
+                        name: messenger?.name || 'Centrio',
+                        partition: `persist:${messengerId}`,
+                        returnHost
+                    }, getMainWindow).catch((err) => {
+                        log.error('[oauth-broker] createPopupWindow failed:', err?.message)
+                    })
+                })
+                return true
+            }
+
+            // BUGFIX (window.opener OAuth handshake — гипотеза, проверяется):
+            // настоящий window.open() (в отличие от will-navigate/
+            // will-frame-navigate ниже — там нет ни window.open(), ни
+            // естественного opener'а вовсе) до сих пор шёл через
+            // openOAuthBroker() → createPopupWindow(), который ОТКАЗЫВАЕТ
+            // Electron'у в создании его собственного попапа и строит
+            // отдельный, несвязанный `new BrowserWindow()` сам. У такого
+            // попапа window.opener === null — а именно на него полагается
+            // Google Identity Services (и не только), чтобы
+            // window.opener.postMessage(...) вернул токен обратно на
+            // страницу, которая открыла попап. Тот же паттерн у Franz —
+            // setupExternalLinkHandler/nativePopupOptions в его собственном
+            // main-процессе — возвращает `{action:'allow',
+            // overrideBrowserWindowOptions}` вместо ручного BrowserWindow,
+            // именно чтобы эта связь не рвалась. Здесь — то же самое: даём
+            // Electron создать попап нативно (тем самым сохраняя
+            // window.opener), а всю остальную обвязку (спуфинг UA, детект
+            // завершения флоу, ретрай, детект отказа Google) навешиваем на
+            // уже созданное окно через did-create-window ниже — см.
+            // wireOAuthPopup() в main/ipc/window.js.
+            const oauthPendingMessengerIds = new Set()
+            contents.setWindowOpenHandler(({ url }) => {
+                if (!isOAuthProviderUrl(url)) return { action: 'allow' }
+
+                // DEBUG (Grok "2 окна" investigation): openOAuthBroker() already
+                // logs its own entry — this handler didn't log at all, so a live
+                // repro couldn't tell whether a second REAL window.open() call
+                // was racing the will-frame-navigate path below for the same
+                // messenger, or whether the second "window" the user sees is a
+                // non-navigation surface (FedCM/WebAuthn chrome-level UI — see
+                // DISABLED_CHROMIUM_FEATURES in main.js) that never reaches this
+                // handler in the first place.
+                const messengerId = findMessengerIdForSession(contents.session)
+                log.info(`[oauth-broker][DEBUG] setWindowOpenHandler url=${url} messengerId=${messengerId} guardHas=${isOAuthBrokerActive(messengerId)}`)
+                if (!messengerId) return { action: 'allow' }
+
+                // See BUGFIX comment on the shared guard import above —
+                // swallow instead of opening a second popup while one is
+                // already open for this messenger (via this native path, the
+                // openOAuthBroker()/will-frame-navigate path below, OR the
+                // renderer's will-navigate → createPopupWindow() path — all
+                // three now read/write this same shared guard).
+                if (isOAuthBrokerActive(messengerId)) {
+                    return { action: 'deny' }
+                }
+
+                let returnHost = ''
+                try { returnHost = new URL(contents.getURL()).hostname } catch {}
+                if (!returnHost) return { action: 'allow' }
+
+                const messengers = store.get('messengers', []) || []
+                const messenger = messengers.find((m) => m && m.id === messengerId)
+                const partition = `persist:${messengerId}`
+
+                // BUGFIX (2026-08-26): this used to force a session-level
+                // Chrome UA onto the OAuth partition here. Removed — live
+                // A/B testing (scripts/ua-matrix.js against the user's real
+                // Gmail session) proved claiming Chrome gets this popup
+                // rejected by Google, whereas leaving the UA untouched does
+                // not. See the BUGFIX comment above isGoogleAccountsUrl() in
+                // main/ipc/window.js for the full evidence.
+                try {
+                    const oauthSession = session.fromPartition(partition)
+                    // BUGFIX (2026-08-25, "не удалось войти" / whole-app freeze
+                    // after Google auth) — Permissions-Policy response-header
+                    // block for accounts.google.* WebAuthn conditional UI. See
+                    // detailed BUGFIX comment in main/ipc/window.js.
+                    ensureGoogleAccountsWebAuthnBlock(oauthSession, partition)
+                } catch {}
+
+                const mainWin = getMainWindow()
+                // FEATURE (2026-08-26, Franz-style OAuth popup chrome — live
+                // user request with reference screenshot): wider/taller than
+                // the old 500x650, centered on mainWin rather than tucked in
+                // its bottom-right corner. Keep in sync with
+                // OAUTH_POPUP_WIDTH/HEIGHT in main/ipc/window.js — this path
+                // (setWindowOpenHandler's overrideBrowserWindowOptions) can't
+                // import that file's internal constants directly since
+                // Electron applies these options before wireOAuthPopup() (the
+                // only place that constant lives) ever sees this window.
+                const OAUTH_POPUP_WIDTH = 860
+                const OAUTH_POPUP_HEIGHT = 720
+                let x, y
+                if (mainWin && !mainWin.isDestroyed()) {
+                    const [mx, my] = mainWin.getPosition()
+                    const [mw, mh] = mainWin.getSize()
+                    x = mx + Math.round((mw - OAUTH_POPUP_WIDTH) / 2)
+                    y = my + Math.round((mh - OAUTH_POPUP_HEIGHT) / 2)
+                }
+
+                markOAuthBrokerActive(messengerId)
+                oauthPendingMessengerIds.add(messengerId)
+
+                return {
+                    action: 'allow',
+                    overrideBrowserWindowOptions: {
+                        width: OAUTH_POPUP_WIDTH, height: OAUTH_POPUP_HEIGHT, x, y,
+                        title: messenger?.name || 'Centrio',
+                        frame: false,
+                        resizable: true, minimizable: true, maximizable: true,
+                        skipTaskbar: true, show: false,
+                        // BUGFIX (2026-08-25, "зависает после входа, ничего
+                        // не нажимается" — same fix and same reasoning as
+                        // createPopupWindow() in main/ipc/window.js: an
+                        // ownerless alwaysOnTop popup gives Windows nothing
+                        // to hand input focus back to once it's destroyed.
+                        // `parent` (not `modal`) makes this a properly
+                        // OS-owned child window without disabling mainWin.
+                        //
+                        // BUGFIX (2026-08-25, live retest: freeze persisted
+                        // with `parent` alone): `alwaysOnTop: true` dropped
+                        // entirely — see the matching, more detailed BUGFIX
+                        // comment in createPopupWindow() (main/ipc/window.js)
+                        // for the full reasoning (topmost windows sit in a
+                        // separate Windows z-order band that can break the
+                        // owner/child auto-refocus-on-close behavior `parent`
+                        // is meant to provide; redundant anyway once `parent`
+                        // already keeps this popup above mainWin). The
+                        // matching focus-reclaim fix (topmost-toggle trick)
+                        // lives in wireOAuthPopup()'s `closed` handler, which
+                        // wires this window too — see main/ipc/window.js.
+                        parent: (mainWin && !mainWin.isDestroyed()) ? mainWin : undefined,
+                        webPreferences: {
+                            nodeIntegration: false,
+                            contextIsolation: true,
+                            sandbox: true,
+                            partition,
+                            // BUGFIX ("Не удалось войти в аккаунт" внутри
+                            // этого нативного попапа) — см.
+                            // main/services/oauthPopupPreload.js: тот же
+                            // navigator.userAgentData-разрыв, что и в
+                            // createPopupWindow() ниже по файлу.
+                            preload: path.join(__dirname, '..', 'services', 'oauthPopupPreload.js')
+                        }
+                    }
+                }
+            })
+
+            // BUGFIX ("Sign in with Google" внутри мессенджера — например,
+            // Grok/xAI — подтверждённо рендерится ВНУТРИ iframe той же
+            // гостевой страницы: сайдбар остаётся виден на протяжении всего
+            // флоу, ни window.open()/setWindowOpenHandler выше, ни
+            // top-level 'will-navigate' ни разу не срабатывают, потому что
+            // это навигация САБ-фрейма, а не главного или нового окна — весь
+            // OAuth-брокер выше для этого конкретного флоу структурно
+            // недостижим, независимо от его корректности). 'will-frame-
+            // navigate' — единственное событие на этой версии Electron,
+            // которое Chromium эмитит для навигации ЛЮБОГО фрейма гостевого
+            // webContents, включая sub-frame/iframe (isMainFrame: false), и
+            // единственное позволяющее её отменить (event.preventDefault())
+            // до того как iframe успеет отрендерить google-отказ. При
+            // обнаружении навигации НЕ-главного фрейма на распознанный
+            // OAuth-хост — отменяем её (iframe останется пустым) и вместо
+            // этого открываем тот же проверенный createPopupWindow(), что и
+            // для window.open()-варианта выше.
+            // BUGFIX (2026-08-26, "клик по «Войти через Google» в Grok —
+            // открывается окно Google и Centrio намертво зависает; в
+            // диспетчере задач ничего не висит; в Rambox/Franz работает"):
+            // навигацию ГЛАВНОГО фрейма гостя на OAuth-провайдера до сих пор
+            // перехватывал только renderer/webview-tabs-bind.js — через
+            // DOM-событие <webview>'will-navigate' + e.preventDefault().
+            // У тега <webview> это событие, в отличие от одноимённого события
+            // webContents, НЕ отменяемое: оно лишь уведомляет о навигации,
+            // которая уже началась (офиц. документация webview-tag
+            // перечисляет у него только параметр `url`, без семантики отмены).
+            // preventDefault() там не делал ничего, и в main-процессе
+            // верхнеуровневой точки перехвата не было вообще: 'will-frame-
+            // navigate' ниже отсекает главный фрейм первой же строкой, а
+            // 'will-redirect' срабатывает только на серверный редирект.
+            //
+            // Живой лог воспроизведения это подтвердил: в 11:24:55.566
+            // открывался попап, а через 228 мс will-redirect отменял
+            // навигацию гостя на accounts.google.com — то есть кросс-origin
+            // навигация главного фрейма <webview> успевала СТАРТОВАТЬ (а с
+            // ней и смена процесса гостя) и обрывалась уже на лету, ровно в
+            // тот момент, когда создаётся и показывается дочернее окно
+            // попапа. Обрыв кросс-процессной навигации гостя одновременно с
+            // пере-аттачем guest view к эмбеддеру — и есть тот native-блок в
+            // рендерере ГЛАВНОГО окна, который прошлая CDP-диагностика
+            // зафиксировала как зависание, недостижимое для Debugger.pause
+            // (main-процесс и все остальные webview при этом оставались
+            // живыми — отсюда и "в диспетчере ничего не висит").
+            //
+            // Отменяем такую навигацию здесь, на webContents гостя, где
+            // preventDefault() реально работает — навигация не стартует
+            // вовсе, процесс гостя не переключается, обрывать нечего.
+            contents.on('will-navigate', (event, url) => {
+                if (!isOAuthProviderUrl(url)) return
+                if (isGoogleInternalPath(url)) return
+                if (isYandexInternalSsoHost(url)) return
+
+                if (openOAuthBroker(url)) {
+                    event.preventDefault()
+                }
+            })
+
+            contents.on('will-frame-navigate', (details) => {
+                if (details.isMainFrame) return
+
+                // DEBUG (Grok "2 окна" investigation): log EVERY sub-frame
+                // navigation, matched or not — the isOAuthProviderUrl() check
+                // below silently drops anything that doesn't match, which is
+                // exactly the blind spot that would hide a GSI/FedCM iframe
+                // using a host this regex doesn't recognize (e.g. a
+                // gstatic.com-hosted picker, or an about:blank frame that
+                // never re-navigates because Chromium renders its content via
+                // FedCM's chrome-level UI instead of an actual page load).
+                log.info(`[oauth-broker][DEBUG] will-frame-navigate subframe url=${details.url} matchesOAuthHost=${isOAuthProviderUrl(details.url)}`)
+
+                if (!isOAuthProviderUrl(details.url)) return
+
+                // BUGFIX ("Google: бесконечный повторяющийся [popup] loadURL
+                // failed ERR_FAILED loading '.../_/bscframe'" — live-
+                // reproduced, root-caused via [oauth-broker][DEBUG] logging):
+                // paths under accounts.google.com/_/... (bscframe and
+                // similar) are Google's own internal cross-origin cookie-
+                // sync iframes — never meant to be loaded top-level, and NOT
+                // the actual sign-in flow. They still match
+                // isOAuthProviderUrl (hostname-only check) and re-navigate
+                // every ~1-1.5s for as long as the real sign-in iframe is
+                // open. Worse than merely pointless: intercepting them
+                // grabs the ONE guard slot in activeOAuthBrokerMessengerIds
+                // for this messenger, so when Google's own JS goes on to
+                // open the REAL sign-in popup via window.open() (handled by
+                // setWindowOpenHandler above, sharing the same guard), that
+                // legitimate popup finds the guard already held and gets
+                // silently swallowed too — the two code paths were fighting
+                // over the same slot, which is why the single-flight guard
+                // alone (added earlier) never fixed the loop. Skip these
+                // internal paths entirely and let the guest iframe navigate
+                // normally; only genuine sign-in sub-frames should ever
+                // reach openOAuthBroker() here.
+                //
+                // BUGFIX (2026-08-24, "два окна при входе" — re-diagnosed
+                // after the single-flight guard fix above turned out NOT to
+                // be the (sole) cause: live screenshot + [oauth-broker][DEBUG]
+                // log cross-reference proved the two visible windows were
+                // TWO DIFFERENT messengers' popups, not a duplicate of the
+                // same flow — so the per-messenger guard correctly did NOT
+                // block the second one). RotateCookiesPage is the same
+                // category of Google-internal cross-domain cookie-sync
+                // endpoint as bscframe above (rotates the session cookie
+                // across google.com subdomains — Gmail's webview triggers it
+                // ambiently in the background, with no user action), but it
+                // lives at the root path, not under /_/, so the filter above
+                // never caught it. Unlike bscframe it doesn't fail to load
+                // and retry — it loads "successfully" into a popup, but
+                // being an internal utility page it never navigates away
+                // from google.com, and popup close-on-completion
+                // (maybeFinishOAuth in main/ipc/window.js) is keyed on
+                // exactly that "left the provider's domain" signal. Net
+                // result: a popup that opens and then NEVER closes on its
+                // own, silently leaking window-turned-forever-open — for a
+                // background operation the user never asked for. If the
+                // user then separately signs into a DIFFERENT messenger
+                // while this stale popup is still sitting open, the two
+                // unrelated popups appear together and look exactly like
+                // "two windows fighting over one sign-in" even though
+                // there's no race at all. Extending the skip-list rather
+                // than trying to auto-close popups more aggressively — an
+                // internal housekeeping endpoint should never have opened a
+                // user-facing window to begin with.
+                //
+                // BUGFIX (2026-08-24, regression introduced by the very
+                // fix above): the first version of this filter was a single
+                // regex `^\/(_\/|RotateCookiesPage|...)(\/|$)` that required
+                // a "/" or end-of-string immediately after the matched
+                // segment. That's correct for RotateCookiesPage (a leaf
+                // page — nothing follows it in the path), but wrong for
+                // "/_/" — that's a PREFIX under which many different
+                // internal pages live, e.g. "/_/bscframe" has "bscframe"
+                // immediately after "_/" with no separating slash, so the
+                // trailing "(\/|$)" never matched and bscframe silently
+                // fell through to openOAuthBroker() again — reintroducing
+                // the exact "blank popup opens on its own" symptom this was
+                // meant to fix (confirmed live: user added the Gmail tab,
+                // an empty white popup titled "Gmail" appeared before any
+                // sign-in attempt; logs showed createPopupWindow for
+                // .../_/bscframe with no matching "popup closed" ever).
+                // Switched to plain prefix checks (mirroring the original,
+                // known-working `startsWith('/_/')` check) instead of a
+                // single combined regex, since "/_/" and the named leaf
+                // pages have different shapes and conflating them into one
+                // pattern is exactly what broke this.
+                if (isGoogleInternalPath(details.url)) return
+
+                if (openOAuthBroker(details.url)) {
+                    details.preventDefault()
+                }
+            })
+
+            // BUGFIX (2026-08-24, "Не удалось войти в аккаунт" продолжает
+            // появляться даже после фикса порядка проверки в 'will-navigate'
+            // renderer/webview-tabs-bind.js — live-reproduced пользователем
+            // на билде с этим фиксом): тот фикс закрывал только один путь —
+            // навигацию, которую Electron классифицирует как 'will-navigate'
+            // (переход по ссылке или JS-присвоение window.location СО
+            // СТОРОНЫ страницы). Реальный необращённый вход в Gmail — это
+            // mail.google.com отвечающий HTTP 302 на accounts.google.com
+            // ПРЯМО НА УРОВНЕ СЕРВЕРА, а не JS-редирект. Electron в принципе
+            // не эмитит 'will-navigate' для таких редиректов (см. офиц.
+            // документацию will-navigate — редиректы идёт отдельным
+            // событием). 'will-frame-navigate' выше тоже не ловит этот
+            // случай: он либо не эмитится для серверных редиректов так же,
+            // как и will-navigate, либо эмитится, но обрывается на первой
+            // строке (`if (details.isMainFrame) return`) — тот early-return
+            // был добавлен специально для случая Grok/xAI, где вход рисуется
+            // в САБ-фрейме гостевой страницы, и никогда не предполагался
+            // защитой и от навигации ГЛАВНОГО фрейма тоже. В сумме редирект
+            // на accounts.google.com проходил мимо вообще всех точек
+            // перехвата и рендерился прямо во вкладке с обычным (не
+            // подмененным) UA Electron — то самое отказное сообщение Google.
+            //
+            // 'will-redirect' — единственное событие гостевого webContents,
+            // которое Chromium реально эмитит для серверных редиректов (до
+            // 'did-redirect-navigation', и в отличие от него — отменяемое).
+            // Используем его как отдельную точку перехвата именно для этого
+            // случая, с тем же списком служебных путей и тем же
+            // openOAuthBroker(), что и 'will-frame-navigate' выше.
+            contents.on('will-redirect', (details) => {
+                if (!isOAuthProviderUrl(details.url)) return
+                if (isGoogleInternalPath(details.url)) return
+                if (isYandexInternalSsoHost(details.url)) return
+
+                if (openOAuthBroker(details.url)) {
+                    details.preventDefault()
+                }
+            })
+
+            contents.on('did-create-window', (childWindow, details) => {
                 if (childWindow.isDestroyed()) return
+
+                // Попап, который мы сами пометили как OAuth в
+                // setWindowOpenHandler выше (overrideBrowserWindowOptions
+                // уже применён Electron'ом при создании childWindow) — вся
+                // остальная обвязка (спуфинг UA, детект завершения флоу,
+                // ретрай, детект отказа Google) навешивается через
+                // wireOAuthPopup(), общую с createPopupWindow()'s isOAuthBroker
+                // веткой в main/ipc/window.js.
+                const oauthMessengerId = findMessengerIdForSession(contents.session)
+                if (oauthMessengerId && oauthPendingMessengerIds.has(oauthMessengerId)) {
+                    oauthPendingMessengerIds.delete(oauthMessengerId)
+
+                    wireOAuthPopup(childWindow, {
+                        url: details?.url || childWindow.webContents.getURL(),
+                        mainWin: getMainWindow(),
+                        partition: `persist:${oauthMessengerId}`
+                    })
+
+                    childWindow.once('closed', () => {
+                        clearOAuthBrokerActive(oauthMessengerId)
+                    })
+                    return
+                }
+
                 childWindow.hide()
 
                 let isDownload = false
@@ -547,6 +1419,17 @@ function registerAppEvents({
                 childWindow.webContents.once('did-navigate', (_evt, navUrl) => {
                     if (isDownload || childWindow.isDestroyed()) return
                     if (!navUrl || navUrl === 'about:blank') return
+                    // DEBUG (2026-08-24, see matching comment on
+                    // browser-window-created above) — this is the fallback
+                    // for a webview-originated window.open() that did NOT
+                    // get recognized as an OAuth popup (oauthPendingMessengerIds
+                    // didn't have it): candidate #2 for the Yandex
+                    // "opens external browser" report, if a mid-flow
+                    // window.open() from the Yandex login popup itself (or
+                    // the underlying webview) targets a host that
+                    // isOAuthProviderUrl()/the new isYandexInternalSsoHost()
+                    // skip above don't recognize.
+                    log.info(`[oauth-broker][DEBUG] did-create-window fallback → shell.openExternal navUrl=${navUrl}`)
                     shell.openExternal(navUrl).catch(() => {})
                     childWindow.close()
                 })
@@ -607,6 +1490,112 @@ function registerAppEvents({
                 webPreferences.preload = expectedPreload.startsWith('file://')
                     ? fileURLToPath(expectedPreload)
                     : expectedPreload
+
+                // BUGFIX ("не вставляется картинка из буфера обмена в Алисе"):
+                // без явного permission-хендлера Electron по умолчанию НЕ
+                // выдаёт guest-контенту <webview> разрешение 'clipboard-read' —
+                // именно его запрашивает navigator.clipboard.read()/readText(),
+                // которым современные чат-интерфейсы (включая Алису) чаще
+                // всего реализуют вставку изображений по Ctrl+V — обычное
+                // текстовое paste-событие эту вставку не покрывает.
+                // 'media'/'notifications'/'geolocation' здесь же разрешены
+                // явно, чтобы не сломать уже рабочие голосовые/видеозвонки,
+                // геолокацию для шаринга и сайт-уведомления — раньше они
+                // проходили через дефолтное поведение Electron (никакого
+                // хендлера не было вовсе), теперь это дефолтное поведение
+                // заменяется явным списком, и без них список стал бы строже,
+                // чем было. Экзотика без легитимного применения в чат-вебапе
+                // (midi/hid/usb/serial/window-management и т.п.) — не
+                // допускается вообще.
+                if (!clipboardPermissionPartitions.has(partition)) {
+                    clipboardPermissionPartitions.add(partition)
+                    try {
+                        const guestSession = session.fromPartition(partition)
+                        // 'hid'/'usb'/'serial' added alongside the rest (BUGFIX
+                        // attempt, Google/Yandex OAuth rejection investigation):
+                        // Ferdium's own real merged fix for this exact "This
+                        // browser or app may not be secure" rejection
+                        // (ferdium/ferdium-app#2360, closing #2324/#2316/#1801/
+                        // #1487/#1131) paired a user-agent fix with granting
+                        // these three permissions specifically to let WebAuthn/
+                        // FIDO2 hardware security-key and passkey checks
+                        // complete during Google sign-in — without them, a
+                        // browser's passkey/security-key challenge can silently
+                        // stall or fail closed, which surfaces to the user
+                        // identically to Google's embedded-browser block. This
+                        // session is shared with the OAuth broker popup (see
+                        // isSharedMessengerSession in createPopupWindow), so
+                        // granting these here also covers the popup, not just
+                        // the webview.
+                        const ALLOWED_PERMISSIONS = new Set([
+                            'clipboard-read', 'clipboard-sanitized-write',
+                            'media', 'notifications', 'geolocation',
+                            'fullscreen', 'pointerLock', 'display-capture',
+                            'hid', 'usb', 'serial'
+                        ])
+                        guestSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+                            callback(ALLOWED_PERMISSIONS.has(permission))
+                        })
+                        if (typeof guestSession.setPermissionCheckHandler === 'function') {
+                            guestSession.setPermissionCheckHandler((_webContents, permission) => ALLOWED_PERMISSIONS.has(permission))
+                        }
+
+                        // BUGFIX (2026-08-26): a session-level Firefox
+                        // User-Agent override for accounts.google.* used to be
+                        // wired here too. Removed — it produced exactly the
+                        // rejected "Firefox header + Chrome navigator.userAgent"
+                        // mismatch the webview's own `useragent` attribute
+                        // (renderer/webview-tabs-bind.js) already creates. The
+                        // per-navigation UA reset in the 'web-contents-created'
+                        // handler above (search isGoogleAccountsUrl) now handles
+                        // the Gmail-in-webview-tab case instead. See the BUGFIX
+                        // comment above isGoogleAccountsUrl() in
+                        // main/ipc/window.js for the live A/B evidence.
+                        // BUGFIX (2026-08-25, whole-app freeze after Google auth,
+                        // reproduced on a plain webview tab too, not just the
+                        // OAuth popup) — same Permissions-Policy WebAuthn block,
+                        // wired here for the webview's own top-level/iframe
+                        // requests. See BUGFIX comment in main/ipc/window.js.
+                        ensureGoogleAccountsWebAuthnBlock(guestSession, partition)
+
+                        // DIAGNOSTIC (2026-08-25, temporary, targeted at the
+                        // "аудио не воспроизводится в Яндекс Мессенджере" bug):
+                        // [media-diag] already proved the failing <audio> is a
+                        // real HTMLMediaElement (not Web Audio API) whose
+                        // play() rejects with NotSupportedError /
+                        // networkState=NETWORK_NO_SOURCE for URLs on
+                        // files.messenger.yandex.net — but that only tells us
+                        // the BROWSER gave up, not WHY (could be an HTTP error
+                        // status, a Content-Type Chromium refuses to play, or
+                        // something about how the request left this process).
+                        // onCompleted/onErrorOccurred are observer-only (unlike
+                        // onBeforeSendHeaders/onHeadersReceived, Electron allows
+                        // multiple listeners for these — see the "only ONE
+                        // listener" comments elsewhere in this file), so this is
+                        // safe to add without touching the existing UA-override
+                        // listener. Scoped tightly to this one CDN host so it
+                        // produces near-zero log noise for users who don't use
+                        // Yandex Messenger. Remove once the real cause is found.
+                        guestSession.webRequest.onCompleted(
+                            { urls: ['*://files.messenger.yandex.net/*'] },
+                            (details) => {
+                                log.warn(
+                                    `[cdn-diag] onCompleted url=${details.url} method=${details.method} statusCode=${details.statusCode} statusLine=${details.statusLine} fromCache=${details.fromCache} responseHeaders=${JSON.stringify(details.responseHeaders)}`
+                                )
+                            }
+                        )
+                        guestSession.webRequest.onErrorOccurred(
+                            { urls: ['*://files.messenger.yandex.net/*'] },
+                            (details) => {
+                                log.warn(
+                                    `[cdn-diag] onErrorOccurred url=${details.url} method=${details.method} error=${details.error} fromCache=${details.fromCache}`
+                                )
+                            }
+                        )
+                    } catch (err) {
+                        log.error('[security] failed to set clipboard permission handler:', err.message)
+                    }
+                }
             } catch (err) {
                 log.error('[security] will-attach-webview validation error, denying attach:', err.message)
                 event.preventDefault()

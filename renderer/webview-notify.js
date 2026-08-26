@@ -27,6 +27,20 @@ function createWebviewNotifyApi({
 
         const isActiveTab = state.activeTabId === messenger.id
 
+        // BUGFIX (Item №6 — "уведомления дублируются в сплит-экране"):
+        // раньше видимость проверялась только по state.activeTabId, то есть
+        // мессенджер в НЕ-основной панели сплита (splitTabId в 2col,
+        // остальные зоны в 3col/2x2/2top1bottom/1top2bottom) всегда считался
+        // "неактивным" и получал полноценный OS-нотиф, даже если сообщение
+        // уже видно прямо на экране рядом с основной вкладкой. Основная
+        // (zone 0 / activeTabId) панель уже покрыта isActiveTab выше — эта
+        // проверка нужна именно для остальных видимых панелей.
+        const isVisibleInSplit = state.splitMode && (
+            state.splitLayout === '2col'
+                ? state.splitTabId === messenger.id
+                : Array.isArray(state.splitZoneIds) && state.splitZoneIds.includes(messenger.id)
+        )
+
         let winState = { visible: true, focused: true, minimized: false }
         try {
             const result = await invokeIpc('get-window-visibility-state')
@@ -35,7 +49,7 @@ function createWebviewNotifyApi({
 
         const appInForeground = winState.visible && !winState.minimized && winState.focused
         const shouldPlaySound = settings.notifSound !== false
-        const shouldShowNotification = !appInForeground || !isActiveTab
+        const shouldShowNotification = !appInForeground || (!isActiveTab && !isVisibleInSplit)
 
         // ── Count notification regardless of whether we show OS popup ──
         // Tagged with the messenger's display name so it lines up with the

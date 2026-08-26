@@ -7,14 +7,20 @@ function createCloudStore(store) {
         getLastSyncError: () => store.get('cloud.lastSyncError', null),
 
         setAuth: (user, accessToken, refreshToken) => {
-            store.set('cloud.user', user)
+            // SECURITY: 'cloud.user' is a protected, main-process-owned key
+            // (see PROTECTED_SET_KEYS in main.js) — main already persisted it
+            // to disk itself, from the same server response this `user` came
+            // from, before this code ever runs. Only mirror it into the
+            // renderer's local read-cache here (setLocal), don't try to
+            // store.set() it again — that would just be rejected.
+            store.setLocal('cloud.user', user)
             // Tokens stored encrypted via OS safeStorage (DPAPI/Keychain/libsecret)
             store.secureSet('cloud.accessToken', accessToken)
             store.secureSet('cloud.refreshToken', refreshToken)
         },
 
         setUser: (user) => {
-            store.set('cloud.user', user)
+            store.setLocal('cloud.user', user)
         },
 
         setLastSyncAt: (value) => {
