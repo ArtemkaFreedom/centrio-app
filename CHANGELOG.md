@@ -10,6 +10,12 @@ The format is based on Keep a Changelog. This project does not currently follow 
 
 _No unreleased changes yet — add entries here as they land, then move them under a new version heading at release time._
 
+## [2.5.1]
+
+- Исправлен мини-плеер — после обновления до 2.5.0 переставал показываться, даже когда музыка или видео играли в открытых мессенджерах
+- Восстановлена промо-плитка SYNTAX в разделе «Нейросети»
+- Программа стала ещё безопаснее
+
 ## [2.5.0]
 
 - Новое: подписка Centrio TEAM — корпоративная версия для команд, покупка мест (seats), приглашение участников по ссылке, раздел «Команда» в личном кабинете
