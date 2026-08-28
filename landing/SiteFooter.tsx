@@ -8,9 +8,9 @@ import { COMPARE_LINKS } from '@/lib/site-nav'
 // Restored from the live server 2026-07-29 — this component (used by
 // features/refund/blog pages, distinct from the newer combined SiteFooter
 // exported by site-shell.tsx used elsewhere) had never been tracked in this
-// repo, so its VERSION constant had drifted to '2.4.0' while the app itself
-// moved on to 2.4.0 — visibly wrong on every page that renders this footer.
-const VERSION = '2.4.0'
+// repo, so its VERSION constant had drifted to '2.5.2' while the app itself
+// moved on to 2.5.2 — visibly wrong on every page that renders this footer.
+const VERSION = '2.5.2'
 
 export default function SiteFooter() {
   const { t } = useLang()
