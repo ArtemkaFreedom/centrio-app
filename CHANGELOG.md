@@ -10,6 +10,11 @@ The format is based on Keep a Changelog. This project does not currently follow 
 
 _No unreleased changes yet — add entries here as they land, then move them under a new version heading at release time._
 
+## [2.5.2]
+
+- Новое: добавлена Алиса PRO (alicepro.yandex.ru) в раздел «Нейросети»
+- В разделе «Нейросети» убран дублирующий обычный значок SYNTAX — теперь показывается только большая промо-плитка (в «Популярных» обычный значок SYNTAX остался)
+
 ## [2.5.1]
 
 - Исправлен мини-плеер — после обновления до 2.5.0 переставал показываться, даже когда музыка или видео играли в открытых мессенджерах
