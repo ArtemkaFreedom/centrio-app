@@ -176,7 +176,20 @@ function createAddModalUiApi({
 
         let globalIndex = 0
         orderedKeys.forEach((key) => {
-            const items = key === 'top' ? popularItems : byCategory.get(key)
+            // FIX (2026-08-28, live user request — "Большой Syntx оставляем тут,
+            // маленький тут убираем. В популярных маленький остается."): в
+            // категории 'ai' обычный тайл SYNTAX дублировал уже показанный
+            // выше widescreen-баннер syntaxAiPromo (тот же реферальный url) —
+            // визуально два SYNTAX подряд. Убираем обычный тайл ТОЛЬКО из
+            // секции 'ai' (баннер и так его представляет), но оставляем в
+            // "Популярные" (popularItems ниже строится из полного списка вне
+            // зависимости от этого фильтра) — как и просили.
+            const items =
+                key === 'top'
+                    ? popularItems
+                    : key === 'ai' && syntaxAiPromo
+                      ? byCategory.get(key).filter((m) => m.url !== syntaxAiPromo.url)
+                      : byCategory.get(key)
             const section = document.createElement('div')
             section.className = 'modal-category'
 
