@@ -12,7 +12,7 @@
 const state = require('./renderer/state')
 const { tGet, applyI18n, initI18n, setCurrentLanguage, getCurrentLanguage } = require('./renderer/i18n')
 const { getCurrentLocale, getUserInitial, hashPassword } = require('./renderer/helpers')
-const { popularMessengers, folderIcons, PAGE_SIZE } = require('./renderer/constants')
+const { popularMessengers, syntaxAiPromo, folderIcons, PAGE_SIZE } = require('./renderer/constants')
 const { createCloudStore, createCloudApi } = require('./renderer/cloud')
 const { createSoundsApi } = require('./renderer/sounds')
 const { bindDownloads } = require('./renderer/downloads')
@@ -36,6 +36,7 @@ const { createMessengerSoundUiApi } = require('./renderer/messenger-sound-ui')
 const { createSidebarDndApi } = require('./renderer/sidebar-dnd-bind')
 const { createWebviewNotifyApi } = require('./renderer/webview-notify')
 const { createWebviewTabsApi } = require('./renderer/webview-tabs-bind')
+const { createMediaPlayerUiApi } = require('./renderer/media-player-ui')
 const { createSplitApi } = require('./renderer/split')
 const { createOnboardingTourApi } = require('./renderer/onboarding-tour')
 
@@ -752,6 +753,15 @@ async function bootstrap() {
             if (typeof updateCloudBtn === 'function') updateCloudBtn()
             updateAddButtonState()
             updateTrialStatusBar()
+            // Covers the no-reload branch below (empty cloud → local push);
+            // the has-data branch reloads the whole page, which re-derives
+            // locks itself via loadData().
+            reapplyMessengerLocks()
+            reapplyExtensionLocks()
+            reapplySettingsLocks()
+            reapplyFolderLocks()
+
+            reapplySoundLocks()
 
             const cloudData = await cloudSyncPull()
             const hasData = (cloudData?.messengers?.length > 0) || (cloudData?.folders?.length > 0)
@@ -1006,7 +1016,21 @@ async function bootstrap() {
             this.parentElement.insertBefore(letter, this)
         })
 
-        item.addEventListener('click', () => switchTab(messenger.id))
+        item.addEventListener('click', () => {
+            // SECURITY / BUGFIX (retroactive FREE-limit enforcement): messengers
+            // beyond the free plan's first 3 (see reapplyMessengerLocks() below)
+            // stay visible in the sidebar but must not actually switch to them —
+            // otherwise a lapsed Pro/trial user could keep using messengers added
+            // while still Pro forever, just by clicking the icon.
+            if (isMessengerLocked(messenger.id)) {
+                showUpgradeModal(
+                    tGet('pro.messengerLimitTitle'),
+                    tGet('pro.messengerLimitDesc').replace('{n}', FREE_MESSENGER_LIMIT)
+                )
+                return
+            }
+            switchTab(messenger.id)
+        })
         item.addEventListener('contextmenu', (e) => {
             e.preventDefault()
             e.stopPropagation()
@@ -1316,6 +1340,8 @@ function applyZoomWhenReady(webview, zoomLevel) {
 
 // ── Split API (initialised below, after DOM refs are ready) ───
     let splitApi = null
+    // ── Мини-плеер медиа (initialised below, after switchTab/tGet are ready) ──
+    let mediaPlayerUiApi = null
 
 function switchTab(id) {
     // In split mode route to the focused pane
@@ -1503,6 +1529,11 @@ function applyTabZoom(level) {
         document.getElementById(`tab-${id}`)?.remove()
         document.getElementById(`webview-${id}`)?.remove()
 
+        // Вкладка закрыта — не ждём 'ended' от её preload'а (webview уже
+        // удалён из DOM и никогда его не пришлёт), прячем мини-плеер сразу,
+        // если это был единственный/текущий играющий источник.
+        mediaPlayerUiApi?.onMessengerRemoved(id)
+
         if (folderId) updateFolderBadge(folderId)
 
         if (state.activeMessengers.length > 0) {
@@ -1520,11 +1551,27 @@ function applyTabZoom(level) {
         updateStatusBar()
         updateAddButtonState()
         updateTrialStatusBar()
+        // Removing a messenger can free up a slot under FREE_MESSENGER_LIMIT —
+        // re-check so an existing locked messenger unlocks immediately.
+        reapplyMessengerLocks()
     }
 
     const preloadPath = window.electronAPI?.getWebviewPreloadPath
     ? await window.electronAPI.getWebviewPreloadPath()
     : ''
+    // ==============================
+    // МИНИ-ПЛЕЕР МЕДИА (аудио/видео во вкладках)
+    // ==============================
+    // Создаём до webviewTabsApi — её onMediaState передаётся туда ниже как
+    // колбэк для канала 'media-state' у каждого <webview> (см. addWebview в
+    // renderer/webview-tabs-bind.js).
+    mediaPlayerUiApi = createMediaPlayerUiApi({
+        state,
+        tGet,
+        switchTab,
+        mediaPlayerBtn: document.getElementById('mediaPlayerBtn')
+    })
+
     // ==============================
     // WEBVIEW TABS API
     // ==============================
@@ -1545,6 +1592,7 @@ function applyTabZoom(level) {
         getActiveWebview,
         applyTabZoom,
         applyAppZoom,
+        onMediaState: mediaPlayerUiApi.onMediaState,
         switchTab,
         removeMessenger,
         watchWebview
@@ -1578,6 +1626,7 @@ function applyTabZoom(level) {
     const addModalUiApi = createAddModalUiApi({
         state,
         popularMessengers,
+        syntaxAiPromo,
         PAGE_SIZE,
         addModal,
         messengerGrid,
@@ -1626,6 +1675,28 @@ function applyTabZoom(level) {
     })
 
     const FREE_MESSENGER_LIMIT = 3
+
+    // SECURITY: "Add your own messenger" (add-modal-bind.js's addCustomBtn
+    // handler) is gated by requirePro('customMessenger') at click time only —
+    // once addMessenger() has pushed the entry into state.activeMessengers /
+    // persisted `messengers`, nothing distinguishes it from a catalog entry
+    // (same {id, name, url, icon, color} shape as popularMessengers in
+    // renderer/constants.js). Match by hostname rather than exact URL so a
+    // catalog entry's saved url can drift slightly (a different Telegram web
+    // client path, etc.) without being misclassified as "custom".
+    const CATALOG_HOSTNAMES = new Set(
+        popularMessengers
+            .map(m => { try { return new URL(m.url).hostname } catch { return null } })
+            .filter(Boolean)
+    )
+    function isCatalogMessenger(m) {
+        if (!m || !m.url) return false
+        try {
+            return CATALOG_HOSTNAMES.has(new URL(m.url).hostname)
+        } catch {
+            return false
+        }
+    }
 
     // Учитывает не только серверный план аккаунта, но и локальный
     // 14-дневный триал для пользователей без аккаунта (онбординг →
@@ -1730,6 +1801,245 @@ function applyTabZoom(level) {
     }
 
     // ==============================
+    // РЕТРОАКТИВНАЯ БЛОКИРОВКА ЛИШНИХ МЕССЕНДЖЕРОВ (FREE-лимит)
+    // ==============================
+    // SECURITY / BUGFIX: addMessenger() above only blocks ADDING a new
+    // messenger past FREE_MESSENGER_LIMIT. It does nothing about messengers
+    // that were added while the account WAS Pro (or during an active local
+    // trial) and are still sitting in state.activeMessengers/store after Pro
+    // lapses — subscription expiry, cancellation, chargeback, or the local
+    // 14-day trial simply running out. Without this, those extra messengers
+    // stayed fully functional forever once added: the "3 messengers on FREE"
+    // limit was only ever enforced going forward, never actually enforced
+    // against existing state. This must be re-run every time entitlement
+    // could have changed: on startup (loadData), after a post-login cloud
+    // sync (cloudSyncAfterLogin), after removing a messenger (freeing up a
+    // slot), after adding one, and on every periodic/focus PRO revalidation.
+    //
+    // Per explicit product decision: "просто первые 3" — no priority/sort
+    // logic, just array order (same order already used by the sidebar and
+    // tab bar). Whichever 3 happen to be first in state.activeMessengers
+    // stay active; the rest lock. Deliberately NOT re-run on drag/reorder —
+    // locks are only recomputed at the points above, keeping this simple.
+    const lockedMessengerIds = new Set()
+
+    function isMessengerLocked(id) {
+        return lockedMessengerIds.has(id)
+    }
+
+    function reapplyMessengerLocks() {
+        const pro = hasEffectivePro()
+        const shouldBeLocked = new Set()
+        if (!pro) {
+            state.activeMessengers.forEach((m, i) => {
+                // SECURITY: same lock (not delete) treatment as the free-plan
+                // position cap — a custom (non-catalog) messenger added while
+                // Pro must stop being usable the moment Pro lapses, exactly
+                // like the count-based lock below, and unlock again the same
+                // way if Pro is regained. See isCatalogMessenger() above.
+                if (i >= FREE_MESSENGER_LIMIT || !isCatalogMessenger(m)) shouldBeLocked.add(m.id)
+            })
+        }
+
+        let activeTabWasLocked = false
+
+        // Unlock: Pro regained, or this messenger shifted back inside the
+        // free limit after an earlier one was removed. Recreate its tab and
+        // webview exactly as loadData()/addMessenger() do.
+        Array.from(lockedMessengerIds).forEach(id => {
+            if (shouldBeLocked.has(id)) return
+            lockedMessengerIds.delete(id)
+            document.getElementById(`sidebar-${id}`)?.classList.remove('messenger-item-locked')
+            const messenger = state.activeMessengers.find(m => m.id === id)
+            if (messenger && !document.getElementById(`tab-${id}`)) {
+                addTab(messenger)
+                addWebview(messenger)
+            }
+        })
+
+        // Lock: newly over the limit. Detach tab + webview (mirrors
+        // removeMessenger()'s DOM cleanup) but keep the sidebar icon and all
+        // persisted state untouched — this is purely a visibility/access
+        // lock, not a deletion.
+        shouldBeLocked.forEach(id => {
+            if (lockedMessengerIds.has(id)) return
+            lockedMessengerIds.add(id)
+            document.getElementById(`sidebar-${id}`)?.classList.add('messenger-item-locked')
+            document.getElementById(`tab-${id}`)?.remove()
+            document.getElementById(`webview-${id}`)?.remove()
+            if (state.activeTabId === id) activeTabWasLocked = true
+        })
+
+        if (activeTabWasLocked) {
+            const fallback = state.activeMessengers.find(m => !lockedMessengerIds.has(m.id))
+            if (fallback) {
+                switchTab(fallback.id)
+            } else {
+                state.activeTabId = null
+                welcomeScreen.style.display = 'flex'
+                tabsContent.style.pointerEvents = 'none'
+            }
+        }
+
+        updateAddButtonState()
+    }
+
+    // ==============================
+    // РЕТРОАКТИВНОЕ ОТКЛЮЧЕНИЕ PRO-РАСШИРЕНИЙ (extensionsState)
+    // ==============================
+    // SECURITY / BUGFIX: same disease as reapplyMessengerLocks() above, but
+    // for the native extension toggles (adblock/screenshot/darkmode/split —
+    // see NATIVE_EXTENSIONS in renderer/extensions-ui.js). Those toggles are
+    // themselves Pro-gated in the UI (getUserIsPro() there) and now also
+    // blocked from being forged `true` on the main-process store:set gate
+    // (see main.js's extensionsState backstop), but neither of those stops a
+    // flag that was legitimately switched on while the account WAS Pro from
+    // silently staying `true` — and therefore functionally active — after Pro
+    // lapses. Must be re-run at the same entitlement-change points as
+    // reapplyMessengerLocks() (startup, post-login sync, and every
+    // focus/periodic refreshUser() revalidation) — NOT on addMessenger/
+    // removeMessenger, since those never change entitlement.
+    const NATIVE_EXTENSION_IDS = ['adblock', 'screenshot', 'darkmode', 'split']
+
+    function reapplyExtensionLocks() {
+        if (hasEffectivePro()) return
+        const extState = store.get('extensionsState', {}) || {}
+        const toDisable = NATIVE_EXTENSION_IDS.filter(id => extState[id] === true)
+        if (toDisable.length === 0) return
+
+        const nextState = { ...extState }
+        toDisable.forEach(id => { nextState[id] = false })
+        store.set('extensionsState', nextState)
+
+        // Mirror onExtensionToggle(id, false)'s side effects (see EXTENSIONS
+        // API section below) since that handler only fires from the settings
+        // toggle's own 'change' event, never from this out-of-band
+        // revalidation path.
+        if (toDisable.includes('screenshot')) {
+            const btn = document.getElementById('screenshotBtn')
+            if (btn) btn.style.display = 'none'
+        }
+        if (toDisable.includes('split')) {
+            const btn = document.getElementById('splitBtn')
+            if (btn) btn.style.display = 'none'
+            if (state.splitMode) splitApi?.exitSplitMode?.()
+        }
+        if (toDisable.includes('adblock')) {
+            // Main process re-derives isEnabled() straight from
+            // extensionsState (see main/services/adblock.js) — this just
+            // wakes it up immediately instead of waiting for the next
+            // natural trigger.
+            ipcRenderer.send('update-adblock-state')
+        }
+        if (toDisable.includes('darkmode')) {
+            // The toggle only gated *turning on* new forced dark mode
+            // (context-actions-bind.js's ctxDarkMode handler); any messenger
+            // that already had it applied would otherwise keep rendering
+            // inverted forever post-downgrade. Reload clears the injected
+            // CSS the same way the manual "turn off" path does.
+            state.activeMessengers.forEach(m => {
+                if (!m.forceDarkMode) return
+                m.forceDarkMode = false
+                document.getElementById(`webview-${m.id}`)?.reload()
+            })
+            saveData()
+        }
+    }
+
+    // ==============================
+    // РЕТРОАКТИВНЫЙ СБРОС PRO-ТЕМЫ/АКЦЕНТА (settings.theme / settings.accentColor)
+    // ==============================
+    // SECURITY / BUGFIX: same disease as reapplyMessengerLocks()/
+    // reapplyExtensionLocks() above. settings-bind.js's theme/accent click
+    // handlers only gate *selecting* a Pro theme/accent (requirePro('themes')/
+    // requirePro('accent')), and main.js's store:set backstop only strips a
+    // forged value going forward. Neither undoes a theme/accent that was
+    // legitimately chosen while Pro and is still sitting in the `settings`
+    // store key after Pro lapses — settings-ui.js's applySettings()/
+    // initSettings() would otherwise keep painting it on every load/apply
+    // indefinitely. Must mirror main.js's own FREE_THEME/FREE_ACCENT defaults
+    // exactly, or a downgraded user would get bounced between two different
+    // "free" values depending on which layer last wrote the key.
+    const FREE_THEME = 'embedded'
+    const FREE_ACCENT = '#7b68ee'
+
+    function reapplySettingsLocks() {
+        if (hasEffectivePro()) return
+        const settings = store.get('settings', {}) || {}
+        const violatesTheme = !!settings.theme && settings.theme !== FREE_THEME
+        const violatesAccent = !!settings.accentColor && settings.accentColor !== FREE_ACCENT
+        if (!violatesTheme && !violatesAccent) return
+
+        const corrected = { ...settings }
+        if (violatesTheme) corrected.theme = FREE_THEME
+        if (violatesAccent) corrected.accentColor = FREE_ACCENT
+        store.set('settings', corrected)
+        // Repaint immediately — applySettings is assigned by the time this can
+        // actually run (only ever called from loadData()/cloudSyncAfterLogin()/
+        // the refreshUser() revalidation callbacks, all of which fire well
+        // after createSettingsUiApi() below has executed).
+        if (typeof applySettings === 'function') applySettings(corrected)
+    }
+
+    // ==============================
+    // РЕТРОАКТИВНОЕ РАСФОРМИРОВАНИЕ PRO-ПАПОК (state.folders)
+    // ==============================
+    // SECURITY / BUGFIX: same disease as reapplyMessengerLocks()/
+    // reapplyExtensionLocks()/reapplySettingsLocks() above. Unlike those
+    // features, folders aren't gated by a count/value check — creating ANY
+    // folder at all requires Pro (context-actions-bind.js's ctxSidebarNewFolder
+    // / ctxNewFolder handlers are the only two places that call
+    // requirePro('folders')). edit-modal-bind.js's saveEditBtn handler, which
+    // actually pushes into state.folders on `state.editMode === 'newFolder'`,
+    // has no Pro check of its own — it trusts that editMode can only reach
+    // 'newFolder' via one of the two gated entry points. That's fine going
+    // forward (main.js's store:set backstop below closes the direct-IPC/
+    // hand-edited-store-file bypass), but nothing previously undid folders
+    // that already exist from a lapsed trial/subscription — they'd just keep
+    // rendering and accepting new messengers forever. Reuse the exact same
+    // teardown removeFolder() (folders-ui.js) already performs one folder at
+    // a time — unfold every messenger back to root level, drop the folder's
+    // DOM node — instead of duplicating that logic here.
+    function reapplyFolderLocks() {
+        if (hasEffectivePro()) return
+        if (!state.folders || state.folders.length === 0) return
+
+        // removeFolder() mutates state.folders (filters the removed id out)
+        // and calls saveData() itself each time, so iterate over a snapshot
+        // of the ids rather than the live array.
+        const staleFolderIds = state.folders.map(f => f.id)
+        staleFolderIds.forEach(id => {
+            if (typeof removeFolder === 'function') removeFolder(id)
+        })
+    }
+
+    // ==============================
+    // РЕТРОАКТИВНЫЙ СБРОС PRO-ЗВУКОВ УВЕДОМЛЕНИЙ (messenger.notifSound)
+    // ==============================
+    // SECURITY / BUGFIX: same disease as the other reapply*Locks() functions
+    // above. messenger-sound-ui.js's openMessengerSoundModal() gates *opening*
+    // the per-messenger sound picker with requirePro('sound'), but
+    // messenger-sound-bind.js's saveMessengerSoundBtn handler — which
+    // actually writes messenger.notifSound — has no Pro check of its own; it
+    // trusts the modal could only have been reached while Pro. Nothing
+    // previously undid a custom sound left over once Pro lapses, so it would
+    // keep playing indefinitely (sounds.js's playNotifSound() reads
+    // messenger.notifSound unconditionally). '__default__' is the same
+    // free-plan sentinel main.js's own store:set backstop resets to.
+    function reapplySoundLocks() {
+        if (hasEffectivePro()) return
+
+        let changed = false
+        state.activeMessengers.forEach(m => {
+            if (m.notifSound && m.notifSound !== '__default__') {
+                m.notifSound = '__default__'
+                changed = true
+            }
+        })
+        if (changed) saveData()
+    }
+
+    // ==============================
     // ДОБАВЛЕНИЕ МЕССЕНДЖЕРА
     // ==============================
     async function addMessenger(messenger) {
@@ -1799,6 +2109,7 @@ function applyTabZoom(level) {
         updateStatusBar()
         updateAddButtonState()
         updateTrialStatusBar()
+        reapplyMessengerLocks()
     }
 
     // ==============================
@@ -2188,6 +2499,17 @@ function applyTabZoom(level) {
         // tracked unread count), so retry a few times at increasing delays
         // instead of gambling on one fixed timeout.
         [3000, 6000, 10000].forEach(delay => setTimeout(repaintAllUnreadBadges, delay))
+
+        // SECURITY / BUGFIX (retroactive FREE-limit enforcement): re-derive
+        // locks against whatever entitlement state was cached at last
+        // refreshUser() — the revalidation calls below will correct this
+        // shortly after if the cached plan turns out to be stale.
+        reapplyMessengerLocks()
+        reapplyExtensionLocks()
+        reapplySettingsLocks()
+        reapplyFolderLocks()
+
+        reapplySoundLocks()
 
         updateStatusBar()
         // Тур — только для новых пользователей (см. ветку выше с пустым
@@ -2739,7 +3061,7 @@ function applyTabZoom(level) {
         // пользователь оплатил Pro на сайте, а приложение уже было запущено (или
         // было закрыто и открыто заново без повторного логина), Pro-статус в UI
         // мог оставаться устаревшим сколь угодно долго.
-        cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar() })
+        cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar(); reapplyMessengerLocks(); reapplyExtensionLocks(); reapplySettingsLocks(); reapplyFolderLocks(); reapplySoundLocks() })
     }
 
     // ...и повторяем при каждом возврате фокуса на окно — типичный сценарий:
@@ -2748,7 +3070,18 @@ function applyTabZoom(level) {
     // Тот же паттерн already используется для уведомлений в app-notif-bind.js.
     window.addEventListener('focus', () => {
         if (cloudStore.isLoggedIn()) {
-            cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar() })
+            cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar(); reapplyMessengerLocks(); reapplyExtensionLocks(); reapplySettingsLocks(); reapplyFolderLocks(); reapplySoundLocks() })
+        } else {
+            // No account — still catch a local (no-login) trial expiring
+            // while the app was open. hasEffectivePro() checks
+            // localProTrialExpiresAt regardless of cloud login state, so
+            // this needs no server round-trip.
+            reapplyMessengerLocks()
+            reapplyExtensionLocks()
+            reapplySettingsLocks()
+            reapplyFolderLocks()
+
+            reapplySoundLocks()
         }
     })
 
@@ -2766,7 +3099,16 @@ function applyTabZoom(level) {
     const PRO_REVALIDATE_INTERVAL_MS = 30 * 60 * 1000
     setInterval(() => {
         if (cloudStore.isLoggedIn()) {
-            cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar() })
+            cloudApi.refreshUser().then(() => { if (typeof updateCloudBtn === 'function') updateCloudBtn(); updateAddButtonState(); updateTrialStatusBar(); reapplyMessengerLocks(); reapplyExtensionLocks(); reapplySettingsLocks(); reapplyFolderLocks(); reapplySoundLocks() })
+        } else {
+            // Same reasoning as the focus listener above: a local trial can
+            // expire while the app sits open and unfocused too.
+            reapplyMessengerLocks()
+            reapplyExtensionLocks()
+            reapplySettingsLocks()
+            reapplyFolderLocks()
+
+            reapplySoundLocks()
         }
     }, PRO_REVALIDATE_INTERVAL_MS)
 

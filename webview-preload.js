@@ -924,6 +924,29 @@ function classifyDeepLink(href) {
     return null
 }
 
+// BUGFIX ("внутренние ссылки в ТГ не работают, внешние работают"): раньше
+// classifyDeepLink()-перехват срабатывал безусловно для ЛЮБОГО совпавшего
+// href — включая клики ВНУТРИ уже открытого web.telegram.org/t.me/max.ru по
+// его собственным internal-ссылкам (например клик на @username в тексте
+// сообщения или на пересланный t.me-инвайт прямо в чате). Такой клик
+// перехватывался, e.preventDefault()+stopPropagation() глушили родную
+// SPA-навигацию клиента, а ipcRenderer.sendToHost('deep-link', …) уходил в
+// routeDeepLink() (renderer/webview-tabs-bind.js), который снова находил
+// ЭТУ ЖЕ вкладку и пытался её же куда-то перенавигировать через
+// location.hash-трюк — на практике эта навигация по кругу либо ничего не
+// делала, либо конфликтовала с уже начавшейся родной навигацией страницы.
+// Кросс-мессенджерный сценарий (ссылка на Telegram, кликнутая ИЗ другого
+// мессенджера, например из чата WhatsApp) при этом продолжает работать как
+// раньше — здесь глушится только клик, сделанный на странице САМОГО того
+// сервиса, которому принадлежит ссылка; там нативная навигация клиента и
+// так справляется лучше нашего hash-трюка.
+function isCurrentPageService(service) {
+    const host = getHostname()
+    if (service === 'telegram') return /(^|\.)t\.me$|(^|\.)telegram\.org$/i.test(host)
+    if (service === 'max') return /(^|\.)max\.ru$/i.test(host)
+    return false
+}
+
 function bindLinkInterception() {
     document.addEventListener('click', (e) => {
         const link = e.target?.closest && e.target.closest('a[href]')
@@ -944,7 +967,7 @@ function bindLinkInterception() {
         // (max.ru/join is https:// so it qualifies), same as before this
         // feature existed.
         const special = e.isTrusted ? classifyDeepLink(href) : null
-        if (special) {
+        if (special && !isCurrentPageService(special.service)) {
             e.preventDefault()
             e.stopPropagation()
             ipcRenderer.sendToHost('deep-link', special)
@@ -1146,6 +1169,85 @@ function bindMsgSentDetection() {
     }, true)
 }
 
+// FEATURE (2026-08-28, "мини-плеер ... когда в любой открытой вкладке играет
+// видео или аудио" — live user request): единственный способ узнать про
+// проигрывание медиа — изнутри самой гостевой страницы (у главного процесса
+// и у renderer'а хоста нет доступа к DOM webview-содержимого). 'play'/
+// 'pause'/'ended' у <video>/<audio> НЕ всплывают (bubbles: false), поэтому
+// обычный делегированный listener на document с bubble-фазой их не поймает
+// — вместо этого вешаемся на capture-фазу (useCapture: true): захват идёт
+// сверху вниз от document к цели независимо от того, всплывает ли событие,
+// так что это отдельный, надёжный способ ловить такие события без
+// необходимости индивидуально биндиться на каждый <video>/<audio> (в т.ч.
+// появляющиеся динамически — SPA вроде YouTube/VK начинают воспроизведение
+// в элементах, которых не было в DOM на момент старта preload).
+// Статус пересчитывается и шлётся ХОСТУ (renderer/webview-tabs-bind.js,
+// канал 'media-state') с небольшим дебаунсом — сразу несколько
+// play/pause-событий могут прилететь пачкой (например при переключении
+// трека), не нужно слать промежуточные состояния.
+function bindMediaPlaybackDetection() {
+    let sendTimer = null
+    // Последний элемент, который реально играл — нужен, чтобы "плей" из
+    // мини-плеера (после нажатия "пауза" пользователем) возобновлял именно
+    // его, а не первый попавшийся <video>/<audio> на странице (их может
+    // быть несколько — например скрытый превью-ролик в ленте).
+    let lastActiveMedia = null
+
+    function currentTitle() {
+        // MediaSession API — то же, что показывают системные медиа-виджеты
+        // ОС (Windows SMTC и т.п.), большинство настоящих аудио/видео SPA
+        // (YouTube, VK, Яндекс.Музыка, Zoom/Meet — где применимо) уже
+        // проставляют туда осмысленное название трека/звонка. document.title
+        // — фолбэк для страниц, которые MediaSession не используют.
+        try {
+            const metaTitle = navigator.mediaSession && navigator.mediaSession.metadata
+                && navigator.mediaSession.metadata.title
+            if (metaTitle) return String(metaTitle)
+        } catch {}
+        return document.title || ''
+    }
+
+    function computeAndSend() {
+        clearTimeout(sendTimer)
+        sendTimer = setTimeout(() => {
+            let playing = false
+            document.querySelectorAll('video, audio').forEach((el) => {
+                if (!el.paused && !el.ended) {
+                    playing = true
+                    lastActiveMedia = el
+                }
+            })
+            try {
+                ipcRenderer.sendToHost('media-state', { playing, title: currentTitle() })
+            } catch {}
+        }, 120)
+    }
+
+    document.addEventListener('play', computeAndSend, true)
+    document.addEventListener('pause', computeAndSend, true)
+    document.addEventListener('ended', computeAndSend, true)
+    document.addEventListener('emptied', computeAndSend, true)
+
+    // Команда из хоста (клик по кнопке паузы/плей в мини-плеере) — см.
+    // renderer/media-player-ui.js. 'pause' ставит на паузу ВСЁ проигрывающееся
+    // медиа на странице (проще и предсказуемее, чем угадывать "то самое"),
+    // 'play' возобновляет последний реально игравший элемент.
+    ipcRenderer.on('media-command', (_event, cmd) => {
+        if (cmd === 'pause') {
+            document.querySelectorAll('video, audio').forEach((el) => {
+                if (!el.paused) el.pause()
+            })
+        } else if (cmd === 'play') {
+            const target = (lastActiveMedia && document.contains(lastActiveMedia))
+                ? lastActiveMedia
+                : document.querySelector('video, audio')
+            if (target && typeof target.play === 'function') {
+                target.play().catch(() => {})
+            }
+        }
+    })
+}
+
 // ── Перетаскивание вложения между мессенджерами — история ──────────────────
 // Была попытка (v1.9.3) перетаскивать картинку/файл из одного открытого
 // мессенджера в другой через 'DownloadURL' в dataTransfer, убрана в v1.9.5.
@@ -1169,6 +1271,7 @@ function init() {
     bindDropFileHandler()
     bindLinkInterception()
     bindMsgSentDetection()
+    bindMediaPlaybackDetection()
     startObserver()
     startUnreadInterval()
     setTimeout(checkUnread, 1000)

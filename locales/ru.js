@@ -44,7 +44,12 @@ module.exports = {
             messengers: 'Мессенджеры',
             mail: 'Почта',
             productivity: 'Продуктивность',
-            ai: 'Нейросети'
+            ai: 'Нейросети',
+            media: 'Медиа'
+        },
+        syntaxPromo: {
+            title: 'Одна подписка.',
+            subtitle: 'Лучшие нейросети для идей без границ'
         },
         custom: 'Добавить свой',
         namePlaceholder: 'Название',
@@ -292,6 +297,13 @@ module.exports = {
         commandSettings: 'Открыть настройки',
         commandMute:     'Выключить звук везде',
         commandUnmute:   'Включить звук везде'
+    },
+
+    mediaPlayer: {
+        pause: 'Пауза',
+        previous: 'Предыдущий трек',
+        next: 'Следующий трек',
+        switch: 'Другие источники'
     },
 
     welcome: {
@@ -618,7 +630,8 @@ module.exports = {
     rightbar: {
         assistant: 'Centrio Ассистент',
         assistantSoon: 'Скоро',
-        todos: 'Задачи'
+        todos: 'Задачи',
+        mediaPlayer: 'Медиаплеер'
     },
 
     assistant: {

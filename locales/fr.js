@@ -43,7 +43,12 @@ module.exports = {
             messengers: 'Messagerie',
             mail: 'Mail',
             productivity: 'Productivité',
-            ai: 'IA conversationnelle'
+            ai: 'IA conversationnelle',
+            media: 'Médias'
+        },
+        syntaxPromo: {
+            title: 'Un seul abonnement.',
+            subtitle: 'Les meilleures IA pour des idées sans limites'
         },
         custom:              'Ajouter personnalisé',
         namePlaceholder:     'Nom',
@@ -280,6 +285,13 @@ module.exports = {
         findAllTitle:    'Rechercher dans tous les onglets ouverts',
         findAllSearching: 'Recherche dans tous les onglets...',
         findAllEmpty:    'Aucun résultat dans les autres onglets',
+    },
+
+    mediaPlayer: {
+        pause: 'Pause',
+        previous: 'Piste précédente',
+        next: 'Piste suivante',
+        switch: 'Autres sources'
     },
 
     welcome: {
@@ -592,7 +604,8 @@ module.exports = {
     rightbar: {
         assistant: 'Assistant Centrio',
         assistantSoon: 'Bientôt disponible',
-        todos: 'Tâches'
+        todos: 'Tâches',
+        mediaPlayer: 'Lecteur multimédia'
     },
 
     assistant: {

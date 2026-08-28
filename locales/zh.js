@@ -43,7 +43,12 @@ module.exports = {
             messengers: '即时通讯',
             mail: '邮箱',
             productivity: '效率工具',
-            ai: 'AI 对话'
+            ai: 'AI 对话',
+            media: '媒体'
+        },
+        syntaxPromo: {
+            title: '一个订阅。',
+            subtitle: '顶尖AI模型，创意无界'
         },
         custom:              '自定义添加',
         namePlaceholder:     '名称',
@@ -280,6 +285,13 @@ module.exports = {
         findAllTitle:    '搜索所有已打开的标签页',
         findAllSearching: '正在搜索所有标签页...',
         findAllEmpty:    '其他标签页中没有匹配项',
+    },
+
+    mediaPlayer: {
+        pause: '暂停',
+        previous: '上一曲',
+        next: '下一曲',
+        switch: '其他来源'
     },
 
     welcome: {
@@ -592,7 +604,8 @@ module.exports = {
     rightbar: {
         assistant: 'Centrio 助手',
         assistantSoon: '即将推出',
-        todos: '任务'
+        todos: '任务',
+        mediaPlayer: '媒体播放器'
     },
 
     assistant: {

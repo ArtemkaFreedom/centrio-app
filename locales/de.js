@@ -43,7 +43,12 @@ module.exports = {
             messengers: 'Messenger',
             mail: 'E-Mail',
             productivity: 'Produktivität',
-            ai: 'KI-Chats'
+            ai: 'KI-Chats',
+            media: 'Medien'
+        },
+        syntaxPromo: {
+            title: 'Ein Abo.',
+            subtitle: 'Die besten KI-Modelle für grenzenlose Ideen'
         },
         custom:              'Eigenen hinzufügen',
         namePlaceholder:     'Name',
@@ -280,6 +285,13 @@ module.exports = {
         findAllTitle:    'Alle offenen Tabs durchsuchen',
         findAllSearching: 'Alle Tabs werden durchsucht...',
         findAllEmpty:    'Keine Treffer in anderen Tabs',
+    },
+
+    mediaPlayer: {
+        pause: 'Pause',
+        previous: 'Vorheriger Titel',
+        next: 'Nächster Titel',
+        switch: 'Andere Quellen'
     },
 
     welcome: {
@@ -592,7 +604,8 @@ module.exports = {
     rightbar: {
         assistant: 'Centrio Assistent',
         assistantSoon: 'Bald verfügbar',
-        todos: 'Aufgaben'
+        todos: 'Aufgaben',
+        mediaPlayer: 'Media-Player'
     },
 
     assistant: {

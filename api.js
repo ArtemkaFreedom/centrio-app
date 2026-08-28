@@ -199,8 +199,16 @@ module.exports = {
         return request('POST', '/api/notifications/read-all', {}, token)
     },
 
-    redeemPromo(token, code) {
-        return request('POST', '/api/payments/promo/redeem', { code }, token)
+    // SECURITY (trial-farming fix): hardwareId is included so the server can
+    // link day-based ("trial-style") promo codes to the same DeviceTrial
+    // uniqueness constraint used by deviceTrialRedeem() below — otherwise
+    // "skip onboarding" (device trial) and "create account → redeem PRO14"
+    // are two completely independent free-14-days grants, and the second one
+    // can be farmed forever with disposable email accounts on one machine.
+    // See main/ipc/api.js's api-redeem-promo handler for where hardwareId
+    // actually comes from (computed in main, never trusted from renderer).
+    redeemPromo(token, code, hardwareId) {
+        return request('POST', '/api/payments/promo/redeem', { code, hardwareId }, token)
     },
 
     // Unauthenticated — grants the same 14-day Pro trial as PRO14, but keyed

@@ -43,7 +43,12 @@ module.exports = {
             messengers: 'Messaggistica',
             mail: 'Posta',
             productivity: 'Produttività',
-            ai: 'Chat IA'
+            ai: 'Chat IA',
+            media: 'Media'
+        },
+        syntaxPromo: {
+            title: 'Un solo abbonamento.',
+            subtitle: 'Le migliori IA per idee senza limiti'
         },
         custom:              'Aggiungi personalizzato',
         namePlaceholder:     'Nome',
@@ -280,6 +285,13 @@ module.exports = {
         findAllTitle:    'Cerca in tutte le schede aperte',
         findAllSearching: 'Ricerca in tutte le schede...',
         findAllEmpty:    'Nessun risultato nelle altre schede',
+    },
+
+    mediaPlayer: {
+        pause: 'Pausa',
+        previous: 'Brano precedente',
+        next: 'Brano successivo',
+        switch: 'Altre fonti'
     },
 
     welcome: {
@@ -592,7 +604,8 @@ module.exports = {
     rightbar: {
         assistant: 'Assistente Centrio',
         assistantSoon: 'Presto disponibile',
-        todos: 'Attività'
+        todos: 'Attività',
+        mediaPlayer: 'Lettore multimediale'
     },
 
     assistant: {

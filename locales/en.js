@@ -43,7 +43,12 @@ module.exports = {
             messengers: 'Messengers',
             mail: 'Mail',
             productivity: 'Productivity',
-            ai: 'AI chat'
+            ai: 'AI chat',
+            media: 'Media'
+        },
+        syntaxPromo: {
+            title: 'One subscription.',
+            subtitle: 'Best AI models, ideas without limits'
         },
         custom:              'Add custom',
         namePlaceholder:     'Name',
@@ -291,6 +296,13 @@ module.exports = {
         commandSettings: 'Open settings',
         commandMute:     'Mute all sounds',
         commandUnmute:   'Unmute all sounds',
+    },
+
+    mediaPlayer: {
+        pause: 'Pause',
+        previous: 'Previous track',
+        next: 'Next track',
+        switch: 'Other sources'
     },
 
     welcome: {
@@ -617,7 +629,8 @@ module.exports = {
     rightbar: {
         assistant: 'Centrio Assistant',
         assistantSoon: 'Coming soon',
-        todos: 'Todos'
+        todos: 'Todos',
+        mediaPlayer: 'Media player'
     },
 
     assistant: {

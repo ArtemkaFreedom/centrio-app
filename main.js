@@ -263,6 +263,21 @@ function isValidStoreKey(key) {
 // ever reduces privilege, never grants it).
 const PROTECTED_SET_KEYS = new Set(['cloud', 'cloud.user', 'localProTrialExpiresAt'])
 
+// SECURITY: the 4 built-in Pro-gated extension toggles persisted under the
+// `extensionsState` store key (see NATIVE_EXTENSIONS in
+// renderer/extensions-ui.js) — kept here so the store:set backstop below and
+// any future main-process check can share one source of truth instead of
+// duplicating the id list.
+const NATIVE_EXTENSION_IDS = ['adblock', 'screenshot', 'darkmode', 'split']
+
+// SECURITY: free-plan defaults for the Pro-gated theme/accent-color settings
+// (settings-bind.js's requirePro('themes')/requirePro('accent') gates the
+// picker UI; these are the exact fallback values renderer/settings-ui.js's
+// applySettings()/collectSettings() already treat as "no Pro theme/accent
+// selected" — keep in sync with FREE_THEME/FREE_ACCENT in renderer.js).
+const FREE_THEME = 'embedded'
+const FREE_ACCENT = '#7b68ee'
+
 function isProtectedSetKey(key) {
     if (PROTECTED_SET_KEYS.has(key)) return true
     return key.startsWith('cloud.user.')
@@ -291,6 +306,31 @@ safeHandle('store:set', async (_event, key, value) => {
             'PRO entitlement is main-process-owned, see main/services/entitlement.js')
         return { success: false, error: 'Protected key' }
     }
+    // SECURITY: the four PRO-gated backstops below (messengers/folders/
+    // extensionsState/settings) all key off *exact* equality against the
+    // root key (`key === 'messengers'`, etc.) and validate/strip the *whole*
+    // value they receive. electron-store supports dot-notation nested
+    // writes though, and isValidStoreKey() above only allowlists the root
+    // segment — so `store:set('extensionsState.split', true)` or
+    // `store:set('settings.theme', '<pro-theme>')` would satisfy
+    // isValidStoreKey() (root 'extensionsState'/'settings' is allowlisted)
+    // and isProtectedSetKey() (neither key is in PROTECTED_SET_KEYS), fall
+    // straight through every `key === 'X'` check below since none of them
+    // match a dotted key, and land unchecked in store.set(key, value) at the
+    // bottom of this handler — a live, no-restart-required Pro bypass via a
+    // single DevTools console line, same threat model as the cloud.user fix
+    // above. Confirmed via grep that no current renderer code legitimately
+    // writes a dotted nested path under any of these four roots (the one
+    // historical case, settings.downloadDir, was already refactored to a
+    // whole-object read/merge/write in renderer/downloads.js's
+    // updateCachedSetting() — see the BUGFIX comment there), so it's safe to
+    // just reject dotted writes to these roots outright rather than trying
+    // to merge-and-revalidate a partial nested value.
+    const PRO_GATED_STORE_ROOTS = new Set(['messengers', 'folders', 'extensionsState', 'settings'])
+    if (PRO_GATED_STORE_ROOTS.has(key.split('.')[0]) && key.includes('.')) {
+        console.warn(`[store] Blocked nested store:set("${key}", …) — write the whole root object/array instead`)
+        return { success: false, error: 'nested_write_disallowed' }
+    }
     // SECURITY: defense-in-depth for the free-plan messenger cap. The real
     // gate is renderer.js's addMessenger()/hasEffectivePro(), but that only
     // protects the UI path — nothing previously stopped `messengers` (a
@@ -301,10 +341,137 @@ safeHandle('store:set', async (_event, key, value) => {
     // (see isProtectedSetKey above), this check is actually load-bearing.
     if (key === 'messengers' && Array.isArray(value)) {
         const entitlement = require('./main/services/entitlement')
-        if (!entitlement.isEffectivePro() && value.length > entitlement.FREE_MESSENGER_LIMIT) {
-            console.warn(`[store] Blocked store:set('messengers', …) — ${value.length} exceeds ` +
-                `free plan limit of ${entitlement.FREE_MESSENGER_LIMIT}`)
-            return { success: false, error: 'pro_required', code: 'messenger_limit' }
+        if (!entitlement.isEffectivePro()) {
+            if (value.length > entitlement.FREE_MESSENGER_LIMIT) {
+                console.warn(`[store] Blocked store:set('messengers', …) — ${value.length} exceeds ` +
+                    `free plan limit of ${entitlement.FREE_MESSENGER_LIMIT}`)
+                return { success: false, error: 'pro_required', code: 'messenger_limit' }
+            }
+            // SECURITY: defense-in-depth for per-messenger custom notification
+            // sounds (messenger-sound-ui.js's requirePro('sound') gate on
+            // openMessengerSoundModal()). messenger-sound-bind.js's
+            // saveMessengerSoundBtn handler writes messenger.notifSound with no
+            // Pro re-check of its own — it trusts the modal could only have
+            // been opened by a Pro account. `'__default__'` (and falsy) is the
+            // free-plan sentinel (see messenger-sound-ui.js/sounds.js); strip
+            // anything else back to it rather than rejecting the whole write,
+            // since this array also carries legitimate free-plan edits
+            // (rename/reorder/mute) that must not be blocked by a stale sound
+            // left over from a lapsed Pro plan/trial.
+            let soundsStripped = 0
+            value = value.map(m => {
+                if (m && m.notifSound && m.notifSound !== '__default__') {
+                    soundsStripped++
+                    return { ...m, notifSound: '__default__' }
+                }
+                return m
+            })
+            if (soundsStripped > 0) {
+                console.warn(`[store] Stripped non-Pro per-messenger notifSound overrides: ${soundsStripped}`)
+            }
+            // SECURITY: defense-in-depth for the Pro-gated "Add your own
+            // messenger" feature. The real gate is add-modal-bind.js's
+            // addCustomBtn handler (requirePro('customMessenger')), but once
+            // a custom entry is in `messengers` it's indistinguishable from a
+            // catalog one to any other write path — nothing previously
+            // stopped a forged direct IPC call (or hand-edited store file)
+            // from injecting an arbitrary-hostname entry while on the free
+            // plan. Match by hostname against the same popularMessengers
+            // catalog renderer.js's isCatalogMessenger()/reapplyMessengerLocks()
+            // use, so both layers agree on what counts as "custom".
+            //
+            // Only reject when a custom entry is genuinely *new* (its id
+            // wasn't already present in the currently-persisted array),
+            // rather than rejecting the whole write whenever *any* custom
+            // entry is present anywhere in it. renderer.js's
+            // reapplyMessengerLocks() deliberately *keeps* (locks, doesn't
+            // delete) a stale custom messenger after Pro lapses — since
+            // saveData() round-trips the full array on nearly every
+            // mutation (rename/mute/reorder/remove-other-messenger), a
+            // blanket reject here would silently block every one of those
+            // unrelated, otherwise-legitimate free-plan edits for as long as
+            // that one stale entry remains. Comparing by id (not url/name —
+            // a locked custom messenger's own id/url are never rewritten by
+            // any edit path, see context-actions-bind.js's ctxEdit, which
+            // only touches `.name`) means an edit/reorder/mute of the exact
+            // same pre-existing entries always passes, while injecting an
+            // id that didn't previously exist with a non-catalog hostname
+            // still gets rejected, same as it would via the real
+            // add-modal-bind.js gate.
+            const { popularMessengers } = require('./renderer/constants')
+            const catalogHostnames = new Set(
+                popularMessengers
+                    .map(pm => { try { return new URL(pm.url).hostname } catch { return null } })
+                    .filter(Boolean)
+            )
+            const existingIds = new Set(
+                (store.get('messengers', []) || []).map(m => m && m.id).filter(Boolean)
+            )
+            const isCustom = (m) => {
+                if (!m || !m.url) return true
+                try { return !catalogHostnames.has(new URL(m.url).hostname) } catch { return true }
+            }
+            const hasNewCustomMessenger = value.some(m => isCustom(m) && !existingIds.has(m && m.id))
+            if (hasNewCustomMessenger) {
+                console.warn(`[store] Blocked store:set('messengers', …) — new custom messenger requires Pro`)
+                return { success: false, error: 'pro_required', code: 'custom_messenger' }
+            }
+        }
+    }
+    // SECURITY: defense-in-depth for the Pro-gated folders feature. The real
+    // gate is context-actions-bind.js's ctxSidebarNewFolder/ctxNewFolder
+    // handlers (both call requirePro('folders')) — creating a folder at all
+    // requires Pro, there's no free-plan count like FREE_MESSENGER_LIMIT.
+    // edit-modal-bind.js's saveEditBtn handler, which actually pushes into
+    // `folders` on state.editMode === 'newFolder', has no Pro check of its
+    // own; it trusts editMode can only reach that value via one of the two
+    // gated entry points. `folders` is a legitimately renderer-writable key
+    // (rename/reorder/icon-change), so reject the whole write — same as the
+    // messengers cap above — rather than trying to strip individual entries,
+    // since ANY non-empty array is itself the violation for a free account.
+    if (key === 'folders' && Array.isArray(value)) {
+        const entitlement = require('./main/services/entitlement')
+        if (!entitlement.isEffectivePro() && value.length > 0) {
+            console.warn(`[store] Blocked store:set('folders', …) — folders require Pro`)
+            return { success: false, error: 'pro_required', code: 'folders_require_pro' }
+        }
+    }
+    // SECURITY: defense-in-depth for the native Pro-gated extension toggles
+    // (adblock/screenshot/darkmode/split — see NATIVE_EXTENSIONS in
+    // renderer/extensions-ui.js). The real gate is that UI's getUserIsPro()
+    // check on the toggle itself, but `extensionsState` is a legitimately
+    // renderer-writable key (needed to persist which extensions are on), so
+    // nothing previously stopped a forged direct IPC call — or a hand-edited
+    // store file — from setting e.g. `adblock: true` while on the free plan.
+    // Strip (rather than reject outright, unlike the messengers cap above)
+    // so unrelated fields in the same object (other extensions' state, the
+    // real Chrome-extension entries) aren't collaterally dropped.
+    if (key === 'extensionsState' && value && typeof value === 'object' && !Array.isArray(value)) {
+        const entitlement = require('./main/services/entitlement')
+        if (!entitlement.isEffectivePro()) {
+            const blocked = NATIVE_EXTENSION_IDS.filter(id => value[id] === true)
+            if (blocked.length > 0) {
+                value = { ...value, ...Object.fromEntries(blocked.map(id => [id, false])) }
+                console.warn(`[store] Stripped non-Pro extensionsState flags: ${blocked.join(', ')}`)
+            }
+        }
+    }
+    // SECURITY: defense-in-depth for the Pro-gated theme/accent-color picker
+    // (settings-bind.js's requirePro('themes')/requirePro('accent')). Same
+    // reasoning as extensionsState above — `settings` is legitimately
+    // renderer-writable (font size, language, download dir, dozens of other
+    // free fields), so only strip the two Pro-gated fields, never the whole
+    // object.
+    if (key === 'settings' && value && typeof value === 'object' && !Array.isArray(value)) {
+        const entitlement = require('./main/services/entitlement')
+        if (!entitlement.isEffectivePro()) {
+            const patch = {}
+            if (value.theme && value.theme !== FREE_THEME) patch.theme = FREE_THEME
+            if (value.accentColor && value.accentColor !== FREE_ACCENT) patch.accentColor = FREE_ACCENT
+            if (Object.keys(patch).length > 0) {
+                value = { ...value, ...patch }
+                console.warn(`[store] Reset non-Pro settings fields to free defaults: ${Object.keys(patch).join(', ')}`)
+            }
         }
     }
     try {
