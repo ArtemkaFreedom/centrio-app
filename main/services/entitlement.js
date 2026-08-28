@@ -47,9 +47,28 @@ function isEffectivePro() {
     }
 }
 
+// Корпоративная версия (TEAM) — Phase 1 (см. Obsidian → Centrio →
+// Корпоративная версия). persistCloudUser() above already stores the ENTIRE
+// server-supplied `user` object generically, so the server adding an
+// `orgSummary` field to /login and /me (see landing/lib/org.js,
+// getOrgSummaryForUser) needed zero changes here or in main.js's store
+// backstop — this is just a typed reader for that data, mirroring
+// isEffectivePro()'s read-only access pattern. Returns null when the user
+// isn't in an organization, same as the server-side shape.
+function getOrgInfo() {
+    try {
+        const orgSummary = store.get('cloud.user', null)?.orgSummary
+        if (!orgSummary || typeof orgSummary !== 'object') return null
+        return orgSummary
+    } catch {
+        return null
+    }
+}
+
 module.exports = {
     persistCloudUser,
     persistTrialExpiry,
     isEffectivePro,
+    getOrgInfo,
     FREE_MESSENGER_LIMIT
 }

@@ -35,6 +35,18 @@ const validReceiveChannels = new Set([
     'auto-launch-result',
     'messenger-unread-count',
     'messenger-site-notification',
+    // BUGFIX (2026-08-28, "когда играет Яндекс музыка - он не определяет,
+    // что музыка играет"): медиаплеер изначально слушал 'media-state' из
+    // webview-preload.js (sendToHost), но preload-атрибут <webview> на этой
+    // версии Electron вообще не исполняется в гостевой странице ни для
+    // одного мессенджера (см. большой комментарий в начале webview-preload.js
+    // и над UNREAD_DETECT_SCRIPT в main/bootstrap/registerAppEvents.js) — то
+    // есть детект молчал не только для Яндекс Музыки, а вообще для всех.
+    // Чинится тем же подтверждённо рабочим каналом, что и непрочитанные/
+    // site-уведомления: main-процесс сам опрашивает гостевую страницу через
+    // executeJavaScript (startMediaStatePolling) и шлёт сюда готовый
+    // {playing, title} напрямую, в обход preload.
+    'media-state',
     'app-notifs:item-update',
     'app-quitting',
     // main/ipc/assistant.js — стриминг ответа модели, запросы на исполнение

@@ -56,6 +56,8 @@ app.use('/api/notifications', require('./routes/notifications'))
 app.use('/api/contact', require('./routes/contact'))
 app.use('/api/tickets', require('./routes/tickets'))
 app.use('/api/telegram', require('./routes/telegram-webhook'))
+// Корпоративная версия (TEAM) — Phase 1 (см. Obsidian → Centrio → Корпоративная версия)
+app.use('/api/org', require('./routes/org'))
 app.use('/uploads', require('express').static('/var/www/centrio-api/uploads'))
 
 // Health check

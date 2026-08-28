@@ -5,13 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Content Security Policy: разрешаем только локальные ресурсы. Inter теперь
          самоxостится (assets/fonts/inter/), внешние Google Fonts домены больше
-         не нужны — CSP сужен вслед за этим. -->
+         не нужны — CSP сужен вслед за этим.
+
+         BUGFIX ("смена иконки не применяется в сайдбаре"): img-src раньше
+         разрешал только 'self' data: blob: + 3 захардкоженных avatar-хоста
+         (lh3.googleusercontent.com/avatars.mds.yandex.net/gravatar.com).
+         Но иконки мессенджеров ВСЕГДА зависели от внешних доменов вне этого
+         списка — дефолтный fallback-каскад в createMessengerItem() бьёт в
+         https://www.google.com/s2/favicons и https://icon.horse, а кнопка
+         "Сбросить к дефолтной" в модалке смены иконки явно строит URL на
+         google.com/s2/favicons. Оба были CSP-заблокированы молча (браузер
+         просто не грузит img, никакого видимого пользователю сообщения),
+         так что после "смены" иконка откатывалась на letter-fallback —
+         ровно баг "в окне применена, а в сайдбаре не меняется". Поле
+         "Change Icon → URL" тоже принимает произвольный внешний URL, так что
+         точечный whitelist доменов сюда в принципе не подходит. img теги не
+         исполняют JS, а хост уже грузит куда более широкий сторонний контент
+         в <webview>, так что расширение до https: — соразмерный компромисс. -->
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self';
                    script-src 'self';
                    style-src 'self' 'unsafe-inline';
                    font-src 'self';
-                   img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.mds.yandex.net https://www.gravatar.com;
+                   img-src 'self' data: blob: https:;
                    connect-src 'self' https://api.centrio.me https://centrio.me;
                    media-src 'self';
                    object-src 'none';
@@ -586,6 +602,26 @@
                 </svg>
                 <span class="activity-btn-label" data-i18n="rightbar.todos"></span>
             </button>
+            <!-- FEATURE (2026-08-28, "медиа-плеер должен появляться иконкой в
+                 правом сайдбаре. При нажатии - всплывает окно с управлением.
+                 Под задачами" — live user correction, replacing an earlier
+                 always-floating "pill" design that the user reported never
+                 showing up). Скрыта по умолчанию (display:none инлайн) —
+                 renderer/media-player-ui.js показывает её, только пока где-то
+                 реально играет медиа, и прячет обратно, как только играющих
+                 источников не осталось.
+                 UPDATE (2026-08-28, "Нужно убрать этот эквалайзер" — live user
+                 request): мигающий "эквалайзер"-бейджик в углу иконки убран —
+                 сама иконка уже появляется/пропадает по факту воспроизведения,
+                 отдельный анимированный индикатор поверх неё был лишним. -->
+            <button id="mediaPlayerBtn" class="activity-btn" data-i18n-title="rightbar.mediaPlayer" style="display:none;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18V5l12-2v13"/>
+                    <circle cx="6" cy="18" r="3"/>
+                    <circle cx="18" cy="16" r="3"/>
+                </svg>
+                <span class="activity-btn-label" data-i18n="rightbar.mediaPlayer"></span>
+            </button>
         </div>
         <div class="activity-bottom">
             <!-- Иконка уведомлений приложения (от админа / changelog) — переехала сюда из левого сайдбара -->
@@ -804,6 +840,17 @@
         <button class="changelog-popup-close" id="changelogPopupClose">✕</button>
     </div>
     <div class="changelog-popup-body">
+        <div class="changelog-entry">
+            <div class="changelog-version">v2.5.0</div>
+            <ul class="changelog-list">
+                <li>Новое: подписка Centrio TEAM — корпоративная версия для команд, покупка мест (seats), приглашение участников по ссылке, раздел «Команда» в личном кабинете</li>
+                <li>Новое: мини-плеер справа — показывает, что сейчас играет в открытых мессенджерах (музыка или видео), с кнопками паузы, воспроизведения и переключения трека</li>
+                <li>Новое: добавлены мессенджеры и сервисы — Element, Threema, Wire, Zalo, GroupMe, Threads, Snapchat, Google Meet, Webex, Chatwork, SYNTAX</li>
+                <li>Новое: добавлен раздел «Медиа» — YouTube, Spotify, Яндекс Музыка, VK Видео, Shazam, Ivi, Кинопоиск и другие</li>
+                <li>Исправлена иконка Я.Мессенджера</li>
+                <li>Программа стала ещё безопаснее</li>
+            </ul>
+        </div>
         <div class="changelog-entry">
             <div class="changelog-version">v2.4.0</div>
             <ul class="changelog-list">

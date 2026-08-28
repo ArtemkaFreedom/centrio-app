@@ -3,6 +3,25 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+// Корпоративная версия (TEAM) — Phase 1. null/undefined for users who aren't
+// in an organization (see getOrgSummaryForUser in landing/lib/org.js, the
+// server-side source of this shape).
+interface OrgSummary {
+  orgId: string
+  orgName: string
+  orgSlug: string
+  orgRole: 'OWNER' | 'ADMIN' | 'MEMBER'
+  orgTier: 'START' | 'BUSINESS'
+  orgSeatLimit: number
+  orgSeatsUsed: number
+  // Optional: added after the initial Phase 1 shape (see landing/lib/org.js
+  // getOrgSummaryForUser) — optional here so already-persisted localStorage
+  // state from before this change still satisfies the type.
+  orgSeatsExpiresAt?: string | null
+  orgAutoRenewSeats?: boolean
+  orgIsOwner?: boolean
+}
+
 interface User {
   id: string
   email: string
@@ -11,6 +30,7 @@ interface User {
   plan?: string
   planExpiresAt?: string | null
   emailVerified?: boolean
+  orgSummary?: OrgSummary | null
 }
 
 interface AuthState {

@@ -82,6 +82,20 @@ const UPLOADS = [
     { local: path.join(__dirname, '..', 'landing', 'dashboard-server.tsx'), remote: `${REMOTE_BASE}/src/app/dashboard/page.tsx` },
     // Confirmed live via `test -f` before adding, same as the entries above.
     { local: path.join(__dirname, '..', 'landing', 'admin-server.tsx'),     remote: `${REMOTE_BASE}/src/app/admin/page.tsx` },
+    // Корпоративная версия (TEAM) — Phase 1 self-service console. Following
+    // the same "-server.tsx is the only live file, no stale non-suffixed
+    // twin" convention as dashboard-server.tsx/admin-server.tsx above
+    // (see dashboard.tsx / admin-page.tsx for the stale twins that convention
+    // is deliberately avoiding here — those are NOT deployed by any script).
+    { local: path.join(__dirname, '..', 'landing', 'team-server.tsx'),        remote: `${REMOTE_BASE}/src/app/team/page.tsx` },
+    { local: path.join(__dirname, '..', 'landing', 'team-invite-server.tsx'), remote: `${REMOTE_BASE}/src/app/team/invite/page.tsx` },
+    // authStore.ts's OrgSummary shape addition — was never in this script's
+    // UPLOADS at all (confirmed live path via `find` before adding), same
+    // silent-drift bug class as every other "confirmed live via find, never
+    // in UPLOADS" entry above. Without this, team-server.tsx/team-invite-
+    // server.tsx/dashboard-server.tsx would all import a stale User type
+    // with no orgSummary field.
+    { local: path.join(__dirname, '..', 'landing', 'authStore.ts'),          remote: `${REMOTE_BASE}/src/store/authStore.ts` },
     // Added for the v2.0.0 changelog widget — pricing.tsx was previously only
     // covered by scripts/upload-and-deploy.js, not this script. changelog-data.ts
     // is uploaded twice (colocated) because Next.js relative imports (`./changelog-data`)
@@ -233,7 +247,10 @@ conn.on('ready', async () => {
         // already exists, so this is safe to run unconditionally.
         // blog/max-transition/, blog/whatsapp-telegram-ban-risk/, blog/vs-station/
         // and blog/vs-shift/ are the same situation — brand new blog post routes.
-        await exec(conn, `mkdir -p ${REMOTE_BASE}/src/app/api/og ${REMOTE_BASE}/src/app/d551cf74fb5d05ca3e40986dd9a78353.txt ${REMOTE_BASE}/src/app/blog/max-transition ${REMOTE_BASE}/src/app/blog/whatsapp-telegram-ban-risk ${REMOTE_BASE}/src/app/blog/vs-station ${REMOTE_BASE}/src/app/blog/vs-shift ${REMOTE_BASE}/src/app/api/create-crypto-payment ${REMOTE_BASE}/src/app/api/crypto-webhook ${REMOTE_BASE}/src/app/en ${REMOTE_BASE}/src/app/zh ${REMOTE_BASE}/src/app/fr ${REMOTE_BASE}/src/app/it`)
+        // team/ and team/invite/ are new routes too (Корпоративная версия
+        // Phase 1) — neither directory exists live yet, same situation as
+        // the other new-route dirs below.
+        await exec(conn, `mkdir -p ${REMOTE_BASE}/src/app/api/og ${REMOTE_BASE}/src/app/d551cf74fb5d05ca3e40986dd9a78353.txt ${REMOTE_BASE}/src/app/blog/max-transition ${REMOTE_BASE}/src/app/blog/whatsapp-telegram-ban-risk ${REMOTE_BASE}/src/app/blog/vs-station ${REMOTE_BASE}/src/app/blog/vs-shift ${REMOTE_BASE}/src/app/api/create-crypto-payment ${REMOTE_BASE}/src/app/api/crypto-webhook ${REMOTE_BASE}/src/app/en ${REMOTE_BASE}/src/app/zh ${REMOTE_BASE}/src/app/fr ${REMOTE_BASE}/src/app/it ${REMOTE_BASE}/src/app/team/invite`)
 
         const sftp = await new Promise((resolve, reject) => {
             conn.sftp((err, sftp) => err ? reject(err) : resolve(sftp))

@@ -15,7 +15,11 @@
 // подсвечиваются РЕАЛЬНЫМ фирменным цветом сервиса (messenger.color) —
 // а не одним общим акцентом на всё подряд. Тонкая шкала прогресса прокрутки
 // над сеткой — сигнатурный элемент, показывает, сколько ещё сервисов ниже.
-const CATEGORY_ORDER = ['top', 'messengers', 'mail', 'productivity', 'ai']
+// UPDATE (2026-08-28, "Добавить категорию Медиа" — live user request):
+// новая категория 'media' (YouTube/Spotify/Яндекс Музыка/кинотеатры и т.д.,
+// см. renderer/constants.js) добавлена в конец порядка — после 'ai', перед
+// секциями без явного порядка (см. orderedKeys fallback в fillMessengerGrid).
+const CATEGORY_ORDER = ['top', 'messengers', 'mail', 'productivity', 'ai', 'media']
 const CATEGORY_LABEL_KEYS = {
     // 'top' переиспользует уже существующий (ранее нигде не подключённый)
     // ключ modal.popular — не заводим дублирующий по смыслу текст.
@@ -23,7 +27,8 @@ const CATEGORY_LABEL_KEYS = {
     messengers: 'modal.categories.messengers',
     mail: 'modal.categories.mail',
     productivity: 'modal.categories.productivity',
-    ai: 'modal.categories.ai'
+    ai: 'modal.categories.ai',
+    media: 'modal.categories.media'
 }
 // Максимальная задержка ступенчатой анимации — дальше плитки просто не ждут
 // своей очереди (иначе при 43 элементах последняя плитка появлялась бы почти
@@ -35,6 +40,7 @@ const STAGGER_MAX_MS = 240
 function createAddModalUiApi({
     state,
     popularMessengers,
+    syntaxAiPromo,
     addModal,
     messengerGrid,
     addMessenger,
@@ -74,6 +80,51 @@ function createAddModalUiApi({
         return item
     }
 
+    // FEATURE (2026-08-28, "Добавь ссылку на Синтакс в нейросети (в самый
+    // перёд)... Нужно 2 квадратика объеденить в одну ссылку" — live user
+    // request): реферальная промо-плитка SyntaxAI. Занимает место двух
+    // обычных квадратов сетки (grid-column: span 2 в CSS,
+    // .messenger-grid-item--promo) и показывает свой собственный промо-текст
+    // поверх иконки — этим отличается от обычной плитки buildTile() и
+    // поэтому рисуется отдельной функцией.
+    // UPDATE (2026-08-28, тот же день, live user correction — "это
+    // мессенджер. Он должен создавать вкладку с иконкой... Чтобы люди сразу
+    // регались там"): по клику ЭТО обычное добавление мессенджера — та же
+    // addMessenger(), что использует buildTile() ниже — а не открытие
+    // реферальной ссылки во внешнем браузере (так было в первой версии, но
+    // пользователь явно поправил: регистрация должна проходить прямо в
+    // Centrio, в собственном webview этой вкладки).
+    function buildSyntaxAiBanner(globalIndex) {
+        const item = document.createElement('div')
+        item.className = 'messenger-grid-item messenger-grid-item--promo'
+        if (!prefersReducedMotion) {
+            item.style.animationDelay = `${Math.min(globalIndex * STAGGER_STEP_MS, STAGGER_MAX_MS)}ms`
+        } else {
+            item.classList.add('no-stagger')
+        }
+        if (syntaxAiPromo.color) {
+            item.style.setProperty('--tile-glow', syntaxAiPromo.color)
+        }
+
+        const title = tGet ? tGet('modal.syntaxPromo.title') : 'SyntaxAI'
+        const subtitle = tGet ? tGet('modal.syntaxPromo.subtitle') : ''
+
+        item.innerHTML = `
+            <img class="messenger-grid-item-promo-icon" src="${syntaxAiPromo.icon}" alt="${syntaxAiPromo.name}" loading="lazy">
+            <div class="messenger-grid-item-promo-text">
+                <strong>${title}</strong>
+                <span>${subtitle}</span>
+            </div>
+        `
+
+        item.addEventListener('click', () => {
+            addMessenger(syntaxAiPromo)
+            closeModal()
+        })
+
+        return item
+    }
+
     function buildEmptyState() {
         const empty = document.createElement('div')
         empty.className = 'modal-grid-empty'
@@ -94,6 +145,19 @@ function createAddModalUiApi({
             return
         }
 
+        // UPDATE (2026-08-28, "Популярные месседжеры должны отображаться также
+        // в своих тематических категориях" — live user request): раньше 'top'
+        // было самостоятельной category — эти 8 пунктов показывались ТОЛЬКО в
+        // разделе "Популярные" и пропадали из своей реальной темы. Теперь
+        // constants.js проставляет каждому пункту его реальную category и
+        // ОТДЕЛЬНО помечает те же 8 пунктов булевым полем popular: true.
+        // Секция "Популярные" теперь — отдельная выборка по этому флагу,
+        // рендерится первой (под тем же ключом 'top', чтобы не трогать
+        // CATEGORY_LABEL_KEYS/CATEGORY_ORDER), а помеченные пункты
+        // одновременно попадают и в свою обычную тематическую секцию ниже —
+        // осознанное дублирование, а не баг.
+        const popularItems = list.filter((m) => m.popular)
+
         const byCategory = new Map()
         list.forEach((m) => {
             const key = m.category || 'messengers'
@@ -105,13 +169,14 @@ function createAddModalUiApi({
         // забудет проставить category в constants.js), дорисовываем в конце —
         // чтобы новый сервис молча не пропал из пикера.
         const orderedKeys = [
-            ...CATEGORY_ORDER.filter((k) => byCategory.has(k)),
-            ...[...byCategory.keys()].filter((k) => !CATEGORY_ORDER.includes(k))
+            ...(popularItems.length ? ['top'] : []),
+            ...CATEGORY_ORDER.filter((k) => k !== 'top' && byCategory.has(k)),
+            ...[...byCategory.keys()].filter((k) => k !== 'top' && !CATEGORY_ORDER.includes(k))
         ]
 
         let globalIndex = 0
         orderedKeys.forEach((key) => {
-            const items = byCategory.get(key)
+            const items = key === 'top' ? popularItems : byCategory.get(key)
             const section = document.createElement('div')
             section.className = 'modal-category'
 
@@ -126,6 +191,16 @@ function createAddModalUiApi({
 
             const grid = document.createElement('div')
             grid.className = 'messenger-grid'
+
+            // Промо-плитка SyntaxAI — только в категории "Нейросети", самой
+            // первой (см. buildSyntaxAiBanner() выше), и только если
+            // syntaxAiPromo реально передан (defensive — не должно ронять
+            // модалку, если конфигурация когда-нибудь поменяется).
+            if (key === 'ai' && syntaxAiPromo) {
+                grid.appendChild(buildSyntaxAiBanner(globalIndex))
+                globalIndex++
+            }
+
             items.forEach((messenger) => {
                 grid.appendChild(buildTile(messenger, globalIndex))
                 globalIndex++

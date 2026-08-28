@@ -1204,6 +1204,31 @@ body.platform-darwin .titlebar-left  { padding-left: 78px; } /* отступ п�
     transform: scale(0.95);
 }
 
+/* SECURITY / BUGFIX (retroactive FREE-limit enforcement): applied by
+   reapplyMessengerLocks() in renderer.js to messengers beyond the free
+   plan's first 3 once Pro/trial lapses. Icon stays visible (so the user
+   still sees the messenger exists) but dimmed and inert — its tab/webview
+   are detached, and its click handler shows the upgrade modal instead of
+   switching to it. */
+.messenger-item.messenger-item-locked {
+    opacity: 0.4;
+    filter: grayscale(0.6);
+}
+
+.messenger-item.messenger-item-locked:hover {
+    background: var(--bg-tertiary);
+    transform: none;
+}
+
+.messenger-item.messenger-item-locked::after {
+    content: '🔒';
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    font-size: 11px;
+    line-height: 1;
+}
+
 .messenger-icon-wrap {
     position: relative;
     z-index: 0;
@@ -4442,6 +4467,140 @@ body:has(.modal.show) .split-handle { display: none !important; }
     text-align: center;
 }
 
+/* ===== МЕДИАПЛЕЕР (аудио/видео во вкладках, 2026-08-28) =====
+   UPDATE (тот же день, live user correction — "нигде не появился
+   медиа-плеер. Он должен появляться иконкой в правом сайдбаре. При
+   нажатии - всплывает окно с управлением. Под задачами."): первая версия
+   была ВСЕГДА-плавающей плашкой (position:fixed, top:44px/right:16px) поверх
+   контента — пользователь её не заметил/не увидел и явно попросил другой
+   паттерн: скрытая по умолчанию кнопка-иконка #mediaPlayerBtn в правом
+   activity-bar (index.html, сразу под #todosBtn — обычная .activity-btn, все
+   тематические варианты стилей она наследует автоматически) + один
+   всплывающий попап со списком играющих источников и управлением. Ниже —
+   только стили самого попапа и маленького "эквалайзер"-бейджа на кнопке;
+   правила показа/скрытия кнопки и попапа — в renderer/media-player-ui.js. */
+
+/* UPDATE (2026-08-28, "Нужно убрать этот эквалайзер" — live user request):
+   раньше здесь был мигающий трёхбрусковый "эквалайзер"-бейдж поверх иконки
+   кнопки (.media-player-eq/.media-player-eq-badge) — убран целиком вместе с
+   разметкой в index.html, показ/скрытие самой кнопки уже достаточно
+   сигнализирует о воспроизведении. */
+
+/* Всплывающее окно управления — открывается слева от #mediaPlayerBtn (кнопка
+   стоит у самого правого края окна, открывать вправо некуда), см.
+   positionPopup() в renderer/media-player-ui.js. Стилистически повторяет
+   .find-bar/бывшую плашку — тот же "плавающий поповер" паттерн
+   (bg-secondary/border-light/radius-md/shadow-md). */
+.media-player-popup {
+    display: none;
+    position: fixed;
+    z-index: 6000;
+    min-width: 220px;
+    max-width: 300px;
+    padding: 6px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    animation: scaleIn 0.15s ease;
+}
+
+.media-player-popup.show { display: block; }
+
+[data-theme="glass"] .media-player-popup {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    background: rgba(15,15,30,0.88);
+}
+
+.media-player-popup-header {
+    padding: 6px 8px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+}
+
+.media-player-popup-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.media-player-popup-item:hover { background: var(--bg-active); }
+
+.media-player-popup-item img {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+.media-player-popup-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+    line-height: 1.25;
+}
+
+.media-player-popup-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.media-player-popup-title {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* BUGFIX (2026-08-28, "нет кнопок управления (Вперед, назад)"): пауза была
+   единственной кнопкой в попапе — добавлены prev/next по тому же классу
+   .media-player-popup-btn (пауза переименована из отдельного
+   .media-player-popup-pause в общий модификатор, сама кнопка паузы всё ещё
+   .media-player-popup-pause для JS-селектора, но стили теперь общие).
+   Обёртка .media-player-popup-controls держит все три кнопки в ряд без
+   лишнего зазора между ними и остальной строкой источника. */
+.media-player-popup-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.media-player-popup-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.media-player-popup-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-bright);
+}
+
 /* ===== ОЗНАКОМИТЕЛЬНЫЙ ТУР ===== */
 .onboarding-tour {
     position: fixed;
@@ -5914,6 +6073,31 @@ body:has(.modal.show) .split-handle { display: none !important; }
     transform: scale(1.08) rotate(-2deg);
 }
 
+/* SYNTAX-иконка в обычной плитке (2026-08-28, "У иконки Syntax сделай отступ
+   с фоном. Некрасиво смотрится" — live user request): syntaxai.svg (в отличие
+   от логотипов остальных сервисов — прозрачных PNG/SVG-марок) сам запекает
+   собственный тёмный скруглённый квадрат-фон край-в-край (см. коммент над
+   записью SYNTAX в constants.js) — внутри общего правила .messenger-grid-item
+   img (42×42, object-fit: contain, без отступов) это читается как плоский
+   тёмный квадрат впритык к краям плитки, без "воздуха" вокруг знака, в отличие
+   от каждого соседнего сервиса. Таргетинг по src, т.к. buildTile() общий и не
+   знает про конкретные сервисы.
+   UPDATE (2026-08-28, "Syntax - сильный отступ. Убери его в 2 раза и цвет
+   заливки - как у фона иконки" — live user correction): первая версия
+   заимствовала белую подложку промо-баннера (.messenger-grid-item-promo-icon)
+   — на обычной тёмной плитке отступ читался слишком сильным, а белый цвет не
+   совпадал с фоном самой иконки. Отступ уменьшен вдвое (6px → 3px), а заливка
+   заменена на тот же тёмно-серый, что запечён в самом svg (#2A2A2E, см.
+   constants.js) — подложка сливается с иконкой бесшовно, а не спорит с ней. */
+.messenger-grid-item img[src$="syntaxai.svg"] {
+    width: 30px;
+    height: 30px;
+    padding: 3px;
+    background: #2A2A2E;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
 .messenger-grid-item span {
     font-size: 11px;
     color: var(--text-secondary);
@@ -5929,6 +6113,71 @@ body:has(.modal.show) .split-handle { display: none !important; }
 
 .messenger-grid-item:hover span {
     color: var(--text-primary);
+}
+
+/* Промо-плитка SyntaxAI (2026-08-28, реферальная ссылка в категории
+   "Нейросети", "в самый перёд... 2 квадратика объеденить в одну ссылку" —
+   live user request): занимает место 2 обычных квадратов сетки (5 колонок),
+   горизонтальная раскладка вместо вертикальной иконка-сверху-подпись-снизу
+   у обычных плиток, тёплый фирменный градиент (эхо логотипа SyntaxAI —
+   красный→оранжевый→жёлтый→тёмно-синий), чтобы визуально выделяться как
+   единственная рекламная плитка среди обычных сервисов. */
+.messenger-grid-item--promo {
+    grid-column: span 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    text-align: left;
+    background: linear-gradient(108deg, #C6371B 0%, #E67E17 26%, #EFB60B 48%, #33415E 76%, #141B30 100%);
+    border-color: color-mix(in srgb, #EFB60B 35%, transparent);
+}
+
+.messenger-grid-item--promo:hover {
+    background: linear-gradient(108deg, #D43F1E 0%, #F08A1D 26%, #F7C312 48%, #3B4A6B 76%, #182140 100%);
+    border-color: color-mix(in srgb, #EFB60B 55%, transparent);
+    box-shadow: 0 10px 26px -8px rgba(230, 126, 23, 0.45);
+}
+
+.messenger-grid-item-promo-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    padding: 7px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.94);
+    object-fit: contain;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.messenger-grid-item-promo-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.messenger-grid-item-promo-text strong {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    white-space: nowrap;
+}
+
+.messenger-grid-item-promo-text span {
+    font-size: 10.5px;
+    line-height: 1.3;
+    color: rgba(255, 255, 255, 0.88);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    white-space: normal;
+}
+
+@media (max-width: 480px) {
+    .messenger-grid-item--promo {
+        grid-column: span 2;
+    }
 }
 
 /* Пустое состояние поиска — без плиток, но с понятным ориентиром */

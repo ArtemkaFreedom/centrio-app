@@ -153,6 +153,27 @@ async function sendAutoRenewFailedEmail(user, reason) {
   })
 }
 
+// Org-level counterpart to sendAutoRenewFailedEmail above — sent to the
+// organization OWNER (never to members) when the seat auto-renew cron
+// (see auto-renew-cron.js's runOrgSeatAutoRenew) fails to charge the org's
+// saved payment method. Kept as its own function rather than reusing
+// sendAutoRenewFailedEmail because that template's copy hardcodes
+// "Centrio Pro", which would be misleading for a seats/organization charge.
+async function sendOrgSeatsRenewFailedEmail(owner, orgName, reason) {
+  if (!owner?.email) return { ok: false, reason: 'no_recipient' }
+  return sendEmail({
+    to: owner.email,
+    subject: `Не удалось продлить места в организации «${orgName}»`,
+    html: `
+      <p>Здравствуйте${owner.name ? ', ' + escapeHtml(owner.name) : ''}!</p>
+      <p>Попытка автоматического продления мест в организации <strong>${escapeHtml(orgName)}</strong> не удалась.</p>
+      <p>Чтобы участники не потеряли доступ к TEAM-функциям, продлите места вручную в личном кабинете
+      организации или обновите способ оплаты.</p>
+      <p style="color:#888;font-size:12px">Техническая причина: ${escapeHtml(reason || 'неизвестно')}</p>
+    `
+  })
+}
+
 async function sendRefundConfirmationEmail(user, payment) {
   if (!user?.email) return { ok: false, reason: 'no_recipient' }
   return sendEmail({
@@ -209,4 +230,25 @@ async function sendTicketReplyEmail(user, ticket, replyBody) {
   })
 }
 
-module.exports = { sendEmail, sendPaymentReceiptEmail, sendWelcomeEmail, sendVerificationEmail, sendAutoRenewFailedEmail, sendRefundConfirmationEmail, sendContactFormEmail, sendTicketReplyEmail }
+// Sent when an OWNER/ADMIN invites someone to an organization (see
+// POST /api/org/:orgId/invites in org-routes.js — Корпоративная версия
+// TEAM, Phase 1). `token` is the raw, single-use invite token; only its
+// SHA-256 hash (OrgInvite.tokenHash) is ever persisted, mirroring
+// sendVerificationEmail's token handling above.
+async function sendOrgInviteEmail({ email, orgName, inviterEmail, token }) {
+  if (!email) return { ok: false, reason: 'no_recipient' }
+  const link = `${process.env.FRONTEND_URL || 'https://centrio.me'}/team/invite?token=${encodeURIComponent(token)}`
+  return sendEmail({
+    to: email,
+    subject: `Приглашение в организацию «${orgName}» в Centrio`,
+    html: `
+      <p>Здравствуйте!</p>
+      <p>${escapeHtml(inviterEmail || 'Коллега')} приглашает вас присоединиться к организации
+      <strong>${escapeHtml(orgName)}</strong> в Centrio TEAM.</p>
+      <p><a href="${link}" style="display:inline-block;padding:10px 22px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Принять приглашение</a></p>
+      <p style="color:#888;font-size:12px">Приглашение действительно 7 дней. Если вы не ожидали этого письма — просто проигнорируйте его.</p>
+    `
+  })
+}
+
+module.exports = { sendEmail, sendPaymentReceiptEmail, sendWelcomeEmail, sendVerificationEmail, sendAutoRenewFailedEmail, sendRefundConfirmationEmail, sendContactFormEmail, sendTicketReplyEmail, sendOrgInviteEmail, sendOrgSeatsRenewFailedEmail }

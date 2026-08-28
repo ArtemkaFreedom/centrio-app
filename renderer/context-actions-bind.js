@@ -243,6 +243,12 @@ function bindContextActionsUi({
     })
 
     document.getElementById('ctxDarkMode')?.addEventListener('click', () => {
+        // SECURITY: forced dark mode is the same Pro-gated 'darkmode' native
+        // extension the Extensions panel toggles (extensions-ui.js's
+        // getUserIsPro() check) — this context-menu shortcut had no
+        // equivalent check at all, so any free-plan user could force dark
+        // mode on any messenger regardless of plan, no exploit needed.
+        if (requirePro && !requirePro('extensions')) { hideAllMenus(); return }
         const m = getMessengerById(state.contextTargetId)
         hideAllMenus()
         if (!m) return

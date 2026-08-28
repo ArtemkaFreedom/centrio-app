@@ -20,6 +20,10 @@ const axios = require('axios')
 const crypto = require('crypto')
 const { sendWelcomeEmail, sendVerificationEmail } = require('../lib/email')
 const { rateLimit } = require('../middleware/rateLimit')
+// Корпоративная версия (TEAM) — Phase 1. orgSummary is null for users who
+// aren't in an organization, so this is a strict additive change: existing
+// clients that don't know about the field simply ignore it.
+const { getOrgSummaryForUser } = require('../lib/org')
 
 // ── Email verification ──────────────────────────────────────────────────
 // Only password-registered users start unverified — every OAuth provider
@@ -183,9 +187,10 @@ router.post('/login', async (req, res) => {
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
     recordLoginEvent(user.id, 'password', req)
+    const orgSummary = await getOrgSummaryForUser(user.id).catch(e => { console.error('[org] summary lookup failed:', e.message); return null })
     res.json({
       message: 'Вход выполнен успешно',
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, planExpiresAt: user.planExpiresAt, planStartedAt: user.planStartedAt, emailVerified: user.emailVerified },
+      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, planExpiresAt: user.planExpiresAt, planStartedAt: user.planStartedAt, emailVerified: user.emailVerified, orgSummary },
       accessToken,
       refreshToken
     })
@@ -243,7 +248,8 @@ router.get('/me', authMiddleware, async (req, res) => {
     // "подтвердить email" им не нужна в принципе, даже если emailVerified почему-то
     // не проставился (например, старая запись до появления этого поля).
     const hasOAuth = !!(googleId || yandexId || githubId || telegramId || vkId || mailId)
-    res.json({ user: { ...rest, hasOAuth } })
+    const orgSummary = await getOrgSummaryForUser(user.id).catch(e => { console.error('[org] summary lookup failed:', e.message); return null })
+    res.json({ user: { ...rest, hasOAuth, orgSummary } })
   } catch (err) {
     res.status(500).json({ error: 'Ошибка получения профиля' })
   }
@@ -357,7 +363,8 @@ router.post('/google/electron-code', async (req, res) => {
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
     recordLoginEvent(user.id, 'google', req)
-    res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan }, accessToken, refreshToken })
+    const orgSummary = await getOrgSummaryForUser(user.id).catch(e => { console.error('[org] summary lookup failed:', e.message); return null })
+    res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, orgSummary }, accessToken, refreshToken })
   } catch (err) {
     console.error('Google electron-code error:', err)
     res.status(401).json({ error: 'Ошибка Google авторизации' })
@@ -429,7 +436,8 @@ router.post('/yandex/electron', async (req, res) => {
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
     recordLoginEvent(user.id, 'yandex', req)
-    res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan }, accessToken, refreshToken })
+    const orgSummary = await getOrgSummaryForUser(user.id).catch(e => { console.error('[org] summary lookup failed:', e.message); return null })
+    res.json({ user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, orgSummary }, accessToken, refreshToken })
   } catch (err) {
     console.error('Yandex electron error:', err)
     res.status(401).json({ error: 'Ошибка Яндекс авторизации' })
@@ -498,9 +506,10 @@ router.post('/github/electron-code', async (req, res) => {
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
     recordLoginEvent(user.id, 'github', req)
+    const orgSummary = await getOrgSummaryForUser(user.id).catch(e => { console.error('[org] summary lookup failed:', e.message); return null })
 
     res.json({
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan },
+      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, orgSummary },
       accessToken,
       refreshToken
     })
@@ -563,9 +572,10 @@ router.post('/telegram/electron', async (req, res) => {
     const accessToken  = generateAccessToken(user.id)
     const refreshToken = await generateRefreshToken(user.id, req.headers['user-agent'], req.ip)
     recordLoginEvent(user.id, 'telegram', req)
+    const orgSummary = await getOrgSummaryForUser(user.id).catch(e => { console.error('[org] summary lookup failed:', e.message); return null })
 
     res.json({
-      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan },
+      user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar, plan: user.plan, orgSummary },
       accessToken,
       refreshToken
     })

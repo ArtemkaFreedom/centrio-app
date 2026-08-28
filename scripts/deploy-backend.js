@@ -62,6 +62,15 @@ const UPLOADS = [
     // the POSTS array in landing/blog-index.tsx — see comment at the top of
     // blog-articles.js for why it's duplicated instead of imported.
     { local: path.join(__dirname, '..', 'landing', 'lib', 'blog-articles.js'),  remote: `${REMOTE_BASE}/src/lib/blog-articles.js` },
+    // Корпоративная версия (TEAM) — Phase 1. Both new files — routes/org.js
+    // and lib/org.js don't exist live yet (confirmed via `ls src/routes`
+    // and `ls src/lib` on 2026-08-27). Requires the Organization/OrgMember/
+    // OrgInvite/OrgAuditLog Prisma models to be pushed to the DB first (see
+    // prisma/schema.prisma deploy step) — this script does NOT do that,
+    // it must happen before running this script or centrio-api will crash
+    // on first request touching these routes.
+    { local: path.join(__dirname, '..', 'landing', 'lib', 'org.js'),      remote: `${REMOTE_BASE}/src/lib/org.js` },
+    { local: path.join(__dirname, '..', 'landing', 'org-routes.js'),      remote: `${REMOTE_BASE}/src/routes/org.js` },
 ]
 
 function exec(conn, cmd) {

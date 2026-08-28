@@ -314,6 +314,7 @@ function createWebviewTabsApi({
     getActiveWebview,
     applyTabZoom,
     applyAppZoom,
+    onMediaState,
     switchTab,
     removeMessenger,
     watchWebview,
@@ -414,6 +415,21 @@ function createWebviewTabsApi({
         if (url) ipcRenderer.send('open-url', url)
     }
     ipcRenderer.on('deep-link-route', routeDeepLinkFromMain)
+
+    // BUGFIX (2026-08-28, "когда играет Яндекс музыка - он не определяет,
+    // что музыка играет"): основной, реально рабочий канал для мини-плеера —
+    // main-процесс сам опрашивает гостевую страницу через executeJavaScript
+    // (main/bootstrap/registerAppEvents.js, startMediaStatePolling) и шлёт
+    // готовый {playing, title} сюда напрямую, в обход preload-атрибута
+    // <webview>, который на этой версии Electron не исполняется в гостевой
+    // странице вообще ни для одного мессенджера — см. 'media-state' ветку в
+    // 'ipc-message' ниже, которая была единственным источником раньше и
+    // поэтому никогда не срабатывала (не только для Яндекс Музыки — для
+    // всех). Та ветка оставлена как безобидный фолбэк на случай, если
+    // preload когда-нибудь снова заработает сам по себе.
+    ipcRenderer.on('media-state', (messengerId, payload) => {
+        if (typeof onMediaState === 'function') onMediaState(messengerId, payload)
+    })
 
     // OAuth-брокер (main/ipc/window.js open-popup-window → isOAuthBroker)
     // редиректнул на origin мессенджера и закрылся сам — cookies/сессия
@@ -1213,6 +1229,19 @@ function createWebviewTabsApi({
         // единственный путь, по которому мы автоматически переключаем
         // вкладку и грузим URL в чужом, уже залогиненном webview.
         webview.addEventListener('ipc-message', (e) => {
+            // Мини-плеер, старый (мёртвый) путь: bindMediaPlaybackDetection()
+            // в webview-preload.js шлёт сюда через sendToHost, но
+            // preload-атрибут <webview> на этой версии Electron не
+            // исполняется в гостевой странице вообще ни для одного
+            // мессенджера (см. BUGFIX 2026-08-28 у ipcRenderer.on('media-state', ...)
+            // чуть выше — тот, main-процессный канал, реально работает).
+            // Ветка оставлена как безобидный фолбэк на случай, если preload
+            // когда-нибудь снова заработает сам по себе.
+            if (e.channel === 'media-state') {
+                if (typeof onMediaState === 'function') onMediaState(messenger.id, e.args[0])
+                return
+            }
+
             if (e.channel !== 'deep-link') return
             const special = e.args[0]
             if (special && routeDeepLink(special, messenger.id)) return
@@ -1248,9 +1277,41 @@ function createWebviewTabsApi({
         // by the (currently unused) legacy addWebview in
         // renderer/messengers.js, so a persistently-failing main frame
         // retries with increasing delay instead of hammering in a tight loop.
+        //
+        // BUGFIX (2026-08-28, "Телеграм продолжает перезагружаться время от
+        // времени... Иногда я уже текст набрал, а он берет и перезагружается"
+        // — live user request, marked "это важно"): the two fixes above
+        // still left a real hole. _reloadAttempts resets to 0 on EVERY
+        // successful load, so the exponential backoff never actually
+        // escalates against sporadic, isolated main-frame failures — a
+        // single one-off failure (a flaky request, a brief network blip)
+        // that happens minutes or hours into a normal session, long after
+        // the tab loaded fine and the user is mid-conversation, is always
+        // treated as "attempt #1" and reloaded almost immediately (1s
+        // delay). A full loadURL() reload throws away whatever the user had
+        // typed into the compose box — exactly the reported symptom, and on
+        // Telegram specifically (a long-lived, heavy SPA session that's
+        // realistically more exposed to this than a freshly opened tab).
+        // The auto-reload-with-backoff behavior only makes sense while the
+        // tab is still trying to complete its INITIAL load (messenger just
+        // added, app just started, tab was just reloaded on purpose) — once
+        // it has already finished loading successfully once, a later
+        // main-frame failure is far more likely to be a transient hiccup
+        // than a broken tab, and silently reloading it is worse than doing
+        // nothing (Electron/Chromium's own network-error retry usually
+        // recovers sub-requests on its own; if the page is truly stuck the
+        // user still has the manual reload button/Ctrl+R). Gate the whole
+        // mechanism on webview._hasLoadedOnce instead of resetting on every
+        // success.
         webview.addEventListener('did-fail-load', (e) => {
             if (e.errorCode === -3) return // ERR_ABORTED — normal cancelled navigation
             if (e.isMainFrame === false) return // sub-frame/sub-resource failure — not the tab itself
+            if (webview._hasLoadedOnce) {
+                // Tab already loaded successfully at least once — don't
+                // silently blow away whatever the user is doing in it.
+                console.warn(`[webview] main-frame load failure after initial load for "${messenger.name}" (errorCode=${e.errorCode}) — not auto-reloading, use manual reload if the tab is actually stuck`)
+                return
+            }
 
             const attempts = (webview._reloadAttempts || 0) + 1
             webview._reloadAttempts = attempts
@@ -1263,6 +1324,7 @@ function createWebviewTabsApi({
 
         webview.addEventListener('did-finish-load', () => {
             webview._reloadAttempts = 0
+            webview._hasLoadedOnce = true
         })
 
         watchWebview(webview, messenger)

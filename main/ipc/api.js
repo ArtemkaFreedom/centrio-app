@@ -167,8 +167,22 @@ function registerApiIpc() {
         return wrapApi(() => api.readAllNotifications(token))
     })
 
+    // SECURITY (trial-farming fix): compute hardwareId here in main — exactly
+    // like api-device-trial-redeem below — and send it along with every promo
+    // redemption. The renderer never supplies this value itself (nothing to
+    // spoof); the server uses it to refuse a second free trial-style grant
+    // on the same machine regardless of which of the two paths (anonymous
+    // device trial vs. promo code on a freshly created account) was used
+    // first. See landing/payments-server.js's /promo/redeem for the other
+    // half of this fix.
     ipcMain.handle('api-redeem-promo', async (event, token, code) => {
-        return wrapApi(() => api.redeemPromo(token, code))
+        try {
+            const { machineIdSync } = require('node-machine-id')
+            const hardwareId = machineIdSync()
+            return await wrapApi(() => api.redeemPromo(token, code, hardwareId))
+        } catch (error) {
+            return normalizeError(error)
+        }
     })
 
     // Onboarding trial for users without an account — machineIdSync() with

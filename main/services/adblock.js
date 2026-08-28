@@ -2,6 +2,7 @@
 
 const { session } = require('electron')
 const store = require('./store')
+const entitlement = require('./entitlement')
 
 let log
 try { log = require('electron-log') } catch { log = console }
@@ -33,7 +34,15 @@ const AD_PATTERNS = [
 ]
 
 function isEnabled() {
-    // AdBlock status is controlled via extensionsState.adblock
+    // AdBlock status is controlled via extensionsState.adblock, but that flag
+    // alone is not trustworthy: it's the same object the renderer needs
+    // write-access to for legitimate reasons (toggling any of the other
+    // extensions), and main.js's store:set backstop only strips it going
+    // forward — a store file hand-edited while the app is closed, or a stale
+    // `true` left over from before a Pro downgrade the backstop hasn't seen
+    // yet, would otherwise still flip real ad-blocking on for a free user.
+    // Re-check entitlement here too, at the actual point of enforcement.
+    if (!entitlement.isEffectivePro()) return false
     const state = store.get('extensionsState', {})
     return state.adblock === true
 }

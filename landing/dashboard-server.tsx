@@ -194,6 +194,17 @@ const IcoSend = () => (
     <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 )
+// Корпоративная версия (TEAM) — Phase 1: sidebar entry point to the
+// self-service org console (landing/team-server.tsx). A real navigation link,
+// not a NAV tab entry, since /team is its own page/route.
+const IcoTeam = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+    <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.8"/>
+    <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M16 5.2c1.5.3 2.6 1.6 2.6 3.1 0 1.5-1.1 2.8-2.6 3.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+    <path d="M17.5 14.3c2.1.6 3.5 2.4 3.5 4.7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+)
 
 // ── Main Component ────────────────────────────────────────────────
 // useSearchParams() (used below to read the ?emailVerified=1|0 redirect
@@ -1071,6 +1082,10 @@ function DashboardPageInner() {
               {label}
             </button>
           ))}
+          <a href="/team" className="nav-item" style={{ textDecoration:'none' }}>
+            <IcoTeam />
+            {user.orgSummary ? 'Команда' : 'Создать команду'}
+          </a>
         </nav>
 
         {/* User card */}

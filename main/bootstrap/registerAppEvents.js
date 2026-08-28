@@ -556,6 +556,53 @@ function findMessengerIdForSession(targetSession) {
     return null
 }
 
+// Full messenger record (id + url), used by the media-diag hostname gate
+// below — findMessengerIdForSession() only returns the id, not enough to
+// check which service a webview belongs to.
+function findMessengerRecordForSession(targetSession) {
+    try {
+        const messengers = store.get('messengers', []) || []
+        for (const m of messengers) {
+            if (m && m.id && session.fromPartition(`persist:${m.id}`) === targetSession) return m
+        }
+    } catch {}
+    return null
+}
+
+// BUGFIX (2026-08-26, "другие мессенджеры периодически сами перезагружаются"
+// — regression from the Yandex-only audio fix above): MEDIA_DIAG_PATCH_SCRIPT
+// was being injected into EVERY messenger's webview, and startMediaDiagPolling()
+// can call contents.reload() on ANY of them the moment a play() rejection
+// looks like the Yandex NETWORK_NO_SOURCE signature (isNotSupported &&
+// networkState === 3) — a shape that isn't unique to Yandex (e.g. a
+// notification/preview sound blocked by an adblock rule in WhatsApp/
+// Telegram/VK/MAX can throw the same NotSupportedError). The whole
+// diagnostic+auto-reload mechanism was only ever meant for Yandex Messenger's
+// voice-message bug — scope it to that messenger's own hostnames so no other
+// messenger's webview gets patched or can be silently reloaded by it.
+// CODE REVIEW FIX (2026-08-26): the first version of this check matched any
+// `*.yandex.<tld>` hostname, which also caught the catalog's two OTHER Yandex
+// products (renderer/constants.js) — Yandex Mail (mail.yandex.ru) and Alice
+// (alice.yandex.ru) — silently re-opening the exact bug this gate exists to
+// close, since Alice in particular is audio-heavy and could retrigger the
+// "tab reloads itself" symptom for a messenger the fix wasn't even about.
+// Я.Мессенджер's actual catalog entry is exactly https://yandex.ru/chat —
+// requiring the BARE host `yandex.ru` (no subdomain wildcard) plus a `/chat`
+// path excludes both of those unrelated products.
+function isYandexMessengerUrl(urlStr) {
+    if (!urlStr || typeof urlStr !== 'string') return false
+    try {
+        const u = new URL(urlStr)
+        const host = u.hostname.toLowerCase()
+        if (host === 'yandex.ru') return u.pathname.startsWith('/chat')
+        // Not currently used by the catalog, kept for a future redirect/URL
+        // change without reintroducing a broad *.yandex.<tld> match.
+        return host === 'ya.ru' || host === 'messenger.yandex.ru' || host === 'messenger.yandex.net' || host === 'messenger.yandex.com'
+    } catch {
+        return false
+    }
+}
+
 function startUnreadPolling(contents, getMainWindow) {
     const messengerId = findMessengerIdForSession(contents.session)
     if (!messengerId) return
@@ -578,6 +625,131 @@ function startUnreadPolling(contents, getMainWindow) {
     poll()
     const timer = setInterval(poll, UNREAD_POLL_MS)
     contents.once('destroyed', () => clearInterval(timer))
+}
+
+// ── Детект "играет ли сейчас медиа" (мини-плеер в правом сайдбаре) ─────────
+// BUGFIX (2026-08-28, "когда играет Яндекс музыка - он не определяет, что
+// музыка играет"): изначально детект жил в webview-preload.js
+// (bindMediaPlaybackDetection, capture-фаза play/pause/ended на document,
+// sendToHost('media-state', ...)) — тот же самый мёртвый канал, что и у
+// непрочитанных/site-уведомлений выше (см. комментарий над UNREAD_DETECT_SCRIPT):
+// preload-атрибут <webview> на этой версии Electron (39.x) не исполняется в
+// гостевой странице вообще, ни для одного мессенджера. То есть индикатор не
+// появлялся не только для Яндекс Музыки — он был нерабочим в принципе для
+// ВСЕХ мессенджеров, репорт про Яндекс Музыку просто оказался первым живым
+// тестом. Чинится тем же подтверждённо рабочим каналом: contents.executeJavaScript()
+// на интервале, без event-листенеров и патчинга — состояние play/pause у
+// HTMLMediaElement всегда синхронно читаемо через el.paused/el.ended, так что
+// патч+очередь (как у site-notification) не нужны, достаточно "детект"-скрипта
+// в духе UNREAD_DETECT_SCRIPT, вычисляющего текущее состояние заново на каждый
+// опрос.
+// BUGFIX (2026-08-28 v2, live retest: "Инстаграм запускает медиа, а вот
+// Яндекс Музыка нет. И нет кнопок управления"): the plain <audio>/<video>
+// element scan below is exactly right for Instagram (a normal HTML5
+// <video>), but Yandex Music — like Yandex Messenger's voice messages, see
+// the long history in MEDIA_DIAG_PATCH_SCRIPT above — is the classic case
+// for the Web Audio API (AudioContext + decodeAudioData +
+// AudioBufferSourceNode) instead of a plain <audio> tag, specifically so it
+// can crossfade/gapless-transition between tracks. No HTMLMediaElement is
+// ever "playing" in that architecture, so the element scan alone can never
+// see it. Apps built this way still need OS media-key integration (Windows
+// SMTC play/pause/next/prev), which is only possible through the
+// MediaSession API — they set `navigator.mediaSession.playbackState`
+// explicitly and register `setActionHandler('play'|'pause'|'previoustrack'|
+// 'nexttrack', fn)`. That's an equally authoritative, playback-mechanism-
+// agnostic signal, and it also happens to be exactly what next/prev buttons
+// need: capturing the registered handlers (via MEDIA_CONTROL_PATCH_SCRIPT
+// below) is the only way to invoke "next track" from outside the page at
+// all, since the MediaSession API has no public "trigger" method — the
+// browser only lets you register a handler, never call someone else's.
+const MEDIA_CONTROL_PATCH_SCRIPT = `(function() {
+    if (window.__centrioMediaControlPatched) return 'already-patched'
+    window.__centrioMediaControlPatched = true
+    window.__centrioMediaActions = window.__centrioMediaActions || {}
+    try {
+        if (navigator.mediaSession && navigator.mediaSession.setActionHandler) {
+            var origSetActionHandler = navigator.mediaSession.setActionHandler.bind(navigator.mediaSession)
+            navigator.mediaSession.setActionHandler = function (action, handler) {
+                window.__centrioMediaActions[action] = handler
+                return origSetActionHandler(action, handler)
+            }
+        }
+    } catch (e) {}
+    return 'patched'
+})()`
+
+const MEDIA_STATE_DETECT_SCRIPT = `(function() {
+    var playing = false
+    var els = document.querySelectorAll('video, audio')
+    for (var i = 0; i < els.length; i++) {
+        if (!els[i].paused && !els[i].ended) { playing = true; break }
+    }
+    if (!playing) {
+        try {
+            if (navigator.mediaSession && navigator.mediaSession.playbackState === 'playing') playing = true
+        } catch (e) {}
+    }
+    var title = ''
+    var hasNext = false
+    var hasPrev = false
+    if (playing) {
+        try {
+            var meta = navigator.mediaSession && navigator.mediaSession.metadata
+            if (meta && meta.title) title = String(meta.title)
+        } catch (e) {}
+        if (!title) title = document.title || ''
+        try {
+            var actions = window.__centrioMediaActions || {}
+            hasNext = typeof actions.nexttrack === 'function'
+            hasPrev = typeof actions.previoustrack === 'function'
+        } catch (e) {}
+    }
+    return { playing: playing, title: title, hasNext: hasNext, hasPrev: hasPrev }
+})()`
+
+const MEDIA_STATE_POLL_MS = 2000
+
+function startMediaStatePolling(contents, getMainWindow) {
+    const messengerId = findMessengerIdForSession(contents.session)
+    if (!messengerId) return
+
+    let inFlight = false
+    let lastPlaying = false
+    let lastTitle = ''
+    let lastHasNext = false
+    let lastHasPrev = false
+
+    const poll = () => {
+        if (contents.isDestroyed() || inFlight) return
+        inFlight = true
+        contents.executeJavaScript(MEDIA_STATE_DETECT_SCRIPT).then((result) => {
+            if (!result || typeof result !== 'object') return
+            const playing = !!result.playing
+            const title = typeof result.title === 'string' ? result.title : ''
+            const hasNext = !!result.hasNext
+            const hasPrev = !!result.hasPrev
+            if (playing === lastPlaying && title === lastTitle && hasNext === lastHasNext && hasPrev === lastHasPrev) return
+            lastPlaying = playing
+            lastTitle = title
+            lastHasNext = hasNext
+            lastHasPrev = hasPrev
+            const win = getMainWindow()
+            if (!win || win.isDestroyed()) return
+            win.webContents.send('media-state', messengerId, { playing, title, hasNext, hasPrev })
+        }).catch(() => {}).finally(() => { inFlight = false })
+    }
+
+    poll()
+    const timer = setInterval(poll, MEDIA_STATE_POLL_MS)
+    // Вкладку закрыли/перезагрузили с играющим медиа — явно шлём "не играет",
+    // иначе мини-плеер молча "зависнет" на последнем известном состоянии
+    // (иконка в сайдбаре останется видимой для уже не существующей вкладки).
+    contents.once('destroyed', () => {
+        clearInterval(timer)
+        if (!lastPlaying) return
+        const win = getMainWindow()
+        if (win && !win.isDestroyed()) win.webContents.send('media-state', messengerId, { playing: false, title: '', hasNext: false, hasPrev: false })
+    })
 }
 
 // BUGFIX ("настройка звука уведомлений (и в целом любая настройка) не
@@ -716,6 +888,22 @@ function registerAppEvents({
         // отдельно к сессии каждого webview — сессия главного окна не видит
         // загрузки, инициированные внутри мессенджеров (файлы из чатов и т.д.)
         if (contents.getType() === 'webview') {
+            // BUGFIX ("фоновые вкладки не обновляются без клика" — messages/
+            // badges only refresh once the user actually clicks back into a
+            // tab): win.webContents.setBackgroundThrottling(false) was only
+            // ever applied to the main window's own webContents
+            // (main/window.js) — every messenger <webview> guest, which stays
+            // mounted (display:none) rather than destroyed when its tab isn't
+            // active (renderer/messengers.js), never got the same treatment.
+            // Chromium throttles a backgrounded guest's timers/JS/sockets by
+            // default, so its DOM (and whatever it renders for unread counts,
+            // incoming messages, etc.) goes stale even though our own 3-5s
+            // main-process polling (startUnreadPolling/startNotifPolling
+            // above) keeps firing on schedule — the poll just reads a frozen
+            // page. Disabling it here, once per webview contents, keeps every
+            // background tab's own JS actually running like the foreground one.
+            try { contents.setBackgroundThrottling(false) } catch {}
+
             // BUGFIX (2026-08-26, Gmail-in-webview-tab Google rejection): the
             // webview's own base `useragent` attribute
             // (renderer/webview-tabs-bind.js) explicitly claims Chrome for
@@ -797,13 +985,36 @@ function registerAppEvents({
             // executeJavaScript — подтверждённо рабочая альтернатива. dom-ready
             // может сработать повторно при перезагрузке страницы — не
             // запускаем второй параллельный интервал поверх уже идущего.
+            // Computed once per webview contents (a messenger's persisted
+            // partition/url doesn't change over its lifetime) — see BUGFIX
+            // above isYandexMessengerUrl() for why this gates the media-diag
+            // patch+polling below to Yandex Messenger only.
+            const messengerRecordForMediaDiag = findMessengerRecordForSession(contents.session)
+            const isYandexMessengerWebview = !!(messengerRecordForMediaDiag && isYandexMessengerUrl(messengerRecordForMediaDiag.url))
+
             let unreadPollingStarted = false
             let notifPollingStarted = false
             let mediaDiagPollingStarted = false
+            let mediaStatePollingStarted = false
             contents.on('dom-ready', () => {
                 if (!unreadPollingStarted) {
                     unreadPollingStarted = true
                     startUnreadPolling(contents, getMainWindow)
+                }
+
+                // Мини-плеер в правом сайдбаре ("играет ли сейчас медиа" +
+                // кнопки вперёд/назад). Патч перехвата mediaSession
+                // setActionHandler нужно ставить заново на КАЖДЫЙ dom-ready
+                // (та же причина, что и у NOTIF_PATCH_SCRIPT выше — навигация
+                // внутри <webview> создаёт новый document/window) — сам
+                // скрипт идемпотентен внутри одной страницы
+                // (window.__centrioMediaControlPatched). Опрос состояния
+                // запускаем один раз на contents.
+                contents.executeJavaScript(MEDIA_CONTROL_PATCH_SCRIPT).catch(() => {})
+
+                if (!mediaStatePollingStarted) {
+                    mediaStatePollingStarted = true
+                    startMediaStatePolling(contents, getMainWindow)
                 }
 
                 // Патч window.Notification/SW showNotification нужно ставить
@@ -819,15 +1030,20 @@ function registerAppEvents({
                 }
 
                 // Диагностика бага "аудиосообщения иногда не воспроизводятся"
-                // (WhatsApp Web / Яндекс Мессенджер) — см. комментарий над
+                // (изначально Яндекс Мессенджер) — см. комментарий над
                 // MEDIA_DIAG_PATCH_SCRIPT. Тот же паттерн, что и NOTIF_PATCH_SCRIPT
                 // выше: патч ставим на каждый dom-ready (новый document/window
                 // при внутренней навигации), опрос очереди — один раз на contents.
-                contents.executeJavaScript(MEDIA_DIAG_PATCH_SCRIPT).catch(() => {})
+                // Scoped to Yandex Messenger only (see isYandexMessengerWebview
+                // above) — this mechanism can call contents.reload() on its own,
+                // which used to be able to fire for any messenger.
+                if (isYandexMessengerWebview) {
+                    contents.executeJavaScript(MEDIA_DIAG_PATCH_SCRIPT).catch(() => {})
 
-                if (!mediaDiagPollingStarted) {
-                    mediaDiagPollingStarted = true
-                    startMediaDiagPolling(contents, getMainWindow)
+                    if (!mediaDiagPollingStarted) {
+                        mediaDiagPollingStarted = true
+                        startMediaDiagPolling(contents, getMainWindow)
+                    }
                 }
             })
 

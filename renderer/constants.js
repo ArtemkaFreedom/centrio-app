@@ -6,16 +6,28 @@
 // остальные потребители массива (onboarding-auth.js, add-modal-bind.js и
 // т.д.) читают только name/url/icon/color и не заметят разницы, порядок
 // элементов не менялся.
+//
+// UPDATE (2026-08-28, "Популярные месседжеры должны отображаться также в
+// своих тематических категориях" — live user request): раньше 'top' было
+// САМОСТОЯТЕЛЬНОЙ категорией — 8 пунктов ниже показывались ТОЛЬКО в разделе
+// "Популярные" и пропадали из своих реальных тематических секций (Telegram/
+// WhatsApp/VK/MAX не было видно среди "Мессенджеров" и т.д.). Теперь у
+// каждого пункта простановлена его РЕАЛЬНАЯ category (messengers/mail/
+// productivity), а новое аддитивное булево поле popular: true отдельно
+// маркирует те же 8 пунктов для секции "Популярные" — она теперь
+// рендерится в add-modal-ui.js как отдельная выборка по этому флагу, а не
+// как основная группировка. Одна и та же запись показывается дважды
+// (в "Популярные" и в своей теме) — так и задумано.
 const popularMessengers = [
-    // ── Топ-8 ─────────────────────────────────────────────────────────
-    { name: 'Telegram',         url: 'https://web.telegram.org/k/',         icon: 'assets/logomessenger/telegram.png',      color: '#2AABEE', category: 'top' },
-    { name: 'WhatsApp',         url: 'https://web.whatsapp.com',            icon: 'assets/logomessenger/whatsapp.png',      color: '#25D366', category: 'top' },
-    { name: 'VK',               url: 'https://vk.com/im',                   icon: 'assets/logomessenger/vk.png',            color: '#0077FF', category: 'top' },
-    { name: 'MAX',              url: 'https://web.max.ru/',                 icon: 'assets/logomessenger/max.png',           color: '#FF5C00', category: 'top' },
-    { name: 'Mail.ru',          url: 'https://mail.ru',                     icon: 'assets/logomessenger/mailru.png',        color: '#005FF9', category: 'top' },
-    { name: 'Yandex Mail',      url: 'https://mail.yandex.ru',              icon: 'assets/logomessenger/yandex.png',        color: '#FC3F1D', category: 'top' },
-    { name: 'Rambler',          url: 'https://mail.rambler.ru',             icon: 'assets/logomessenger/rambler.png',       color: '#ED1C24', category: 'top' },
-    { name: 'Bitrix24',         url: 'https://www.bitrix24.ru',             icon: 'assets/logomessenger/bitrix.png',        color: '#EA4335', category: 'top' },
+    // ── Топ-8 (также помечены popular: true — см. коммент выше) ────────
+    { name: 'Telegram',         url: 'https://web.telegram.org/k/',         icon: 'assets/logomessenger/telegram.png',      color: '#2AABEE', category: 'messengers', popular: true },
+    { name: 'WhatsApp',         url: 'https://web.whatsapp.com',            icon: 'assets/logomessenger/whatsapp.png',      color: '#25D366', category: 'messengers', popular: true },
+    { name: 'VK',               url: 'https://vk.com/im',                   icon: 'assets/logomessenger/vk.png',            color: '#0077FF', category: 'messengers', popular: true },
+    { name: 'MAX',              url: 'https://web.max.ru/',                 icon: 'assets/logomessenger/max.png',           color: '#FF5C00', category: 'messengers', popular: true },
+    { name: 'Mail.ru',          url: 'https://mail.ru',                     icon: 'assets/logomessenger/mailru.png',        color: '#005FF9', category: 'mail', popular: true },
+    { name: 'Yandex Mail',      url: 'https://mail.yandex.ru',              icon: 'assets/logomessenger/yandex.png',        color: '#FC3F1D', category: 'mail', popular: true },
+    { name: 'Rambler',          url: 'https://mail.rambler.ru',             icon: 'assets/logomessenger/rambler.png',       color: '#ED1C24', category: 'mail', popular: true },
+    { name: 'Bitrix24',         url: 'https://www.bitrix24.ru',             icon: 'assets/logomessenger/bitrix.png',        color: '#EA4335', category: 'productivity', popular: true },
     // ── Мессенджеры ───────────────────────────────────────────────────
     { name: 'Discord',          url: 'https://discord.com/app',             icon: 'assets/logomessenger/discord.png',       color: '#5865F2', category: 'messengers' },
     { name: 'Slack',            url: 'https://app.slack.com',               icon: 'assets/logomessenger/slack.png',         color: '#4A154B', category: 'messengers' },
@@ -24,7 +36,7 @@ const popularMessengers = [
     { name: 'Microsoft Teams',  url: 'https://teams.microsoft.com',         icon: 'assets/logomessenger/teams.png',         color: '#6264A7', category: 'messengers' },
     { name: 'WeChat',           url: 'https://wx.qq.com',                   icon: 'assets/logomessenger/wechat.png',        color: '#07C160', category: 'messengers' },
     { name: 'Zoom',             url: 'https://zoom.us/wc',                  icon: 'assets/logomessenger/zoom.png',          color: '#2D8CFF', category: 'messengers' },
-    { name: 'Я.Мессенджер',     url: 'https://yandex.ru/chat',              icon: 'assets/logomessenger/yandexchat.svg',    color: '#12B5A8', category: 'messengers' },
+    { name: 'Я.Мессенджер',     url: 'https://yandex.ru/chat',              icon: 'assets/logomessenger/yandexchat.png',    color: '#12B5A8', category: 'messengers' },
     { name: 'Signal',           url: 'https://signal.me',                   icon: 'assets/logomessenger/signal.png',        color: '#3A76F0', category: 'messengers' },
     { name: 'LINE',             url: 'https://web.line.me',                 icon: 'assets/logomessenger/line.png',          color: '#00B900', category: 'messengers' },
     { name: 'Messenger',        url: 'https://messenger.com',               icon: 'assets/logomessenger/messenger.png',     color: '#0099FF', category: 'messengers' },
@@ -33,7 +45,14 @@ const popularMessengers = [
     { name: 'LinkedIn',         url: 'https://www.linkedin.com/messaging',  icon: 'assets/logomessenger/linkedin.png',      color: '#0A66C2', category: 'messengers' },
     { name: 'Google Chat',      url: 'https://chat.google.com',             icon: 'assets/logomessenger/googlechat.png',    color: '#00897B', category: 'messengers' },
     { name: 'Rocket.Chat',      url: 'https://open.rocket.chat',            icon: 'assets/logomessenger/rocketchat.png',    color: '#F5455C', category: 'messengers' },
-    { name: 'Mattermost',       url: 'https://mattermost.com',              icon: 'assets/logomessenger/mattermost.png',    color: '#0058CC', category: 'messengers' },
+    // ── Добавлено из каталога rambox.app/apps/ (2026-08-28, live user request) ──
+    { name: 'Element',          url: 'https://app.element.io',              icon: 'assets/logomessenger/element.png',       color: '#0DBD8B', category: 'messengers' },
+    { name: 'Threema',          url: 'https://web.threema.ch',              icon: 'assets/logomessenger/threema.png',       color: '#05A63F', category: 'messengers' },
+    { name: 'Wire',             url: 'https://app.wire.com',                icon: 'assets/logomessenger/wire.png',          color: '#2391F7', category: 'messengers' },
+    { name: 'Zalo',             url: 'https://chat.zalo.me',                icon: 'assets/logomessenger/zalo.png',          color: '#0068FF', category: 'messengers' },
+    { name: 'GroupMe',          url: 'https://web.groupme.com',             icon: 'assets/logomessenger/groupme.png',       color: '#00AEEF', category: 'messengers' },
+    { name: 'Threads',          url: 'https://www.threads.net',             icon: 'assets/logomessenger/threads.png',       color: '#000000', category: 'messengers' },
+    { name: 'Snapchat',         url: 'https://web.snapchat.com',            icon: 'assets/logomessenger/snapchat.png',      color: '#FFFC00', category: 'messengers' },
     // ── Почта ─────────────────────────────────────────────────────────
     { name: 'Gmail',            url: 'https://mail.google.com',             icon: 'assets/logomessenger/gmail.png',         color: '#EA4335', category: 'mail' },
     { name: 'Outlook',          url: 'https://outlook.live.com',            icon: 'assets/logomessenger/outlook.png',       color: '#0078D4', category: 'mail' },
@@ -51,7 +70,20 @@ const popularMessengers = [
     { name: 'Todoist',          url: 'https://app.todoist.com',             icon: 'assets/logomessenger/todoist.png',       color: '#DB4035', category: 'productivity' },
     { name: 'Twitch',           url: 'https://twitch.tv',                   icon: 'assets/logomessenger/twitch.png',        color: '#9146FF', category: 'productivity' },
     { name: 'Zendesk',          url: 'https://www.zendesk.com',             icon: 'assets/logomessenger/zendesk.png',       color: '#03363D', category: 'productivity' },
+    // ── Добавлено из каталога rambox.app/apps/ (2026-08-28, live user request) ──
+    { name: 'Google Meet',      url: 'https://meet.google.com',             icon: 'assets/logomessenger/googlemeet.png',    color: '#00AC47', category: 'productivity' },
+    { name: 'Webex',            url: 'https://web.webex.com',               icon: 'assets/logomessenger/webex.png',         color: '#049FD9', category: 'productivity' },
+    { name: 'Chatwork',         url: 'https://www.chatwork.com',            icon: 'assets/logomessenger/chatwork.png',      color: '#D2242A', category: 'productivity' },
     // ── Нейросети ─────────────────────────────────────────────────────────
+    // popular: true (2026-08-28, live user request — "в популярные добавь
+    // ... SYNTAX - только тут просто - как обычный сервис", уточнение —
+    // "ссылка всё так-же реферальная естественно)"). Это ОТДЕЛЬНАЯ запись
+    // от syntaxAiPromo (см. ниже) — та рисуется через buildSyntaxAiBanner()
+    // как специальный 2-колоночный промо-баннер первым элементом категории
+    // 'ai', а эта — обычный тайл (та же схема двойного показа, что и у
+    // остального топ-8/Yandex Музыка). URL/иконка/цвет намеренно совпадают
+    // с syntaxAiPromo — та же реферальная ссылка.
+    { name: 'SYNTAX',           url: 'https://syntx.ai/welcome/I0QyuudO',   icon: 'assets/logomessenger/syntaxai.svg',      color: '#2A2A2E', category: 'ai', popular: true },
     { name: 'ChatGPT',          url: 'https://chat.openai.com',             icon: 'assets/logomessenger/chatgpt.png',       color: '#10A37F', category: 'ai' },
     { name: 'Claude',           url: 'https://claude.ai',                   icon: 'assets/logomessenger/claude.png',        color: '#CC785C', category: 'ai' },
     { name: 'Gemini',           url: 'https://gemini.google.com',           icon: 'assets/logomessenger/gemini.png',        color: '#4285F4', category: 'ai' },
@@ -60,7 +92,52 @@ const popularMessengers = [
     { name: 'Mistral',          url: 'https://chat.mistral.ai',             icon: 'assets/logomessenger/mistral.png',       color: '#FF7000', category: 'ai' },
     { name: 'DeepSeek',         url: 'https://chat.deepseek.com',           icon: 'assets/logomessenger/deepseek.png',      color: '#4D6BFE', category: 'ai' },
     { name: 'Алиса',            url: 'https://alice.yandex.ru/',            icon: 'assets/logomessenger/alice.png',         color: '#8C1EFF', category: 'ai' },
+    // ── Медиа (2026-08-28, live user request — новая категория: онлайн-музыка
+    // и онлайн-кинотеатры, чтобы держать их открытыми вкладками так же, как
+    // мессенджеры). Иконки для сервисов без записи в каталоге simple-icons
+    // (Яндекс Музыка/Ivi/Okko/РадиоРекорд/VK Видео) скачаны напрямую с их
+    // собственных favicon/apple-touch-icon — см. assets/logomessenger/*.
+    // ────────────────────────────────────────────────────────────────────
+    { name: 'YouTube',          url: 'https://www.youtube.com',             icon: 'assets/logomessenger/youtube.svg',       color: '#FF0000', category: 'media' },
+    { name: 'Spotify',          url: 'https://open.spotify.com',            icon: 'assets/logomessenger/spotify.svg',       color: '#1ED760', category: 'media' },
+    // popular: true (2026-08-28, live user request — "в популярные добавь
+    // Яндекс Музыка") — та же схема двойного показа, что и у остального
+    // топ-8 в начале массива (см. коммент там): показывается и в
+    // "Популярные", и в своей теме 'media'.
+    { name: 'Yandex Музыка',    url: 'https://music.yandex.ru',             icon: 'assets/logomessenger/yandexmusic.ico',   color: '#FFCC00', category: 'media', popular: true },
+    { name: 'VK Видео',         url: 'https://vkvideo.ru',                  icon: 'assets/logomessenger/vkvideo.png',       color: '#0077FF', category: 'media' },
+    { name: 'Shazam',           url: 'https://www.shazam.com',              icon: 'assets/logomessenger/shazam.svg',        color: '#0088FF', category: 'media' },
+    { name: 'Ivi',              url: 'https://www.ivi.ru',                  icon: 'assets/logomessenger/ivi.png',           color: '#FF6600', category: 'media' },
+    { name: 'Кинопоиск',        url: 'https://www.kinopoisk.ru',            icon: 'assets/logomessenger/kinopoisk.svg',     color: '#FF5500', category: 'media' },
+    { name: 'Okko',             url: 'https://okko.tv',                     icon: 'assets/logomessenger/okko.ico',          color: '#00B8FF', category: 'media' },
+    { name: 'РадиоРекорд',      url: 'https://www.radiorecord.ru',          icon: 'assets/logomessenger/radiorecord.png',   color: '#E30613', category: 'media' },
+    { name: 'SoundCloud',       url: 'https://soundcloud.com',              icon: 'assets/logomessenger/soundcloud.svg',    color: '#FF5500', category: 'media' },
 ]
+
+// SyntaxAI — партнёрская (реферальная) промо-плитка в разделе "Нейросети"
+// (2026-08-28, live user request). Хранится ОТДЕЛЬНО от popularMessengers
+// не потому что клик не должен добавлять вкладку (ДОЛЖЕН — см. UPDATE ниже),
+// а потому что add-modal-ui.js рисует её иначе: отдельной широкой (на 2
+// колонки из 5) плиткой первой в категории 'ai', с собственным промо-текстом
+// поверх иконки — см. buildSyntaxAiBanner() там же, а не общий buildTile().
+// UPDATE (2026-08-28, тот же день, live user correction — "это мессенджер.
+// Он должен создавать вкладку... Чтобы люди сразу регались там"): первая
+// версия открывала url реферальной ссылки во ВНЕШНЕМ браузере и не заводила
+// вкладку — пользователь явно поправил: клик обязан вести себя как обычное
+// добавление мессенджера (addMessenger()), чтобы регистрация по реферальной
+// ссылке проходила прямо внутри Centrio, в своём webview. Иконка —
+// мональхромный SVG-логотип SyntaxAI (взят с самого syntx.ai) на тёмно-сером
+// фоне, запечённом прямо в файле (см. assets/logomessenger/syntaxai.svg) —
+// так тайл в сетке, вкладка в панели и иконка в сайдбаре везде показывают
+// один и тот же тёмно-серый квадрат с белым знаком, а не «голый» силуэт без
+// фона (path в исходнике использует fill="currentColor", который не
+// резолвится предсказуемо при показе через <img>).
+const syntaxAiPromo = {
+    name: 'SyntaxAI',
+    url: 'https://syntx.ai/welcome/I0QyuudO',
+    icon: 'assets/logomessenger/syntaxai.svg',
+    color: '#2A2A2E'
+}
 
 const folderIcons = {
     folder: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
@@ -85,6 +162,7 @@ const PAGE_SIZE = 8
 
 module.exports = {
     popularMessengers,
+    syntaxAiPromo,
     folderIcons,
     PAGE_SIZE
 }

@@ -271,6 +271,30 @@ router.post('/promo/redeem', authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Промокод исчерпан' })
     }
 
+    // SECURITY (trial-farming fix): day-based codes (e.g. PRO14) grant the
+    // same kind of free trial as the anonymous /device-trial-redeem route
+    // below, just keyed by userId instead of hardwareId. Without also
+    // gating these on the device, "skip onboarding" (device trial) and
+    // "create account with a disposable email → redeem PRO14" are two
+    // independent free-14-days grants, and the second one can be farmed
+    // forever from one machine since account creation is unlimited.
+    // Month-based codes (subscription/discount grants, not trial-style)
+    // are intentionally left ungated here — only `days != null` codes
+    // are cross-checked against DeviceTrial.
+    const isTrialStyle = promo.days != null
+    const hardwareId = isTrialStyle
+      ? String(req.body?.hardwareId || '').trim().slice(0, 128)
+      : null
+    if (isTrialStyle && !hardwareId) {
+      return res.status(400).json({ success: false, error: 'Missing hardwareId' })
+    }
+    if (isTrialStyle) {
+      const deviceUsed = await prisma.deviceTrial.findUnique({ where: { hardwareId } })
+      if (deviceUsed) {
+        return res.status(409).json({ success: false, error: 'Пробный период уже использован на этом устройстве' })
+      }
+    }
+
     const already = await prisma.promoRedemption.findUnique({
       where: { promoCodeId_userId: { promoCodeId: promo.id, userId: req.user.id } }
     })
@@ -290,7 +314,10 @@ router.post('/promo/redeem', authMiddleware, async (req, res) => {
     // Same-transaction: redemption row (enforces the unique constraint),
     // uses-counter bump, plan extension, and a $0 Payment row so the
     // redemption shows up in the existing payment-history UI (GET /my)
-    // alongside real charges. If any step fails, nothing partially applies.
+    // alongside real charges. For trial-style codes, also record a
+    // DeviceTrial row in the same transaction so this device can't repeat
+    // the grant via either this route or /device-trial-redeem again.
+    // If any step fails, nothing partially applies.
     await prisma.$transaction([
       prisma.promoRedemption.create({ data: { promoCodeId: promo.id, userId: req.user.id } }),
       prisma.promoCode.update({ where: { id: promo.id }, data: { usesCount: { increment: 1 } } }),
@@ -306,14 +333,16 @@ router.post('/promo/redeem', authMiddleware, async (req, res) => {
           months:   promo.months ?? 0,
           days:     promo.days ?? null
         }
-      })
+      }),
+      ...(isTrialStyle ? [prisma.deviceTrial.create({ data: { hardwareId, expiresAt: exp } })] : [])
     ])
 
     res.json({ success: true, data: { planExpiresAt: exp, months: promo.months ?? null, days: promo.days ?? null } })
   } catch (err) {
     // Unique-constraint race: two concurrent redeem calls with the same
-    // code from the same user can both pass the `already` check above
-    // before either commits — the DB constraint is the real guard.
+    // code (or same hardwareId, for trial-style codes) from the same user
+    // can both pass the checks above before either commits — the DB
+    // constraints (PromoRedemption, DeviceTrial) are the real guard.
     if (err.code === 'P2002') {
       return res.status(409).json({ success: false, error: 'Вы уже использовали этот промокод' })
     }
