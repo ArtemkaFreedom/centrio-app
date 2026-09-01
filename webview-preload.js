@@ -887,20 +887,6 @@ function bindDropFileHandler() {
 // ссылки уходят через sendToHost() к host-документу (renderer/messengers.js
 // слушает 'ipc-message' на самом <webview>), а не напрямую в main процесс —
 // именно renderer решает, переключить вкладку или откатиться на open-url.
-// Дублирует OAUTH_PROVIDER_HOST_RE из shared/oauthProviders.js — этот
-// preload не бандлится esbuild'ом (грузится Electron'ом напрямую как
-// файл, в отличие от renderer/webview-tabs-bind.js), require() локального
-// модуля здесь не гарантированно резолвится (тот же повод, по которому
-// shared/oauthProviders.js уже объясняет дублирование для main/renderer).
-const OAUTH_PROVIDER_HOST_RE = /(^|\.)accounts\.google\.com$|(^|\.)appleid\.apple\.com$|(^|\.)login\.live\.com$|(^|\.)login\.microsoftonline\.com$|(^|\.)oauth\.yandex\.(ru|com)$|(^|\.)passport\.yandex\.(ru|com)$|(^|\.)id\.vk\.com$/i
-function isOAuthProviderHost(href) {
-    try {
-        return OAUTH_PROVIDER_HOST_RE.test(new URL(href, window.location.href).hostname)
-    } catch {
-        return false
-    }
-}
-
 function classifyDeepLink(href) {
     if (!href) return null
     // tg://resolve?domain=username или tg://join?invite=<hash> — единственные
@@ -997,24 +983,30 @@ function bindLinkInterception() {
         if (link.hasAttribute('download')) return
 
         if (link.target === '_blank') {
-            // BUGFIX ("нажимаю Войти — сразу идёт в браузер" — live user
-            // report): OAuth-провайдеры (Google и т.д.) нередко рендерят
-            // саму кнопку входа как обычную <a href="…" target="_blank">
-            // (без window.open() из JS) — она никогда не доходит до
-            // 'new-window' DOM-события на host-стороне
-            // (renderer/webview-tabs-bind.js), потому что этот обработчик
-            // клика вызывает preventDefault() раньше, чем Chromium вообще
-            // успевает решить, что это "открыть в новом окне". Раньше это
-            // безусловно уходило в open-url → внешний системный браузер,
-            // минуя весь OAuth-брокер (createPopupWindow/wireOAuthPopup) —
-            // сессию мессенджера оттуда вернуть нечем. Распознанные
-            // OAuth-хосты пропускаем не трогая (без preventDefault) — тогда
-            // клик идёт естественным путём и всё-таки доходит до
-            // 'new-window' на host-стороне, где уже есть верная обработка.
-            if (isOAuthProviderHost(href)) return
-            e.preventDefault()
-            e.stopPropagation()
-            ipcRenderer.send('open-url', href)
+            // BUGFIX (изначально "нажимаю Войти — сразу идёт в браузер";
+            // расширено 2026-09-01 на "вложения из Яндекс.Почты не
+            // скачиваются, предпросмотр открывается в браузере, а сама
+            // загрузка — нет"): этот обработчик клика вызывает
+            // preventDefault() раньше, чем Chromium вообще успевает решить,
+            // что это "открыть в новом окне" — то есть раньше, чем
+            // сработает 'new-window'/setWindowOpenHandler на host-стороне
+            // (main/bootstrap/registerAppEvents.js), где уже есть верная
+            // обработка и для OAuth-попапов (createPopupWindow/
+            // wireOAuthPopup), и для скрытых загрузок (окно создаётся
+            // скрытым, ждём 'will-download' — не сработал, значит это
+            // реально просто страница — только тогда отдаём во внешний
+            // браузер). Раньше здесь всё <a target="_blank"> без атрибута
+            // download (например кнопка "Скачать" у Яндекс.Почты — сервер
+            // сам решает через Content-Disposition, качать файл или
+            // показать инлайн, HTML-атрибут download ей не нужен)
+            // безусловно уходило в open-url → shell.openExternal, минуя
+            // этот безопасный механизм целиком: у внешнего браузера нет
+            // cookie-сессии мессенджера, предпросмотр по токену в самой
+            // ссылке ещё работает, а реальное сохранение файла — уже нет.
+            // Пропускаем клик естественным путём (без preventDefault) во
+            // всех случаях — тот же путь, что уже проверенно чинит вложения
+            // MAX.
+            return
         }
     }, true)
 
@@ -1207,16 +1199,47 @@ function bindMediaPlaybackDetection() {
         return document.title || ''
     }
 
+    // BUGFIX (2026-09-01, "когда играет ВК-музыка — кнопка медиаплеера не
+    // показывается"): document.querySelectorAll('video, audio') НЕ проходит
+    // внутрь Shadow DOM — если плеер (весь vk.com — веб-компонентный SPA,
+    // как и многие современные плееры) рендерит <audio> внутри
+    // shadowRoot'а какого-нибудь кастомного элемента, а не прямо в light
+    // DOM, элемент для querySelectorAll просто не существует. Рекурсивно
+    // обходим все элементы и заглядываем в el.shadowRoot, где он есть.
+    function findAllMediaElements(root, out) {
+        out = out || []
+        root.querySelectorAll('video, audio').forEach((el) => out.push(el))
+        root.querySelectorAll('*').forEach((el) => {
+            if (el.shadowRoot) findAllMediaElements(el.shadowRoot, out)
+        })
+        return out
+    }
+
     function computeAndSend() {
         clearTimeout(sendTimer)
         sendTimer = setTimeout(() => {
             let playing = false
-            document.querySelectorAll('video, audio').forEach((el) => {
+            findAllMediaElements(document).forEach((el) => {
                 if (!el.paused && !el.ended) {
                     playing = true
                     lastActiveMedia = el
                 }
             })
+            // Фолбэк: некоторые плееры проигрывают звук через Web Audio API
+            // (AudioContext/AudioBufferSourceNode) вообще без единого
+            // HTMLMediaElement в DOM — там play/pause-события выше не
+            // приходят в принципе, querySelectorAll ловить нечего. Если
+            // сама страница честно поддерживает MediaSession (см.
+            // currentTitle() ниже) и явно сообщает playbackState:'playing',
+            // доверяем этому сигналу как есть — это тот же API, на который
+            // полагаются системные медиа-виджеты ОС (Windows SMTC и т.п.).
+            if (!playing) {
+                try {
+                    if (navigator.mediaSession && navigator.mediaSession.playbackState === 'playing') {
+                        playing = true
+                    }
+                } catch {}
+            }
             try {
                 ipcRenderer.sendToHost('media-state', { playing, title: currentTitle() })
             } catch {}
@@ -1224,9 +1247,17 @@ function bindMediaPlaybackDetection() {
     }
 
     document.addEventListener('play', computeAndSend, true)
+    document.addEventListener('playing', computeAndSend, true)
     document.addEventListener('pause', computeAndSend, true)
     document.addEventListener('ended', computeAndSend, true)
     document.addEventListener('emptied', computeAndSend, true)
+
+    // Безопасная сетка поверх событий — если конкретный плеер меняет
+    // состояние способом, который ни одно из событий выше не ловит (кастомный
+    // проигрыватель, дозагрузка нового <audio> в обход стандартных событий и
+    // т.п.), не оставляем кнопку зависшей в неверном состоянии дольше,
+    // чем на несколько секунд. Дёшево — computeAndSend() сам дебaунсит.
+    setInterval(computeAndSend, 4000)
 
     // Команда из хоста (клик по кнопке паузы/плей в мини-плеере) — см.
     // renderer/media-player-ui.js. 'pause' ставит на паузу ВСЁ проигрывающееся

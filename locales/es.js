@@ -44,7 +44,8 @@ module.exports = {
             mail: 'Correo',
             productivity: 'Productividad',
             ai: 'Chats con IA',
-            media: 'Multimedia'
+            media: 'Multimedia',
+            calls: 'Videollamadas'
         },
         syntaxPromo: {
             title: 'Una suscripción.',

@@ -10,6 +10,15 @@ The format is based on Keep a Changelog. This project does not currently follow 
 
 _No unreleased changes yet — add entries here as they land, then move them under a new version heading at release time._
 
+## [2.5.3]
+
+- Исправлено: на macOS не работали Cmd+C/Cmd+V и другие системные сочетания клавиш — восстановлено системное меню Edit
+- Исправлено: вложения из Яндекс.Почты (и похожих веб-клиентов) не скачивались, открывался только предпросмотр во внешнем браузере
+- Исправлено: кнопка мини-плеера не показывалась, когда играла ВК Музыка
+- Новое: раздел «Видеозвонки» — Яндекс Телемост, Zoom, Google Meet, Microsoft Teams, Webex
+- Новое: в «Продуктивность» добавлены AmoCRM, Мегаплан, RetailCRM
+- Обновлена иконка VK Видео
+
 ## [2.5.2]
 
 - Новое: добавлена Алиса PRO (alicepro.yandex.ru) в раздел «Нейросети»

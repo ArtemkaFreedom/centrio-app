@@ -19,7 +19,10 @@
 // новая категория 'media' (YouTube/Spotify/Яндекс Музыка/кинотеатры и т.д.,
 // см. renderer/constants.js) добавлена в конец порядка — после 'ai', перед
 // секциями без явного порядка (см. orderedKeys fallback в fillMessengerGrid).
-const CATEGORY_ORDER = ['top', 'messengers', 'mail', 'productivity', 'ai', 'media']
+// UPDATE (2026-09-01, "добавь категорию Видеозвонки" — live user request):
+// новая категория 'calls' (Яндекс Телемост/Zoom/Google Meet/Teams и т.д.) —
+// после 'media', та же логика, что и у медиа-апдейта выше.
+const CATEGORY_ORDER = ['top', 'messengers', 'mail', 'productivity', 'ai', 'media', 'calls']
 const CATEGORY_LABEL_KEYS = {
     // 'top' переиспользует уже существующий (ранее нигде не подключённый)
     // ключ modal.popular — не заводим дублирующий по смыслу текст.
@@ -28,7 +31,8 @@ const CATEGORY_LABEL_KEYS = {
     mail: 'modal.categories.mail',
     productivity: 'modal.categories.productivity',
     ai: 'modal.categories.ai',
-    media: 'modal.categories.media'
+    media: 'modal.categories.media',
+    calls: 'modal.categories.calls'
 }
 // Максимальная задержка ступенчатой анимации — дальше плитки просто не ждут
 // своей очереди (иначе при 43 элементах последняя плитка появлялась бы почти

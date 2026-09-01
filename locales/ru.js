@@ -45,7 +45,8 @@ module.exports = {
             mail: 'Почта',
             productivity: 'Продуктивность',
             ai: 'Нейросети',
-            media: 'Медиа'
+            media: 'Медиа',
+            calls: 'Видеозвонки'
         },
         syntaxPromo: {
             title: 'Одна подписка.',

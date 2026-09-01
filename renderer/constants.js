@@ -33,9 +33,7 @@ const popularMessengers = [
     { name: 'Slack',            url: 'https://app.slack.com',               icon: 'assets/logomessenger/slack.png',         color: '#4A154B', category: 'messengers' },
     { name: 'Viber',            url: 'https://web.viber.com',               icon: 'assets/logomessenger/viber.png',         color: '#7360F2', category: 'messengers' },
     { name: 'Skype',            url: 'https://web.skype.com',               icon: 'assets/logomessenger/skype.png',         color: '#00AFF0', category: 'messengers' },
-    { name: 'Microsoft Teams',  url: 'https://teams.microsoft.com',         icon: 'assets/logomessenger/teams.png',         color: '#6264A7', category: 'messengers' },
     { name: 'WeChat',           url: 'https://wx.qq.com',                   icon: 'assets/logomessenger/wechat.png',        color: '#07C160', category: 'messengers' },
-    { name: 'Zoom',             url: 'https://zoom.us/wc',                  icon: 'assets/logomessenger/zoom.png',          color: '#2D8CFF', category: 'messengers' },
     { name: 'Я.Мессенджер',     url: 'https://yandex.ru/chat',              icon: 'assets/logomessenger/yandexchat.png',    color: '#12B5A8', category: 'messengers' },
     { name: 'Signal',           url: 'https://signal.me',                   icon: 'assets/logomessenger/signal.png',        color: '#3A76F0', category: 'messengers' },
     { name: 'LINE',             url: 'https://web.line.me',                 icon: 'assets/logomessenger/line.png',          color: '#00B900', category: 'messengers' },
@@ -70,10 +68,20 @@ const popularMessengers = [
     { name: 'Todoist',          url: 'https://app.todoist.com',             icon: 'assets/logomessenger/todoist.png',       color: '#DB4035', category: 'productivity' },
     { name: 'Twitch',           url: 'https://twitch.tv',                   icon: 'assets/logomessenger/twitch.png',        color: '#9146FF', category: 'productivity' },
     { name: 'Zendesk',          url: 'https://www.zendesk.com',             icon: 'assets/logomessenger/zendesk.png',       color: '#03363D', category: 'productivity' },
-    // ── Добавлено из каталога rambox.app/apps/ (2026-08-28, live user request) ──
-    { name: 'Google Meet',      url: 'https://meet.google.com',             icon: 'assets/logomessenger/googlemeet.png',    color: '#00AC47', category: 'productivity' },
-    { name: 'Webex',            url: 'https://web.webex.com',               icon: 'assets/logomessenger/webex.png',         color: '#049FD9', category: 'productivity' },
     { name: 'Chatwork',         url: 'https://www.chatwork.com',            icon: 'assets/logomessenger/chatwork.png',      color: '#D2242A', category: 'productivity' },
+    // ── Добавлено 2026-09-01, live user request ──
+    { name: 'AmoCRM',           url: 'https://www.amocrm.ru',               icon: 'assets/logomessenger/amocrm.png',        color: '#1FA7FF', category: 'productivity' },
+    { name: 'Мегаплан',         url: 'https://megaplan.ru',                 icon: 'assets/logomessenger/megaplan.png',      color: '#00A651', category: 'productivity' },
+    { name: 'RetailCRM',        url: 'https://www.retailcrm.ru',            icon: 'assets/logomessenger/retailcrm.png',     color: '#5B4CDB', category: 'productivity' },
+    // ── Видеозвонки (2026-09-01, live user request: "добавь как отдельную
+    // категорию", Zoom/Teams/Meet/Webex перенесены сюда из messengers/
+    // productivity — раньше были там просто потому, что отдельной категории
+    // не существовало) ──
+    { name: 'Яндекс Телемост',  url: 'https://telemost.yandex.ru',          icon: 'assets/logomessenger/telemost.png',      color: '#43D854', category: 'calls', popular: true },
+    { name: 'Zoom',             url: 'https://zoom.us/wc',                  icon: 'assets/logomessenger/zoom.png',          color: '#2D8CFF', category: 'calls', popular: true },
+    { name: 'Google Meet',      url: 'https://meet.google.com',             icon: 'assets/logomessenger/googlemeet.png',    color: '#00AC47', category: 'calls', popular: true },
+    { name: 'Microsoft Teams',  url: 'https://teams.microsoft.com',         icon: 'assets/logomessenger/teams.png',         color: '#6264A7', category: 'calls' },
+    { name: 'Webex',            url: 'https://web.webex.com',               icon: 'assets/logomessenger/webex.png',         color: '#049FD9', category: 'calls' },
     // ── Нейросети ─────────────────────────────────────────────────────────
     // popular: true (2026-08-28, live user request — "в популярные добавь
     // ... SYNTAX - только тут просто - как обычный сервис", уточнение —
@@ -108,7 +116,7 @@ const popularMessengers = [
     // топ-8 в начале массива (см. коммент там): показывается и в
     // "Популярные", и в своей теме 'media'.
     { name: 'Yandex Музыка',    url: 'https://music.yandex.ru',             icon: 'assets/logomessenger/yandexmusic.ico',   color: '#FFCC00', category: 'media', popular: true },
-    { name: 'VK Видео',         url: 'https://vkvideo.ru',                  icon: 'assets/logomessenger/vkvideo.png',       color: '#0077FF', category: 'media' },
+    { name: 'VK Видео',         url: 'https://vkvideo.ru',                  icon: 'assets/logomessenger/vkvideo.svg',       color: '#0077FF', category: 'media' },
     { name: 'Shazam',           url: 'https://www.shazam.com',              icon: 'assets/logomessenger/shazam.svg',        color: '#0088FF', category: 'media' },
     { name: 'Ivi',              url: 'https://www.ivi.ru',                  icon: 'assets/logomessenger/ivi.png',           color: '#FF6600', category: 'media' },
     { name: 'Кинопоиск',        url: 'https://www.kinopoisk.ru',            icon: 'assets/logomessenger/kinopoisk.svg',     color: '#FF5500', category: 'media' },

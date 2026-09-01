@@ -44,7 +44,8 @@ module.exports = {
             mail: '邮箱',
             productivity: '效率工具',
             ai: 'AI 对话',
-            media: '媒体'
+            media: '媒体',
+            calls: '视频通话'
         },
         syntaxPromo: {
             title: '一个订阅。',

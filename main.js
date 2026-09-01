@@ -3,7 +3,26 @@ require('dotenv').config()
 const fs = require('fs')
 const path = require('path')
 const { app, ipcMain, BrowserWindow, protocol, Menu } = require('electron')
-Menu.setApplicationMenu(null)
+
+// BUGFIX (Mac): голое Menu.setApplicationMenu(null) на macOS ломает
+// буфер обмена целиком — Cmd+C/Cmd+V (и остальные системные акселераторы)
+// на macOS диспетчеризуются через application menu ролей copy/paste/cut/
+// selectAll, а не независимо от него, как на Windows/Linux. Без Edit-меню
+// эти сочетания не срабатывают нигде в приложении, включая обычные текстовые
+// поля внутри мессенджеров-webview — отсюда жалобы "не работают вообще
+// никакие сочетания клавиш". role: 'appMenu'/'editMenu' — встроенные
+// Electron-роли, дают стандартный минимальный Mac-меню-бар (About/Hide/Quit
+// + Undo/Redo/Cut/Copy/Paste/SelectAll) без необходимости расписывать пункты
+// вручную. На Windows/Linux экономия места на меню не нужна — там эти
+// сочетания и так работают через сам webview/OS, оставляем как было (null).
+if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+        { role: 'appMenu' },
+        { role: 'editMenu' }
+    ]))
+} else {
+    Menu.setApplicationMenu(null)
+}
 
 
 // ── GPU / compositing fixes (must run before app.whenReady) ──────────────────
